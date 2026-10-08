@@ -76,7 +76,8 @@ check:
 	  then echo "  found    $$lib"; else echo "  MISSING  $$lib (development files)"; missing=1; fi; \
 	done; \
 	if [ "$(SYSTEM_FLINT_OK)" = "yes" ]; then echo "  found    flint $$(pkg-config --modversion flint)"; \
-	else echo "  note     flint $$(pkg-config --modversion flint 2>/dev/null || echo absent) is older than $(FLINT_MIN): make builds FLINT $(FLINT_LOCAL_VERSION) in dep/IntVolFLINT/flint"; fi; \
+	elif [ -f "$(FLINT_PREFIX)/lib/pkgconfig/flint.pc" ]; then echo "  found    flint $(FLINT_LOCAL_VERSION) (private build in dep/IntVolFLINT/flint; the system FLINT is older than $(FLINT_MIN))"; \
+	else echo "  note     the system FLINT is absent or older than $(FLINT_MIN): make builds FLINT $(FLINT_LOCAL_VERSION) in dep/IntVolFLINT/flint"; fi; \
 	if [ -n "$(GINSH)" ]; then echo "  found    ginsh ($(GINSH))"; else echo "  MISSING  ginsh (GiNaC)"; missing=1; fi; \
 	if [ -n "$(PYTHON3)" ]; then echo "  found    python3 ($(PYTHON3))"; else echo "  MISSING  python3"; missing=1; fi; \
 	if [ -n "$(WOLFRAMSCRIPT)" ]; then echo "  found    wolframscript ($(WOLFRAMSCRIPT))"; \

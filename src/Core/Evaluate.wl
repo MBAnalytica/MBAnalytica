@@ -14,10 +14,14 @@
 (*Settings*)
 
 
-KernelCount[] := Module[{Asked},
+(* $KernelLaunch when the user set it; otherwise 4, at most one per core, and at most what the free memory holds: an
+   engine worker loads PolyLogTools with the weight-10 HPL tables, about 3.5 GB, and the main kernel needs as much *)
+KernelCount[] := Module[{Asked, FreeGB, ByMemory},
   Asked = Global`$KernelLaunch;
   If[IntegerQ[Asked] && Asked >= 0, Return[Asked]];
-  Return[Min[4, $ProcessorCount]]];
+  FreeGB = MemoryAvailable[]/2.^30;
+  ByMemory = Max[1, Floor[(FreeGB - 4)/3.5]];
+  Return[Min[4, $ProcessorCount, ByMemory]]];
 
 
 CacheDirectory[] := Module[{Asked, Folder},
@@ -77,8 +81,9 @@ LoadResum[] := Module[{ResumFile, Folder},
   Folder = FileNameJoin[{PackageRoot, "dep", "MBConicHulls"}];
   If[! MemberQ[$Path, Folder], PrependTo[$Path, Folder]];
   CacheDirectory[];
-  (* MBResum launches the subkernels before MBConicHulls loads (MBConicHulls would start two per core) *)
-  Global`$KernelLaunch = KernelCount[];
+  (* MBResum launches the subkernels before MBConicHulls loads (MBConicHulls would start two per core); it reads
+     Global`$KernelLaunch, which keeps the user's value and otherwise gets the default *)
+  If[! IntegerQ[Global`$KernelLaunch], Global`$KernelLaunch = KernelCount[]];
   ResumFile = FileNameJoin[{PackageRoot, "src", "Resum", "MBResum.wl"}];
   (* MBResum reads the option and failure symbols of MBAnalytica`; its own context stays off the user's path *)
   (* as in a fresh kernel after MB.m, MBresolve.m and barnesroutines.m, with MBAnalytica` first so that MBResum's
