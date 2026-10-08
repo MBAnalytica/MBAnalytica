@@ -28,9 +28,9 @@ Global`$IV$NoLibrary = True;   (* no IntVol knowledge library in this release *)
 Get[meta["pltPath"]];
 If[Environment["IVLIB_OFF"] === "1", Global`$IV$NoLibrary = True];   (* 2026-08-31: pilot library not attached in production *)
 Get[meta["pkgPath"]];
-Get[FileNameJoin[{meta["pkgDir"], "MB.m"}]];
-Get[FileNameJoin[{meta["pkgDir"], "MBresolve.m"}]];
-Get[FileNameJoin[{meta["pkgDir"], "barnesroutines.m"}]];
+Get[FileNameJoin[{Global`$MBStandardMBDir, "MB.m"}]];
+Get[FileNameJoin[{Global`$MBStandardMBDir, "MBresolve.m"}]];
+Get[FileNameJoin[{Global`$MBStandardMBDir, "barnesroutines.m"}]];
 (* 2026-07-24: load the sidecars in workers too (they were master-only, so
    attempt 0.75 / the pinch closer silently skipped inside workers and every
    such piece fell to the serial master mop-up). Guarded: worker still runs
@@ -58,10 +58,10 @@ If[Environment["IVF_HOOK"] =!= "0",
   Quiet@Check[
     Module[{ivfDir = FileNameJoin[{meta["pkgDir"], "intvolflint"}]},
       If[DownValues[Global`gvN] === {},
-        Get[FileNameJoin[{meta["pkgDir"], "vendor", "HyperIntica", "HyperIntica.wl"}]]; HyperIntica`$QuietPrint = True;
+        Get[FileNameJoin[{Global`$HyperInticaPath, "HyperIntica.wl"}]]; HyperIntica`$QuietPrint = True;
         Get[FileNameJoin[{meta["pkgDir"], "hf_machinery.m"}]]];
       Get[FileNameJoin[{ivfDir, "ivf_machinery.m"}]];
-      Global`$ivfBin = FileNameJoin[{meta["pkgDir"], "vendor", "IntVolFLINT", "bin", "hyperflint"}];
+      Global`$ivfBin = Global`$MBStandardHyperFLINTBinary;
       Global`$IVFUseIntVolFLINT = True;
       Get[FileNameJoin[{ivfDir, "ivf_dispatch_hook.m"}]];
       Get[FileNameJoin[{ivfDir, "ivf_ext_finitepart_gconv.m"}]];   (* 2026-08-31 finite-part mode + G conversion *)

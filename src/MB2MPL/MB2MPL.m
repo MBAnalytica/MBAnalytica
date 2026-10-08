@@ -573,20 +573,24 @@ $mbtPackageDirDefault = If[StringQ[$mbtPackageFile] && $mbtPackageFile =!= "",
 $mbtPolyLogToolsFile = If[StringQ[Global`$PolyLogPath],
   FileNameJoin[{Global`$PolyLogPath, "PolyLogTools.m"}], ""];
 (* math executable used to spawn process-parallel piece workers (override if needed) *)
-$mbtMathExecutable = FileNameJoin[{$InstallationDirectory, "Executables", "math"}];
+$mbtMathExecutable = SelectFirst[{FileNameJoin[{$InstallationDirectory, "Executables", "math"}],
+  FileNameJoin[{$InstallationDirectory, "MacOS", "WolframKernel"}]}, FileExistsQ,
+  FileNameJoin[{$InstallationDirectory, "Executables", "math"}]];
 $mbtBarnesRoutinesPath = $mbtPackageDirDefault;
 
 (* Round 21 disk-cache config — DoAllBarnes is the dominant cost
    (~400s for both MB14 corner residues). Caching its output makes
    subsequent runs of the same integral instant. *)
 $mbtUseDoABCache = True;
-$mbtDoABCacheDir = FileNameJoin[{$mbtPackageDirDefault, ".cache", "doab"}] <> $PathnameSeparator;
+$mbtDoABCacheDir = FileNameJoin[{If[StringQ[Global`$MBStandardCacheDir], Global`$MBStandardCacheDir,
+  FileNameJoin[{$UserBaseDirectory, "ApplicationData", "MBAnalytica"}]], "doab"}] <> $PathnameSeparator;
 
 (* Round 22: disk cache for mbtCachedMB2MPL results (per-piece
    closure). Complements DoAllBarnes cache. After a full run,
    re-runs hit BOTH caches and total time drops to a few seconds. *)
 $mbtUseMB2MPLDiskCache = True;
-$mbtMB2MPLDiskCacheDir = FileNameJoin[{$mbtPackageDirDefault, ".cache", "mb2mpl"}] <> $PathnameSeparator;
+$mbtMB2MPLDiskCacheDir = FileNameJoin[{If[StringQ[Global`$MBStandardCacheDir], Global`$MBStandardCacheDir,
+  FileNameJoin[{$UserBaseDirectory, "ApplicationData", "MBAnalytica"}]], "mb2mpl"}] <> $PathnameSeparator;
 
 (* Round 23 (2026-06-09): hung-pieces analytic correction.
    The 34 hung pieces in MB14 Res#5 (LC 47-60) are 2-fold MB integrals
@@ -881,15 +885,16 @@ mbtClosePiecesParallel[integ_List, ctrs_List, vars_List, epsFacs_List, pkSpec_] 
        the workers reliably (the proven par_run.sh mechanism).  StartProcess +
        ProcessEnvironment did NOT deliver the env to the workers. *)
     Module[{sh, runfile, rc},
-      sh = "#!/bin/bash\ncd " <> pkgDir <> "\n" <>
+      sh = "#!/bin/bash\ncd " <> MBAnalytica`Portable`ShellQuote[pkgDir] <> "\n" <>
         StringJoin @ Table[
           "LO=" <> ToString[w] <> " STRIDE=" <> ToString[nW] <>
-          " JOBROOT=" <> jobRoot <> " " <> $mbtMathExecutable <>
-          " -script " <> worker <> " > " <> FileNameJoin[{jobRoot, "w_" <> ToString[w] <> ".log"}] <>
+          " JOBROOT=" <> MBAnalytica`Portable`ShellQuote[jobRoot] <> " " <> MBAnalytica`Portable`ShellQuote[$mbtMathExecutable] <>
+          " -script " <> MBAnalytica`Portable`ShellQuote[worker] <> " > " <>
+          MBAnalytica`Portable`ShellQuote[FileNameJoin[{jobRoot, "w_" <> ToString[w] <> ".log"}]] <>
           " 2>&1 &\n", {w, nW}] <> "wait\n";
       runfile = FileNameJoin[{jobRoot, "run.sh"}];
       Export[runfile, sh, "Text"];
-      rc = Run["bash " <> runfile];
+      rc = Run["bash " <> MBAnalytica`Portable`ShellQuote[runfile]];
       If[rc =!= 0,
         WriteString["stdout", "  [PieceKernels] launcher exit code ", rc,
           " (collecting; any missing pieces will be flagged, not dropped).\n"]]];
@@ -6024,7 +6029,7 @@ MB2MPL[integrand_, contourRules_, mbVars_List, opts:OptionsPattern[MB2MPL]] := M
 Begin["MBtoMPL`Private`"];
 mbeEnsureHypExp[] := Quiet @ Module[
   {p = If[StringQ[Global`$HypExpPath], Global`$HypExpPath,
-     FileNameJoin[{$mbtPackageDirDefault, "vendor", "HypExp"}]]},
+     FileNameJoin[{ParentDirectory[ParentDirectory[$mbtPackageDirDefault]], "dep", "HypExp"}]]},
   If[! MemberQ[$Path, p], AppendTo[$Path, p]];
   If[! MemberQ[$Packages, "HypExp`"], Needs["HypExp`"]]];
 
@@ -8819,8 +8824,12 @@ mbeDegTailSumIsolated[rS_, nFrom_Integer] := Module[
     "{nn, " <> ToString[nFrom] <> ", Infinity}], " <>
     "Element[nn, Integers] && nn >= " <> ToString[nFrom] <> "]], 400, $Failed]; " <>
     "Put[r, \"" <> fout <> "\"];";
+  (* the isolated kernel is this installation's command-line kernel running a script file; wolframscript need not
+     be on the PATH (it is not, inside the macOS application bundle) *)
+  Export[FileNameJoin[{dir, "tail.wl"}], code, "Text"];
   rp = Quiet@TimeConstrained[
-    RunProcess[{"wolframscript", "-code", code}], 500, $Failed];
+    RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[500],
+      {$mbtMathExecutable, "-noinit", "-noprompt", "-script", FileNameJoin[{dir, "tail.wl"}]}]], 510, $Failed];
   If[! FileExistsQ[fout], Return[$Failed]];
   out = Quiet@Get[fout];
   If[out === $Failed || ! FreeQ[out, Sum] || ! FreeQ[out, $Failed], $Failed, out]];

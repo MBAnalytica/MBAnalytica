@@ -14,7 +14,7 @@
 
 (* claim the parallel kernels before MBConicHulls, which would start two per core *)
 If[$KernelCount === 0 && $KernelID === 0,
-   LaunchKernels[If[IntegerQ[$KernelLaunch], $KernelLaunch, 2]]];
+   LaunchKernels[If[IntegerQ[$KernelLaunch], $KernelLaunch, Min[4, $ProcessorCount]]]];
 
 (* hide the front end and silence printing so the encoded packages load quietly *)
 Unprotect[Print, CellPrint, NotebookWrite, NotebookPrint];
@@ -27,8 +27,7 @@ CheckAbort[
   If[Names["MBConicHulls`*"]==={},   Quiet[Get["MBConicHulls`"]]];
   Quiet[Get["HarmonicSums`"]];
   Quiet[Get["Sigma`"]];
-  Quiet[Get["EvaluateMultiSums`"]];
-  If[!ValueQ[MB1], Quiet[Get["mbdefs.m"]]]], Null];
+  Quiet[Get["EvaluateMultiSums`"]]], Null];
 (* a dependency re-Protects Print, so unprotect before clearing or Print stays dead *)
 Unprotect[Print, CellPrint, NotebookWrite, NotebookPrint];
 Clear[Print, CellPrint, NotebookWrite, NotebookPrint];
@@ -36,7 +35,7 @@ Protect[Print, CellPrint, NotebookWrite, NotebookPrint];
 
 MBResumOuterPath = $ContextPath;
 
-BeginPackage["MBResum`"];
+BeginPackage["MBAnalytica`Resum`"];
 $ContextPath = DeleteDuplicates[Join[$ContextPath,
    DeleteCases[Global`MBResumOuterPath, "Global`"]]];
 ParallelEvaluate[Off[SetDelayed::write]];
@@ -76,11 +75,6 @@ Print[Style["Last updated: ",Black,Bold], LastUpdate];
 (*Global Variables*)
 
 
-Global`$KernelLaunch::usage =
-"$KernelLaunch sets the number of parallel subkernels MBResum launches when the package is loaded. \
-Set it before loading the package, e.g. $KernelLaunch = 4; << MBResum`. \
-If it is left unset, MBResum launches 2 subkernels by default. \
-If a parallel pool is already running when the package loads ($KernelCount > 0), no new kernels are launched.";
 
 
 (* ::Subsection::Closed:: *)
@@ -126,28 +120,14 @@ MBCH2MPL[MB1u, {\[Epsilon], 0}, Verbose -> True]";
 
 
 
-MBFailed::usage =
-"MBFailed[list] is returned by MBCH2MPL when the coefficient could not be \
-brought to a closed form. The list names what was left unresolved: an \
-integration variable that survived, a divergence marker such as LinInf or \
-sinf, an unconverted S-sum, or \"leak\" for an internal symbol of another \
-package.";
 
 
 (* ::Subsection::Closed:: *)
 (*External Module Options*)
 
 
-Verbose::usage =
-"Verbose is an option of MBCH2MPL which specifies whether a one-line report of \
-each stage of the calculation is printed. Its default value is False.";
 
 
-BarnesReduce::usage =
-"BarnesReduce is an option of MBCH2MPL and of MBRexExp which specifies whether \
-the first and second Barnes lemmas are applied, with DoAllBarnes, to the \
-expanded integral before it is solved. Applying them lowers the fold of many \
-structures and is almost always worthwhile. Its default value is True.";
 
 
 (* ::Section::Closed:: *)
@@ -199,6 +179,9 @@ MBCHFromOrder   = Automatic;  (* first order harvested; Automatic = leading pole
 
 
 MBCHVerbose  = False;     (* set by the Verbose option of MBCH2MPL *)
+
+
+MBCHComplex  = False;     (* set by the Complex option of MBCH2MPL: True keeps and checks the full complex value *)
 
 
 MBCHScale    = {};        (* kinematic variables, set by MBCH2MPL *)
@@ -296,6 +279,40 @@ DirtyQ[Val_] := Module[{Res},
   If[! FreeQ[Res, Global`sinf], Return[True]];
   If[! FreeQ[Res, S], Return[True]];
   Return[False]];
+
+
+(* ::Subsubsection::Closed:: *)
+(*Real or Complex Comparison*)
+
+
+(* with Complex -> False only the real part is compared, as before; with Complex -> True the full complex value *)
+ComparedPart[Val_] := If[TrueQ[MBCHComplex], Val, Re[Val]];
+
+
+ValueGap[A_, B_] := Module[{X, Y},
+  X = ComparedPart[A];
+  Y = ComparedPart[B];
+  Return[Abs[X - Y]]];
+
+
+RefSize[A_] := Abs[ComparedPart[A]];
+
+
+(* the accepted solutions depend on what is compared, so the caches are kept per setting *)
+SetComplex[Flag_] := Module[{},
+  If[Flag === MBCHComplex, Return[Null]];
+  MBCHComplex = Flag;
+  ClearSolveCaches[];
+  Return[Null]];
+
+
+ClearSolveCaches[] := Module[{Kept},
+  MBSolveCache = <||>;
+  Kept = Select[DownValues[MBSolveOne], ! FreeQ[First[#], Pattern] &];
+  DownValues[MBSolveOne] = Kept;
+  If[$KernelID === 0 && $KernelCount > 0 && TrueQ[MBResumParallelOk],
+    Quiet[ParallelEvaluate[MBAnalytica`Resum`Private`ClearSolveCaches[]]]];
+  Return[Null]];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -405,7 +422,7 @@ TidyResult[Val_] := Module[{Hs, Fwd, Bwd, Res},
   Bwd = Map[Reverse, Fwd];
   Res = Val /. Fwd;
   Res = FunctionExpand[Res];
-  Res = Re[Res];
+  If[! TrueQ[MBCHComplex], Res = Re[Res]];
   Res = ComplexExpand[Res];
   Res = Quiet[Assuming[ScaleAssum[], Simplify[Res]]];
   Res = Res /. Bwd;
@@ -700,14 +717,14 @@ SeriesOkQ[ResolveOut_, Sub_, Chart_, Ref_, Pr_] := Module[{SerOut, Val},
   If[! ListQ[SerOut] || Length[SerOut] < 5, Return[$Failed]];
   Val = SafeEval[Quiet[TimeConstrained[SeriesNumeric[SerOut, Pr], MBCHNumTime, $Failed]]];
   If[! NumericQ[Val], Return[$Failed]];
-  Return[Quiet[TrueQ[Abs[Re[Val] - Re[Ref]] <= MBCHTol*Max[1, Abs[Re[Ref]]]]]]];
+  Return[Quiet[TrueQ[ValueGap[Val, Ref] <= MBCHTol*Max[1, RefSize[Ref]]]]]];
 
 
 (* Check fires on the message every H emits, so the value itself is tested *)
 AgreeQ[A_, B_] := Module[{X, Y, Pr},
   Pr = ProbeRule[];
-  X = Quiet[N[Re[A /. Pr], 20]];
-  Y = Quiet[N[Re[B /. Pr], 20]];
+  X = Quiet[N[ComparedPart[A /. Pr], 20]];
+  Y = Quiet[N[ComparedPart[B /. Pr], 20]];
   If[! NumericQ[X] || ! NumericQ[Y],
      Return[Quiet[TrueQ[Simplify[A - B] === 0]]]];
   Return[Quiet[TrueQ[Abs[X - Y] <= MBCHTol*Max[1, Abs[X], Abs[Y]]]]]];
@@ -717,9 +734,9 @@ AgreeQ[A_, B_] := Module[{X, Y, Pr},
 ValueOkQ[Val_, Ref_] := Module[{X, Pr},
   If[Ref === $Failed, Return[$Failed]];
   Pr = ProbeRule[];
-  X = Quiet[N[Re[Val /. Pr], 20]];
+  X = Quiet[N[ComparedPart[Val /. Pr], 20]];
   If[! NumericQ[X], Return[$Failed]];
-  Return[Quiet[TrueQ[Abs[X - Re[Ref]] <= MBCHTol*Max[1, Abs[Re[Ref]]]]]]];
+  Return[Quiet[TrueQ[Abs[X - ComparedPart[Ref]] <= MBCHTol*Max[1, RefSize[Ref]]]]]];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -1200,7 +1217,7 @@ WorkersReady[] := Module[{Got},
   MBResumParallelOk = False;
   Return[False]];
 
-SyncWorkers[] := DistributeDefinitions[MBCHScale, MBCHVerbose, MBCHVerifyDiff, MBCHTol,
+SyncWorkers[] := DistributeDefinitions[MBCHScale, MBCHVerbose, MBCHComplex, MBCHVerifyDiff, MBCHTol,
    MBCHSeriesTerms, MBCHNumTime, MBCHProbe, MBCHChartTime, MBCHChartBudget,
    MBCHRegTime, MBCHRegBudget, MBCHRegSlots, MBCHRegGood, MBCHRegChart];
 
@@ -1351,7 +1368,7 @@ MBSolveOne[IntVar_, MBVars_, Num_, Den_] :=
 (*MBCH2MPL*)
 
 
-Options[MBCH2MPL] = {Verbose -> False, BarnesReduce -> True};
+Options[MBCH2MPL] = {Verbose -> False, BarnesReduce -> True, Complex -> False};
 
 MBCH2MPL[MBInt_, {Eps_, Ord_}, opts : OptionsPattern[]] :=
   MBCH2MPL[MBInt, Automatic, {Eps, Ord}, opts];
@@ -1359,6 +1376,7 @@ MBCH2MPL[MBInt_, {Eps_, Ord_}, opts : OptionsPattern[]] :=
 MBCH2MPL[MBInt_, MBVar_, {Eps_, Ord_}, OptionsPattern[]] := Module[
   {Expanded, IntVars, Low, Res, Coeffs, K, Tmp},
   MBCHVerbose = TrueQ[OptionValue[Verbose]];
+  SetComplex[TrueQ[OptionValue[Complex]]];
   MBResumLog = {};
   Say["Starting ..."];
   If[$FrontEnd =!= Null, Tmp = PrintTemporary[Dynamic[MBResumStatus]]];
@@ -1466,4 +1484,4 @@ End[];
 EndPackage[];
 $ContextPath = DeleteDuplicates[Join[$ContextPath,
    DeleteCases[MBResumOuterPath, "Global`"]]];
-MBResum`Private`LoadWorkers[];
+MBAnalytica`Resum`Private`LoadWorkers[];

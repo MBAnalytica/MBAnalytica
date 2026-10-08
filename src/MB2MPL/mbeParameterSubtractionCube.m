@@ -122,8 +122,8 @@ psNativeRetry[dir_String,input_String,result_Association,seconds_]:=Module[{ids,
  Export[in2,req,"RawJSON"];
  streams=CreateDirectory[];
  proc=Internal`WithLocalSettings[Null,Block[{ProcessLink`Private`$TempPrefix=FileNameJoin[{streams,"wl-"}]},
-   RunProcess[{"timeout","--kill-after=2",ToString[budget+30],psPython[],
-     FileNameJoin[{$codeDirectory,"mbe_parameter_subtraction_native_par.py"}],in2,out2}]],
+   RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[budget+30, 2],{psPython[],
+     FileNameJoin[{$codeDirectory,"mbe_parameter_subtraction_native_par.py"}],in2,out2}]]],
    Quiet@DeleteDirectory[streams,DeleteContents->True]];
  If[!AssociationQ[proc]||proc["ExitCode"]=!=0||!FileExistsQ[out2],Return[result,Module]];
  r2=Quiet@Import[out2,"RawJSON"];If[!AssociationQ[r2]||!ListQ[r2["records"]],Return[result,Module]];
@@ -229,7 +229,7 @@ PSIntegrateJobs[jobs_List,pars_List,seconds_,cache_]:=Module[
  "watch"->psWatchList[rows]|>,"RawJSON"];
  streams=CreateDirectory[];
  proc=Internal`WithLocalSettings[Null,Block[{ProcessLink`Private`$TempPrefix=FileNameJoin[{streams,"wl-"}]},
- RunProcess[{"timeout",ToString[Ceiling[seconds]],psPython[],FileNameJoin[{$codeDirectory,"mbe_parameter_subtraction_native_par.py"}],input,output}]],
+ RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[seconds],{psPython[],FileNameJoin[{$codeDirectory,"mbe_parameter_subtraction_native_par.py"}],input,output}]]],
  Quiet@DeleteDirectory[streams,DeleteContents->True]];
  If[!AssociationQ[proc]||proc["ExitCode"]=!=0||!FileExistsQ[output],Return[refuse["Native coefficient job runner refused or timed out",<|"Directory"->dir|>],Module]];
  result=Import[output,"RawJSON"];

@@ -2,17 +2,17 @@
 (* hf_machinery.m — shared HyperFLINT cube integrator + numeric eval. Requires load_standard_w10 + HyperIntica loaded. *)
 hfBin=If[ValueQ[Global`$MBStandardHyperFLINTBinary],
   Global`$MBStandardHyperFLINTBinary,
-  FileNameJoin[{DirectoryName[ExpandFileName[$InputFileName]], "vendor",
-    "HyperFLINT", "bin", "hyperflint"}]];
+  FileNameJoin[{ParentDirectory[ParentDirectory[DirectoryName[ExpandFileName[$InputFileName]]]], "dep",
+    "IntVolFLINT", "bin", "hyperflint"}]];
 mzvPath=If[ValueQ[Global`$MBStandardHyperFLINTData],
   Global`$MBStandardHyperFLINTData,
-  FileNameJoin[{DirectoryName[ExpandFileName[$InputFileName]], "vendor",
-    "HyperFLINT", "data", "mzv_reductions.json"}]];
+  FileNameJoin[{ParentDirectory[ParentDirectory[DirectoryName[ExpandFileName[$InputFileName]]]], "dep",
+    "IntVolFLINT", "data", "mzv_reductions.json"}]];
 constToHF={EulerGamma->Global`hfEG,Pi->Global`hfPI,Zeta[3]->Global`hfZ3,Zeta[5]->Global`hfZ5,Log[2]->Global`hfLOG2};
 jsonStr[a_]:=StringReplace[ExportString[a,"JSON","Compact"->True],"\\/"->"/"];
 runHF[body_,tmo_]:=Module[{inF=FileNameJoin[{$TemporaryDirectory,"hfm_in_"<>ToString[$ProcessID]<>".json"}],outF=FileNameJoin[{$TemporaryDirectory,"hfm_out_"<>ToString[$ProcessID]<>".json"}],r},
   Quiet@DeleteFile[outF]; Export[inF,body,"Text"];
-  RunProcess[{"bash","-c","ulimit -s unlimited; timeout "<>ToString[tmo]<>" env OMP_NUM_THREADS="<>ToString[If[IntegerQ[Global`$ivfThreadsSingle],Global`$ivfThreadsSingle,8]]<>" "<>hfBin<>" eval-json < "<>inF<>" > "<>outF<>" 2>/dev/null"}];   (* threads follow the IntVolFLINT scaling when set (2026-09-08) *)
+  RunProcess[{"bash","-c",MBAnalytica`Portable`StackPrefix<>MBAnalytica`Portable`TimeoutPrefix[tmo]<>"env OMP_NUM_THREADS="<>ToString[If[IntegerQ[Global`$ivfThreadsSingle],Global`$ivfThreadsSingle,8]]<>" "<>MBAnalytica`Portable`ShellQuote[hfBin]<>" eval-json < "<>MBAnalytica`Portable`ShellQuote[inF]<>" > "<>MBAnalytica`Portable`ShellQuote[outF]<>" 2>/dev/null"}];   (* threads follow the IntVolFLINT scaling when set (2026-09-08) *)
   If[!FileExistsQ[outF]||FileByteCount[outF]===0,Return[$Failed]]; r=Quiet@Import[outF,"RawJSON"]; If[!AssociationQ[r],$Failed,r]];
 mzvAtom[s_String]:=Module[{idx},idx=ToExpression/@(StringSplit[StringDrop[s,4],"$"]/.m_String:>StringReplace[m,"m"->"-"]); HyperIntica`mzv@@idx];
 atomRules={Global`hfEG->EulerGamma,Global`hfPI->Pi,Global`hfZ3->Zeta[3],Global`hfZ5->Zeta[5],Global`hfLOG2->Log[2],

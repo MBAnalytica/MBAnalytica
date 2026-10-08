@@ -154,8 +154,8 @@ slopeTwo[ig_, ctr_, vars_, dom_] := Module[{v, sc, p, y, r, l, L, c, value},
 parameterNativeRun[request_, seconds_] := Module[{streams = CreateDirectory[], process, result},
   Internal`WithLocalSettings[Null,
     process = Quiet@Check[Block[{ProcessLink`Private`$TempPrefix = FileNameJoin[{streams, "wl-stream-"}]},
-      RunProcess[{"timeout", ToString[Ceiling[seconds]], "env", "OMP_NUM_THREADS=1",
-        "prlimit", "--stack=unlimited", Global`$ivfBin, "eval-json"}, All, Global`jsonStr[request]]], $Failed];
+      RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[seconds], {"env", "OMP_NUM_THREADS=1"},
+        MBAnalytica`Portable`StackArgs[{Global`$ivfBin, "eval-json"}]], All, Global`jsonStr[request]]], $Failed];
     result = If[AssociationQ[process] && process["ExitCode"] === 0,
       Quiet@Check[ImportString[process["StandardOutput"], "RawJSON"], $Failed], $Failed];
     If[!AssociationQ[result], $lastNativeProcess = If[AssociationQ[process],

@@ -45,12 +45,13 @@ Module[{},
         DeleteCases[FileNames[{"mbe*.m", "mbt*.m", "MB2MPL.m", "MB.m", "MBresolve.m", "barnesroutines.m", "IntVol*.m", "intvol*.m",
           "hf_machinery.m", "engineN*.m", "load_*.m", "configure_runtime.m", "mbe*.py"}, d], _?(StringEndsQ[#, "mbeResidueStore.m"] &)],
         FileNames["*.m", FileNameJoin[{d, "multifold_close"}]], FileNames["*.m", FileNameJoin[{d, "intvolflint"}]],
+        FileNames["*.m", FileNameJoin[{d, "mbtools"}]], FileNames["*.m", FileNameJoin[{Global`$MBStandardVendorDir, "MB"}]],
         {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], StringQ[#] && FileExistsQ[#] &];
     Hash[{FileNameTake[#], FileHash[#, "SHA256"]} & /@ Sort[DeleteDuplicates[files]], "SHA256", "HexString"]];
 
   Global`orsRoot[] := Which[Global`$oftResidueStore === False, None,
     StringQ[Global`$oftResidueStore], Global`$oftResidueStore,
-    True, FileNameJoin[{Global`$orsDirectory, ".cache", "oft_residues"}]];
+    True, FileNameJoin[{Global`$MBStandardCacheDir, "oft_residues"}]];
   Global`orsKey[term_, eps_, ordMin_, ordMax_] := Hash[{Global`$orsCodeState, term, eps, ordMin, ordMax}, "SHA256", "HexString"];
   Global`orsGoodQ[m_, n_] := ListQ[m] && Length[m] === n &&
     FreeQ[m, $Failed | $TimedOut | $Aborted | Indeterminate | ComplexInfinity | DirectedInfinity | _Missing];
@@ -138,7 +139,7 @@ Module[{},
     lic = If[IntegerQ[$MaxLicenseProcesses] && IntegerQ[$LicenseProcesses], $MaxLicenseProcesses - $LicenseProcesses, free];
     Max[0, Min[If[IntegerQ[Global`$oftResidueHelpers], Global`$oftResidueHelpers, Global`$oftHelperMaximum], free, lic, heavy - 1]]];
   Global`orsTree[pid_Integer] := Module[{kids},
-    kids = Quiet@Check[ToExpression /@ StringSplit[RunProcess[{"ps", "-o", "pid=", "--ppid", ToString[pid]}, "StandardOutput"]], {}];
+    kids = MBAnalytica`Portable`ChildPIDs[pid];
     Join[Flatten[Global`orsTree /@ Select[kids, IntegerQ]], {pid}]];
   (* the PID of a process started by StartProcess is in the ProcessObject's own association *)
   Global`orsPID[p_ProcessObject] := Quiet@Check[With[{a = First[p]}, If[AssociationQ[a], Lookup[a, "PID", $Failed], $Failed]], $Failed];

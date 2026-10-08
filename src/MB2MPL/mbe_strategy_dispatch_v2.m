@@ -196,11 +196,11 @@ mbeRunHF[body_String, timeout_Integer] := Module[
     "mbe_dispatch_err_" <> ToString[$ProcessID] <> ".txt"}];
   If[FileExistsQ[outputFile], Quiet@DeleteFile[outputFile]];
   Export[inputFile, body, "Text"];
-  command = "ulimit -s unlimited; timeout " <> ToString[bounded] <>
-    " env OMP_NUM_THREADS=1 HF_MAX_THREADS_PER_CALL=1 " <>
-    "HF_NARROW_CTX=1 " <> Global`hfBin <>
-    " eval-json < " <> inputFile <> " > " <> outputFile <>
-    " 2> " <> errorFile;
+  command = MBAnalytica`Portable`StackPrefix <> MBAnalytica`Portable`TimeoutPrefix[bounded] <>
+    "env OMP_NUM_THREADS=1 HF_MAX_THREADS_PER_CALL=1 " <>
+    "HF_NARROW_CTX=1 " <> MBAnalytica`Portable`ShellQuote[Global`hfBin] <>
+    " eval-json < " <> MBAnalytica`Portable`ShellQuote[inputFile] <> " > " <> MBAnalytica`Portable`ShellQuote[outputFile] <>
+    " 2> " <> MBAnalytica`Portable`ShellQuote[errorFile];
   exitCode = Run[command];
   If[!FileExistsQ[outputFile] || FileByteCount[outputFile] === 0,
     Return[<|"ok" -> False, "reason" -> "no-response",

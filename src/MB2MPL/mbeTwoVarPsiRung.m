@@ -1611,12 +1611,12 @@ Global`mbtWorkerBudget[] := Module[{lic = If[IntegerQ[$MaxLicenseSubprocesses], 
   Max[1, Min[Global`$mbtSubkernelBudget, cores]]];
 Global`mbtMySubkernelCount[] := Module[{out},
   (* kernel processes only: the "sh -c" wrapper of every subkernel repeats its arguments and must not be counted *)
-  out = Quiet@Check[RunProcess[{"bash", "-c", "ps -u " <> ToString[Environment["USER"]] <> " -o args= | grep -- '-subkernel' | grep -v '^sh -c' | grep -c 'WolframKernel\\|MathKernel'"}, "StandardOutput"], ""];
+  out = Quiet@Check[RunProcess[{"bash", "-c", "ps -u " <> $Username <> " -o args= | grep -- '-subkernel' | grep -v '^sh -c' | grep -c -E 'WolframKernel|MathKernel'"}, "StandardOutput"], ""];
   out = Quiet@Check[ToExpression[StringTrim[out]], 0]; If[IntegerQ[out], out, 0]];
 Global`mbtSubkernelCapDynamic[] := (Global`mbtWorkerBudget[]; Max[0, Global`$mbtSubkernelBudget - Global`mbtMySubkernelCount[]]);
 (* this user's running MAIN kernels (kernel binaries that are not subkernels; wrappers excluded) *)
 Global`mbtMyMainKernelCount[] := Module[{out},
-  out = Quiet@Check[RunProcess[{"bash", "-c", "ps -u " <> ToString[Environment["USER"]] <> " -o args= | grep -v -- '-subkernel' | grep -v '^sh -c' | grep -v '^timeout' | grep -c 'Binaries/Linux-x86-64/WolframKernel'"}, "StandardOutput"], "0"];
+  out = Quiet@Check[RunProcess[{"bash", "-c", "ps -u " <> $Username <> " -o args= | grep -v -- '-subkernel' | grep -v '^sh -c' | grep -v '^timeout' | grep -c '" <> MBAnalytica`Portable`KernelBinaryPattern[] <> "'"}, "StandardOutput"], "0"];
   out = Quiet@Check[ToExpression[StringTrim[out]], 0]; If[IntegerQ[out], out, 0]];
 Global`mbtExportIVFScaling[nW_Integer] := Module[{running, total, budget, t, w, s},
   (* the core budget per worker counts EVERY subkernel of this user on the node (this job's new workers plus the
@@ -1704,13 +1704,13 @@ If[DownValues[MBtoMPL`Private`mbtClosePiecesParallel] =!= {} && DownValues[Globa
         WriteString["stdout", "  [PieceKernels] ", nW, " process-workers on ", n, " pieces (job ", FileNameTake[jobRoot], ") [mop-up guard ON]...\n"];
         Global`mbtExportIVFScaling[nW];
         Module[{sh, runfile, rc},
-          sh = "#!/bin/bash\ncd " <> pkgDir <> "\n" <>
-            StringJoin@Table["LO=" <> ToString[w] <> " STRIDE=" <> ToString[nW] <> " JOBROOT=" <> jobRoot <> " " <>
-              MBtoMPL`Private`$mbtMathExecutable <> " -script " <> worker <> " > " <>
-              FileNameJoin[{jobRoot, "w_" <> ToString[w] <> ".log"}] <> " 2>&1 &\n", {w, nW}] <> "wait\n";
+          sh = "#!/bin/bash\ncd " <> MBAnalytica`Portable`ShellQuote[pkgDir] <> "\n" <>
+            StringJoin@Table["LO=" <> ToString[w] <> " STRIDE=" <> ToString[nW] <> " JOBROOT=" <> MBAnalytica`Portable`ShellQuote[jobRoot] <> " " <>
+              MBAnalytica`Portable`ShellQuote[MBtoMPL`Private`$mbtMathExecutable] <> " -script " <> MBAnalytica`Portable`ShellQuote[worker] <> " > " <>
+              MBAnalytica`Portable`ShellQuote[FileNameJoin[{jobRoot, "w_" <> ToString[w] <> ".log"}]] <> " 2>&1 &\n", {w, nW}] <> "wait\n";
           runfile = FileNameJoin[{jobRoot, "run.sh"}];
           Export[runfile, sh, "Text"];
-          rc = Run["bash " <> runfile];
+          rc = Run["bash " <> MBAnalytica`Portable`ShellQuote[runfile]];
           If[rc =!= 0, WriteString["stdout", "  [PieceKernels] launcher exit code ", rc, " (collecting; any missing pieces will be flagged, not dropped).\n"]]]];
       If[DownValues[Global`IVLibMergeFile] =!= {},
         Module[{ivDfs = FileNames["ivlib_delta_*.m", jobRoot]},
@@ -1749,7 +1749,7 @@ If[DownValues[MBtoMPL`Private`mbtClosePiecesParallel] =!= {} && DownValues[Globa
       (* 2026-09-05: keep the worker logs of a successful job (small text files) under <pkgDir>/worker_logs/<job>/ so that
          a served value can be traced to its closer afterwards (the MB3 audit's served number could not be attributed
          once the job dir was gone) *)
-      Quiet@Check[Module[{ld = FileNameJoin[{pkgDir, "worker_logs", FileNameTake[jobRoot]}]},
+      Quiet@Check[Module[{ld = FileNameJoin[{Global`$MBStandardCacheDir, "worker_logs", FileNameTake[jobRoot]}]},
         CreateDirectory[ld, CreateIntermediateDirectories -> True];
         Scan[CopyFile[#, FileNameJoin[{ld, FileNameTake[#]}], OverwriteTarget -> True] &, FileNames["w_*.log", jobRoot]];
         WriteString["stdout", "  [PieceKernels] worker logs kept in ", ld, "\n"]], Null];

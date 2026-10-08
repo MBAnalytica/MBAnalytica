@@ -46,8 +46,8 @@ Global`$mfhCloseDir=If[DirectoryQ[FileNameJoin[{Global`$mfhRoot,"multifold_close
 (* release layout (load_standard.m without the development loader): run-time state of the closer library (piece cache,
    term cache, open-piece census) and the family records live under <root>/.cache/, outside the sealed manifest *)
 Global`$mfhReleaseLayoutQ=FileExistsQ[FileNameJoin[{Global`$mfhRoot,"load_standard.m"}]]&&!FileExistsQ[FileNameJoin[{Global`$mfhRoot,"load_standard_w10.m"}]];
-Global`$mfhStateDir=If[TrueQ[Global`$mfhReleaseLayoutQ],FileNameJoin[{Global`$mfhRoot,".cache","multifold_close"}],Global`$mfhCloseDir];
-Global`$mfhRecordDir=If[TrueQ[Global`$mfhReleaseLayoutQ],FileNameJoin[{Global`$mfhRoot,".cache","multifold_family"}],FileNameJoin[{Global`$mfhRoot,"mfh_records"}]];
+Global`$mfhStateDir=If[TrueQ[Global`$mfhReleaseLayoutQ],FileNameJoin[{Global`$MBStandardCacheDir,"multifold_close"}],Global`$mfhCloseDir];
+Global`$mfhRecordDir=If[TrueQ[Global`$mfhReleaseLayoutQ],FileNameJoin[{Global`$MBStandardCacheDir,"multifold_family"}],FileNameJoin[{Global`$mfhRoot,"mfh_records"}]];
 mfhPrint[args___]:=If[TrueQ[Global`$mfhVerbose],Print[args]];
 
 (* ---------------------------------------------------------------- 0. setup ---------------------------------------------------------------- *)

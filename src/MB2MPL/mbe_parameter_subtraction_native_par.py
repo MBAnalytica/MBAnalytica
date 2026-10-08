@@ -39,7 +39,7 @@ def run_order(binary, req, seconds, procs, lock, deadline=None):
         seconds = min(seconds, deadline-time.time())
     if seconds <= 0:
         return {'order': req['vars_int'], 'error': 'DeadlineExpired', 'seconds': 0.0}
-    p = subprocess.Popen(['prlimit', '--stack=unlimited', binary, 'eval-json'], stdin=subprocess.PIPE,
+    p = subprocess.Popen(native.stack_command(binary), stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env={**os.environ, 'OMP_NUM_THREADS': '1'})
     with lock: procs.add(p)
     try:
@@ -55,7 +55,6 @@ def run_order(binary, req, seconds, procs, lock, deadline=None):
 
 
 def same_value(rows_a, rows_b):
-    sys.path.insert(0, str(HERE/'.venv-mb8/lib/python3.13/site-packages'))
     try:
         import sympy
     except ImportError:

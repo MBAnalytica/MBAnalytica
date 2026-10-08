@@ -21,7 +21,7 @@ hbbExpand[qq_, ep_, depth_Integer, budget_, radial_: None] := Module[
   request = hbbRequest[qq, ep, radial];
   useBank = ! TrueQ[Global`$oftNoHypExpBank] && StringQ[Global`$MBStandardDir];
   If[useBank,
-    dir = FileNameJoin[{Global`$MBStandardDir, ".cache", "hypergeometric_blocks"}];
+    dir = FileNameJoin[{Global`$MBStandardCacheDir, "hypergeometric_blocks"}];
     key = IntegerString[Hash[{hbbSchema, hbbEngine[], hbbSettings[], request}, "SHA256"], 16, 16];
     candidates = If[DirectoryQ[dir], FileNames["b_" <> key <> "_d*.m", dir], {}];
     Do[

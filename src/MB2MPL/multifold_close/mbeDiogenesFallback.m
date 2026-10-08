@@ -12,7 +12,7 @@
    set, else <package root>/vendor/DIOGENES; when the directory is absent the fallback is NOT installed and the block
    expanders keep their own refusals (no value depends on it: the exact results of the record were obtained without it) *)
 If[!ValueQ[$diogPath],$diogPath=If[StringQ[Global`$MBStandardDiogenesPath],Global`$MBStandardDiogenesPath,
-  FileNameJoin[{ParentDirectory[DirectoryName[$InputFileName]],"vendor","DIOGENES"}]]];
+  FileNameJoin[{ParentDirectory[ParentDirectory[ParentDirectory[DirectoryName[$InputFileName]]]],"dep","DIOGENES"}]]];
 $diogAvailableQ=DirectoryQ[$diogPath]&&FileExistsQ[FileNameJoin[{$diogPath,"DIOGENES.wl"}]];
 If[!ValueQ[$diogKernel],$diogKernel=None];
 If[!ValueQ[$diogBudget],$diogBudget=600];

@@ -16,7 +16,7 @@ svcSelf = Module[{cl = $CommandLine, p}, p = Position[cl, s_String /; StringEnds
 spool = If[Length[svcArgs] >= 1, svcArgs[[1]], FileNameJoin[{$TemporaryDirectory, "diog_spool"}]];
 diogDir = Which[Length[svcArgs] >= 2, svcArgs[[2]],
   StringQ[Global`$MBStandardDiogenesPath], Global`$MBStandardDiogenesPath,
-  svcSelf =!= "", FileNameJoin[{ParentDirectory[DirectoryName[ExpandFileName[svcSelf]]], "vendor", "DIOGENES"}],
+  svcSelf =!= "", FileNameJoin[{ParentDirectory[ParentDirectory[ParentDirectory[DirectoryName[ExpandFileName[svcSelf]]]]], "dep", "DIOGENES"}],
   True, "."];
 Quiet@CreateDirectory[spool, CreateIntermediateDirectories -> True];
 Print["[diog_service] spool ", spool, "; DIOGENES ", diogDir, " (", If[DirectoryQ[diogDir], "found", "MISSING"], ")"];

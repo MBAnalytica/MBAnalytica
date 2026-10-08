@@ -13,7 +13,7 @@ Module[{dir = DirectoryName[$InputFileName /. "" -> FileNameJoin[{Directory[], "
   If[!MemberQ[$Packages, "MBtoMPL`"],
     Print["[load_mbe_engines] WARNING: MBtoMPL (MB2MPL.m) not loaded; load load_standard.m first."]];
   If[Names["HyperIntica`ZeroInfPeriodAsMpl"] === {},
-    hyperIntica = FileNameJoin[{dir, "vendor", "HyperIntica", "HyperIntica.wl"}];
+    hyperIntica = FileNameJoin[{Global`$HyperInticaPath, "HyperIntica.wl"}];
     Quiet@Get[hyperIntica];
     If[Names["HyperIntica`ZeroInfPeriodAsMpl"] =!= {}, HyperIntica`$QuietPrint = True,
       Print["[load_mbe_engines] WARNING: HyperIntica failed to load; cubeHF word evaluation unavailable."]]];

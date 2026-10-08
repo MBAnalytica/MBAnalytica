@@ -49,9 +49,14 @@ Module[{here, configure, polyLogTools, mathCandidates, mathExecutable, hplPlain,
 
   Quiet@Get[FileNameJoin[{here, "mbeSeqIntegrate.m"}]];
   Quiet@Get[FileNameJoin[{here, "mbePinchClose.m"}]];
-  Get[FileNameJoin[{here, "MB.m"}]];
-  Get[FileNameJoin[{here, "MBresolve.m"}]];
-  Get[FileNameJoin[{here, "barnesroutines.m"}]];
+  (* the MB tools live in dep/MB (configure_runtime.m); MBAnalytica.wl may already have loaded them *)
+  If[Names["MB`MBresolve"] === {} || DownValues[MB`MBresolve] === {},
+    Get[FileNameJoin[{Global`$MBStandardMBDir, "MB.m"}]];
+    Get[FileNameJoin[{Global`$MBStandardMBDir, "MBresolve.m"}]]];
+  If[Names["BarnesRoutines`DoAllBarnes"] === {} || DownValues[BarnesRoutines`DoAllBarnes] === {},
+    Get[FileNameJoin[{Global`$MBStandardMBDir, "barnesroutines.m"}]]];
+  (* when the tools were loaded earlier, put their contexts where loading them here would have put them *)
+  $ContextPath = DeleteDuplicates[Join[{"BarnesRoutines`", "MB`"}, $ContextPath]];
   If[! TrueQ[Global`$mbeSkipEngines],
     Quiet@Get[FileNameJoin[{here, "load_mbe_engines.m"}]]];
 
@@ -71,14 +76,15 @@ Module[{here, configure, polyLogTools, mathCandidates, mathExecutable, hplPlain,
   mathCandidates = {
     Quiet@Check[FindExecutable["math"], $Failed],
     FileNameJoin[{$InstallationDirectory, "Executables", "math"}],
-    FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}]};
+    FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}],
+    FileNameJoin[{$InstallationDirectory, "MacOS", "WolframKernel"}]};
   mathExecutable = SelectFirst[mathCandidates, StringQ[#] && FileExistsQ[#] &, ""];
 
   MBtoMPL`Private`$mbtPolyLogToolsFile = polyLogTools;
-  MBtoMPL`Private`$mbtBarnesRoutinesPath = If[StringEndsQ[here, $PathnameSeparator], here, here <> $PathnameSeparator];
+  MBtoMPL`Private`$mbtBarnesRoutinesPath = Global`$MBStandardMBDir <> $PathnameSeparator;
   MBtoMPL`Private`$mbtMathExecutable = mathExecutable;
-  MBtoMPL`Private`$mbtDoABCacheDir = FileNameJoin[{here, ".cache", "doab"}] <> $PathnameSeparator;
-  MBtoMPL`Private`$mbtMB2MPLDiskCacheDir = FileNameJoin[{here, ".cache", "mb2mpl"}] <> $PathnameSeparator;
+  MBtoMPL`Private`$mbtDoABCacheDir = FileNameJoin[{Global`$MBStandardCacheDir, "doab"}] <> $PathnameSeparator;
+  MBtoMPL`Private`$mbtMB2MPLDiskCacheDir = FileNameJoin[{Global`$MBStandardCacheDir, "mb2mpl"}] <> $PathnameSeparator;
   Quiet@CreateDirectory[MBtoMPL`Private`$mbtDoABCacheDir, CreateIntermediateDirectories -> True];
   Quiet@CreateDirectory[MBtoMPL`Private`$mbtMB2MPLDiskCacheDir, CreateIntermediateDirectories -> True];
 

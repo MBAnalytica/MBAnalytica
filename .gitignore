@@ -22,3 +22,5 @@ tests/benchmark/results/
 .DS_Store
 __pycache__/
 *.pyc
+dep/IntVolFLINT/flint/
+.python

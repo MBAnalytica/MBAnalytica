@@ -7,9 +7,18 @@ import json
 import os
 import re
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
+
+
+def stack_command(binary):
+    """The integrator under the largest stack the system allows: prlimit where it exists (Linux), else the
+    shell's ulimit (macOS, where the hard limit is 64 MB)."""
+    if shutil.which('prlimit'):
+        return ['prlimit', '--stack=unlimited', binary, 'eval-json']
+    return ['/bin/sh', '-c', 'ulimit -s unlimited 2>/dev/null || ulimit -s hard 2>/dev/null; exec "$0" eval-json', binary]
 
 
 def certified(response, request):
@@ -39,7 +48,7 @@ def run_job(job, data, folder):
         start = time.monotonic()
         try:
             proc = subprocess.run(
-                ['prlimit', '--stack=unlimited', data['binary'], 'eval-json'],
+                stack_command(data['binary']),
                 input=json.dumps(req), text=True, capture_output=True,
                 env={**os.environ, 'OMP_NUM_THREADS': '1'},
                 timeout=data.get('job_seconds', 45))

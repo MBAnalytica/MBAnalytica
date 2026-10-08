@@ -14,7 +14,7 @@
 Module[{ivfHere = Quiet@Check[DirectoryName[$InputFileName], ""], hiC, hfC},
   If[DownValues[Global`gvN] === {} || DownValues[Global`exprStr] === {},
     hiC = Select[{If[StringQ[Global`$ivfHyperInticaPath], Global`$ivfHyperInticaPath, "/nonexistent"],
-        If[ivfHere =!= "", FileNameJoin[{ParentDirectory[ivfHere], "vendor", "HyperIntica", "HyperIntica.wl"}], "/nonexistent"],
+        If[StringQ[Global`$HyperInticaPath], FileNameJoin[{Global`$HyperInticaPath, "HyperIntica.wl"}], "/nonexistent"],
         "/nonexistent"}, FileExistsQ];
     hfC = Select[{If[ivfHere =!= "", FileNameJoin[{ParentDirectory[ivfHere], "hf_machinery.m"}], "/nonexistent"],
         "/nonexistent"}, FileExistsQ];
@@ -25,7 +25,8 @@ Module[{ivfHere = Quiet@Check[DirectoryName[$InputFileName], ""], hiC, hfC},
       Print["[ivf-machinery v5] WARNING: hf_machinery/HyperIntica unavailable -> word evaluation ",
         "WILL silently refuse; load them or set Global`$ivfHyperInticaPath."],
       Print["[ivf-machinery v5] word-eval guard: self-loaded HyperIntica/hf_machinery"]]]];
-$ivfBin = FileNameJoin[{ParentDirectory[DirectoryName[ExpandFileName[$InputFileName]]], "vendor", "IntVolFLINT", "bin", "hyperflint"}];
+$ivfBin = If[StringQ[Global`$MBStandardHyperFLINTBinary], Global`$MBStandardHyperFLINTBinary,
+  FileNameJoin[{ParentDirectory[ParentDirectory[ParentDirectory[DirectoryName[ExpandFileName[$InputFileName]]]]], "dep", "IntVolFLINT", "bin", "hyperflint"}]];
 (* 2026-09-08 resource scaling: the piece-worker launcher exports IVF_THREADS (OMP threads per hyperflint process),
    IVF_RACE_WIDTH (candidate orders raced concurrently per piece) and IVF_SECONDS (per-candidate budget) so that the
    total hyperflint thread count stays near the cores of the machine whatever the number of workers; unset = the
@@ -38,8 +39,8 @@ $ivfLastResponse = <||>;
 ivfRun[body_, tmo_] := Module[{inF = FileNameJoin[{$TemporaryDirectory, "ivf_in_" <> ToString[$ProcessID] <> ".json"}],
     outF = FileNameJoin[{$TemporaryDirectory, "ivf_out_" <> ToString[$ProcessID] <> ".json"}], r},
   Quiet@DeleteFile[outF]; Export[inF, body, "Text"];
-  RunProcess[{"bash", "-c", "ulimit -s unlimited; timeout " <> ToString[tmo] <> " env OMP_NUM_THREADS=" <> ToString[$ivfThreadsSingle] <> " " <>
-    $ivfBin <> " eval-json < " <> inF <> " > " <> outF <> " 2>/dev/null"}];
+  RunProcess[{"bash", "-c", MBAnalytica`Portable`StackPrefix <> MBAnalytica`Portable`TimeoutPrefix[tmo] <> "env OMP_NUM_THREADS=" <> ToString[$ivfThreadsSingle] <> " " <>
+    MBAnalytica`Portable`ShellQuote[$ivfBin] <> " eval-json < " <> MBAnalytica`Portable`ShellQuote[inF] <> " > " <> MBAnalytica`Portable`ShellQuote[outF] <> " 2>/dev/null"}];
   If[!FileExistsQ[outF] || FileByteCount[outF] === 0, Return[$Failed]];
   r = Quiet@Import[outF, "RawJSON"]; If[!AssociationQ[r], $Failed, r]];
 
@@ -126,7 +127,7 @@ ivfRaceParallel[f0_, vars_, orders_List, tmo_, reg_: False, ps_List: {}] := Modu
    the group id): kill -9 -- -PID reaches bash, timeout and hyperflint; KillProcess alone only killed bash and the
    timeout/hyperflint pair kept computing to its budget (measured 16:36: 178 orphaned candidates, load average 231). *)
 ivfKillGroup[pr_] := Module[{pid = Quiet[pr["PID"]]},
-  If[IntegerQ[pid], Quiet@RunProcess[{"kill", "-9", "--", "-" <> ToString[pid]}]];
+  If[IntegerQ[pid], MBAnalytica`Portable`KillGroup[pid]];
   Quiet@KillProcess[pr]];
 ivfRaceParallelBatch[f0_, vars_, orders_List, tmo_, reg_: False, ps_List: {}] := Module[
   {f = ivfPolyLogToHlog[f0 /. constToHF], base, procs = {}, files = {}, t0 = AbsoluteTime[], done = False, result = <|"ok" -> False, "reason" -> "race-failed"|>, k = 0, refusals = {}},
@@ -141,8 +142,8 @@ ivfRaceParallelBatch[f0_, vars_, orders_List, tmo_, reg_: False, ps_List: {}] :=
       Export[inF, jsonStr[req], "Text"];
       (* 2026-09-01 16:45: own process group per candidate (setsid) so that ivfKillGroup can kill bash+timeout+hyperflint;
          KillProcess alone killed only the bash wrapper and left the losers running to their full budget (178 orphans, load 231) *)
-      pr = StartProcess[{"setsid", "bash", "-c", "ulimit -s unlimited; timeout " <> ToString[tmo] <> " env OMP_NUM_THREADS=" <> ToString[$ivfRaceThreads] <> " " <>
-        $ivfBin <> " eval-json < " <> inF <> " > " <> outF <> ".tmp 2>/dev/null; mv " <> outF <> ".tmp " <> outF}];
+      pr = StartProcess[Join[MBAnalytica`Portable`SetsidArgs[], {"bash", "-c", MBAnalytica`Portable`StackPrefix <> MBAnalytica`Portable`TimeoutPrefix[tmo] <> "env OMP_NUM_THREADS=" <> ToString[$ivfRaceThreads] <> " " <>
+        MBAnalytica`Portable`ShellQuote[$ivfBin] <> " eval-json < " <> MBAnalytica`Portable`ShellQuote[inF] <> " > " <> MBAnalytica`Portable`ShellQuote[outF <> ".tmp"] <> " 2>/dev/null; mv " <> MBAnalytica`Portable`ShellQuote[outF <> ".tmp"] <> " " <> MBAnalytica`Portable`ShellQuote[outF]}]];
       AppendTo[procs, pr]; AppendTo[files, {o, outF}]],
     {o, orders}];
   While[! done && AbsoluteTime[] - t0 < tmo + 5,
@@ -260,7 +261,7 @@ ivfProjCandidates[prepared_Association, tmo_: 300] := Module[{letters, names = p
 ivfRunWith[bin_, envStr_, body_, tmo_] := Module[{inF = FileNameJoin[{$TemporaryDirectory, "ivfp_in_" <> ToString[$ProcessID] <> ".json"}],
     outF = FileNameJoin[{$TemporaryDirectory, "ivfp_out_" <> ToString[$ProcessID] <> ".json"}], r},
   Quiet@DeleteFile[outF]; Export[inF, body, "Text"];
-  RunProcess[{"bash", "-c", "ulimit -s unlimited; timeout " <> ToString[tmo] <> " " <> envStr <> bin <> " eval-json < " <> inF <> " > " <> outF <> " 2>/dev/null"}];
+  RunProcess[{"bash", "-c", MBAnalytica`Portable`StackPrefix <> MBAnalytica`Portable`TimeoutPrefix[tmo] <> envStr <> MBAnalytica`Portable`ShellQuote[bin] <> " eval-json < " <> MBAnalytica`Portable`ShellQuote[inF] <> " > " <> MBAnalytica`Portable`ShellQuote[outF] <> " 2>/dev/null"}];
   If[!FileExistsQ[outF] || FileByteCount[outF] === 0, Return[$Failed]];
   r = Quiet@Import[outF, "RawJSON"]; If[!AssociationQ[r], $Failed, r]];
 (* generic parallel race over ready-made requests {{label, jsonString}, ...}: first ok wins *)
@@ -288,8 +289,8 @@ ivfRaceRequestsBatch[reqs_List, tmo_, bin_, envStr_] := Module[
   Do[k++;
     Module[{inF = base <> "_" <> ToString[k] <> ".in", outF = base <> "_" <> ToString[k] <> ".out", pr},
       Export[inF, rq[[2]], "Text"];
-      pr = StartProcess[{"setsid", "bash", "-c", "ulimit -s unlimited; timeout " <> ToString[tmo] <> " " <> envStr <> bin <>
-        " eval-json < " <> inF <> " > " <> outF <> ".tmp 2>/dev/null; mv " <> outF <> ".tmp " <> outF}];
+      pr = StartProcess[Join[MBAnalytica`Portable`SetsidArgs[], {"bash", "-c", MBAnalytica`Portable`StackPrefix <> MBAnalytica`Portable`TimeoutPrefix[tmo] <> envStr <> MBAnalytica`Portable`ShellQuote[bin] <>
+        " eval-json < " <> MBAnalytica`Portable`ShellQuote[inF] <> " > " <> MBAnalytica`Portable`ShellQuote[outF <> ".tmp"] <> " 2>/dev/null; mv " <> MBAnalytica`Portable`ShellQuote[outF <> ".tmp"] <> " " <> MBAnalytica`Portable`ShellQuote[outF]}]];
       AppendTo[procs, pr]; AppendTo[files, {rq[[1]], outF}]],
     {rq, reqs}];
   While[! done && AbsoluteTime[] - t0 < tmo + 5,

@@ -278,11 +278,11 @@ IV$ExtractS0[expr_, vars_List] := Module[{terms, denoms, logArgs, candidates},
     !NumericQ[#] && !FreeQ[#, Alternatives @@ vars]&]
 ]
 
-IV$NextS[S_List, xa_, allVars_List] := Module[{remVars, QR, crossTerms, allTerms},
+IV$NextS[IVPolySet_List, xa_, allVars_List] := Module[{remVars, QR, crossTerms, allTerms},
   remVars = DeleteCases[allVars, xa];
-  QR = Table[{Coefficient[p, xa], (p /. xa -> 0)}, {p, S}];
+  QR = Table[{Coefficient[p, xa], (p /. xa -> 0)}, {p, IVPolySet}];
   crossTerms = Flatten[Table[
-    QR[[i,1]]*QR[[j,2]] - QR[[j,1]]*QR[[i,2]], {i, Length[S]}, {j, i+1, Length[S]}]];
+    QR[[i,1]]*QR[[j,2]] - QR[[j,1]]*QR[[i,2]], {i, Length[IVPolySet]}, {j, i+1, Length[IVPolySet]}]];
   allTerms = DeleteCases[Join[QR[[All,1]], QR[[All,2]], crossTerms], 0];
   Select[Union[Flatten[IV$IrrFactors[#, remVars]& /@ allTerms]],
     !NumericQ[#] && !FreeQ[#, Alternatives @@ remVars]&]
@@ -298,10 +298,10 @@ IV$NextS[S_List, xa_, allVars_List] := Module[{remVars, QR, crossTerms, allTerms
 IV$MaxAcceptableDegreeForLambda = 2;
 
 IV$TryOrder[S0_List, order_List, allVars_List] := Module[
-  {S = S0, ok = True, sizes = {}, sets = {S0}},
-  Do[If[Max[Exponent[#, order[[i]]]& /@ S] > IV$MaxAcceptableDegreeForLambda,
+  {IVPolySet = S0, ok = True, sizes = {}, sets = {S0}},
+  Do[If[Max[Exponent[#, order[[i]]]& /@ IVPolySet] > IV$MaxAcceptableDegreeForLambda,
         ok = False; Break[]];
-    S = IV$NextS[S, order[[i]], allVars]; AppendTo[sizes, Length[S]]; AppendTo[sets, S];
+    IVPolySet = IV$NextS[IVPolySet, order[[i]], allVars]; AppendTo[sizes, Length[IVPolySet]]; AppendTo[sets, IVPolySet];
   , {i, Length[order]}]; {ok, sets, sizes}
 ]
 
@@ -341,13 +341,13 @@ IV$QuadPenalty[order_List, expr_, allVars_List] := Module[{penalty = 0},
 (* SECTION 2: COMPATIBILITY GRAPH REDUCTION                     *)
 (* ============================================================ *)
 
-IV$CGInit[S_List] := {S, Subsets[S, {2}]}
+IV$CGInit[IVPolySet_List] := {IVPolySet, Subsets[IVPolySet, {2}]}
 
-IV$CGProject[{S_List, C_List}, var_] := Module[
+IV$CGProject[{IVPolySet_List, C_List}, var_] := Module[
   {newPolys = {}, newEdges = {}, linear, nonlinear,
    leadC, constC, reslt, sources, f, g, e, irr},
-  linear = Select[S, Exponent[#, var] == 1 &];
-  nonlinear = Select[S, Exponent[#, var] == 0 &];
+  linear = Select[IVPolySet, Exponent[#, var] == 1 &];
+  nonlinear = Select[IVPolySet, Exponent[#, var] == 0 &];
   leadC = Association[]; constC = Association[];
   Do[Module[{lc = Coefficient[f, var, 1], cc = f /. var -> 0},
     leadC[f] = If[lc =!= 0 && !NumericQ[lc], IV$IrrFactors[lc, Variables[lc]], {}];
@@ -370,24 +370,24 @@ IV$CGProject[{S_List, C_List}, var_] := Module[
 ]
 
 (* Multi-path reduction with intersection *)
-IV$CGReduceMulti[S0_List, vars_List] := Module[{L = <||>, cg, perms, existing},
-  cg = IV$CGInit[S0]; L[{}] = cg;
+IV$CGReduceMulti[S0_List, vars_List] := Module[{IVLetterL = <||>, cg, perms, existing},
+  cg = IV$CGInit[S0]; IVLetterL[{}] = cg;
   Do[
     perms = Permutations[vars[[;;i]]];
     Do[
       existing = p[[;;-2]];
-      If[KeyExistsQ[L, existing],
-        Module[{proj = IV$CGProject[L[existing], p[[-1]]]},
-          If[KeyExistsQ[L, p],
+      If[KeyExistsQ[IVLetterL, existing],
+        Module[{proj = IV$CGProject[IVLetterL[existing], p[[-1]]]},
+          If[KeyExistsQ[IVLetterL, p],
             (* Intersect *)
-            L[p] = {Intersection[L[p][[1]], proj[[1]]], Intersection[L[p][[2]], proj[[2]]]},
-            L[p] = proj
+            IVLetterL[p] = {Intersection[IVLetterL[p][[1]], proj[[1]]], Intersection[IVLetterL[p][[2]], proj[[2]]]},
+            IVLetterL[p] = proj
           ];
         ];
       ];
     , {p, perms}];
   , {i, Length[vars]}];
-  L
+  IVLetterL
 ]
 
 (* ============================================================ *)
@@ -461,8 +461,8 @@ IV$BestOrder[expr_, vars_List] := Module[
 ]
 
 IV$GreedyOrder[expr_, vars_List] := Module[
-  {S0, S, remaining, order = {}, bestVar, bestSize, nextS, rationalVars, logVars},
-  S0 = IV$ExtractS0[expr, vars]; S = S0; remaining = vars;
+  {S0, IVPolySet, remaining, order = {}, bestVar, bestSize, nextS, rationalVars, logVars},
+  S0 = IV$ExtractS0[expr, vars]; IVPolySet = S0; remaining = vars;
   rationalVars = Select[vars, IV$IsRationalOnlyQ[expr, #]&];
   logVars = IV$LogArgVars[expr, vars];
   While[Length[remaining] > 0,
@@ -471,15 +471,15 @@ IV$GreedyOrder[expr_, vars_List] := Module[
          +Length[nextS]            \[LongDash] minimize residue size
          -1000000 if v is in logVars (still in remaining) \[LongDash] strongly prefer Log-vars first
          +10000 if v is non-rational \[LongDash] penalize unless rational *)
-    Do[If[Max[0, Max[Exponent[#, v]& /@ S]] <= IV$MaxAcceptableDegreeForLambda,
-      nextS = IV$NextS[S, v, remaining];
+    Do[If[Max[0, Max[Exponent[#, v]& /@ IVPolySet]] <= IV$MaxAcceptableDegreeForLambda,
+      nextS = IV$NextS[IVPolySet, v, remaining];
       Module[{score = Length[nextS]
                       + If[MemberQ[logVars, v], -1000000, 0]
                       + If[MemberQ[rationalVars, v], 0, 10000]},
         If[score < bestSize, bestSize = score; bestVar = v]]
     ], {v, remaining}];
     If[bestVar === None, Return[{False, Join[order, remaining], S0}]];
-    AppendTo[order, bestVar]; S = IV$NextS[S, bestVar, remaining];
+    AppendTo[order, bestVar]; IVPolySet = IV$NextS[IVPolySet, bestVar, remaining];
     remaining = DeleteCases[remaining, bestVar]];
   {True, order, S0}
 ]
@@ -526,9 +526,9 @@ $IV$LastRankedOrders = Missing["NotComputed"];
 $IV$FailedPrefixes = {};
 $IV$PrefixCache = <||>;
 
-IV$NextSMemo[S_List, xa_, allVars_List] := Module[{key = {Sort[S], xa}},
+IV$NextSMemo[IVPolySet_List, xa_, allVars_List] := Module[{key = {Sort[IVPolySet], xa}},
   Lookup[$IV$OrderMemo, Key[key],
-    $IV$OrderMemo[key] = IV$NextS[S, xa, allVars]]]
+    $IV$OrderMemo[key] = IV$NextS[IVPolySet, xa, allVars]]]
 
 (* DFS over the valid-order trie.  Returns {order, lcChain, penultimateSet}
    for every complete valid order (degree <= IV$MaxAcceptableDegreeForLambda
@@ -540,15 +540,15 @@ IV$NextSMemo[S_List, xa_, allVars_List] := Module[{key = {Sort[S], xa}},
    (dropping the LeafCount chain early) are the ones that integrate; orders
    that keep a 16-term letter alive into late stages fail/grind there. *)
 IV$AllValidOrders[S0_List, vars_List] := Module[{dfs},
-  dfs[prefix_, S_, lcs_] := Module[{rem = Select[vars, !MemberQ[prefix, #]&]},
+  dfs[prefix_, IVPolySet_, lcs_] := Module[{rem = Select[vars, !MemberQ[prefix, #]&]},
     If[rem === {}, Sow[{prefix, lcs, {}}]; Return[]];
     If[Length[rem] === 1,
       (* last variable: no reduction needed; record with the CURRENT S as
          the penultimate letter set *)
-      Sow[{Join[prefix, rem], lcs, S}]; Return[]];
+      Sow[{Join[prefix, rem], lcs, IVPolySet}]; Return[]];
     Do[
-      If[Max[0, Max[Exponent[#, v] & /@ S]] <= IV$MaxAcceptableDegreeForLambda,
-        Module[{S2 = IV$NextSMemo[S, v, vars]},
+      If[Max[0, Max[Exponent[#, v] & /@ IVPolySet]] <= IV$MaxAcceptableDegreeForLambda,
+        Module[{S2 = IV$NextSMemo[IVPolySet, v, vars]},
           dfs[Append[prefix, v], S2,
             Append[lcs, Total[LeafCount /@ S2]]]]],
       {v, rem}]];
@@ -608,11 +608,11 @@ IV$RetryCandidates[expr_, vars_List, excludeOrder_] := Module[{perms, logVars},
 
 (* Cheap structural validity of a candidate order (degree check along the
    memoized reduction chain) -- ~0.1-0.3s vs a 600s blind integration try. *)
-IV$OrderValidQ[S0_List, ord_List, vars_List] := Module[{S = S0, ok = True},
+IV$OrderValidQ[S0_List, ord_List, vars_List] := Module[{IVPolySet = S0, ok = True},
   Do[
-    If[Max[0, Max[Exponent[#, ord[[i]]] & /@ S]] > IV$MaxAcceptableDegreeForLambda,
+    If[Max[0, Max[Exponent[#, ord[[i]]] & /@ IVPolySet]] > IV$MaxAcceptableDegreeForLambda,
       ok = False; Break[]];
-    If[i < Length[ord], S = IV$NextSMemo[S, ord[[i]], vars]],
+    If[i < Length[ord], IVPolySet = IV$NextSMemo[IVPolySet, ord[[i]], vars]],
     {i, Length[ord]}];
   ok]
 
@@ -682,12 +682,12 @@ IV$MonomialAtomQ[e_] := MatchQ[IV$FactorListExact[e][[All, 1]],
 
 (* kernel variables of one letter: p such that L = p A + (1-p) B exactly,
    with A, B nonzero monomials *)
-IV$KernelVarsOfLetter[L_, vars_List] := Select[vars, Function[p,
-  Exponent[L, p] == 1 &&
-  Module[{A = Simplify[L /. p -> 1], B = Simplify[L /. p -> 0]},
+IV$KernelVarsOfLetter[IVLetterL_, vars_List] := Select[vars, Function[p,
+  Exponent[IVLetterL, p] == 1 &&
+  Module[{A = Simplify[IVLetterL /. p -> 1], B = Simplify[IVLetterL /. p -> 0]},
     A =!= 0 && B =!= 0 &&
     IV$MonomialAtomQ[A] && IV$MonomialAtomQ[B] &&
-    Simplify[L - (p A + (1 - p) B)] === 0]]]
+    Simplify[IVLetterL - (p A + (1 - p) B)] === 0]]]
 
 IV$CornerKernelOrder[S0_List, vars_List] := Module[
   {compound, kernelCount, sideCount, ent, trusted},
@@ -698,11 +698,11 @@ IV$CornerKernelOrder[S0_List, vars_List] := Module[
        DeleteCases[IV$FactorListExact[bb], {_?NumericQ, _}])]];
   kernelCount = Association[# -> 0 & /@ vars];
   sideCount = Association[# -> 0 & /@ vars];   (* letters touched, non-kernel *)
-  Do[Module[{kv = IV$KernelVarsOfLetter[L, vars]},
+  Do[Module[{kv = IV$KernelVarsOfLetter[IVLetterL, vars]},
     Do[kernelCount[p] = kernelCount[p] + 1, {p, kv}];
-    Do[If[! FreeQ[L, v] && ! MemberQ[kv, v],
+    Do[If[! FreeQ[IVLetterL, v] && ! MemberQ[kv, v],
        sideCount[v] = sideCount[v] + 1], {v, vars}]],
-   {L, compound}];
+   {IVLetterL, compound}];
   (* v7 TRUST CONDITION (2026-07-02): a kernel variable is trusted ONLY if it
      is the kernel of EXACTLY ONE letter (kernelCount == 1).  That is the
      corner-swap scenario (one Beta x 2F1 + Pfaff swap fixes the letter and
@@ -714,7 +714,7 @@ IV$CornerKernelOrder[S0_List, vars_List] := Module[
      trusted kernel the seed is SKIPPED ({} return; caller filters). *)
   trusted = Select[vars, kernelCount[#] === 1 &];
   If[trusted === {}, Return[{}]];
-  ent = Association[# -> Total[If[FreeQ[L, #], 0, LeafCount[L]] & /@ S0] & /@ vars];
+  ent = Association[# -> Total[If[FreeQ[IVLetterL, #], 0, LeafCount[IVLetterL]] & /@ S0] & /@ vars];
   (* trusted kernel vars first; ties by how many corners a variable touches
      non-kernel (shared vars before single-letter monomial-side vars, which
      sink to the end); final ties by entanglement *)
@@ -723,10 +723,10 @@ IV$CornerKernelOrder[S0_List, vars_List] := Module[
 
 (* Children of a node, in legacy-preference order (log-arg vars first, then
    rational-only vars), filtered by the linear-reducibility degree check. *)
-IV$BFChildren[S_List, rem_List, vars_List, logVars_List, rationalVars_List] :=
+IV$BFChildren[IVPolySet_List, rem_List, vars_List, logVars_List, rationalVars_List] :=
   Module[{ok},
    ok = Select[rem, Function[v,
-     Max[0, Max[Exponent[#, v] & /@ S]] <= IV$MaxAcceptableDegreeForLambda]];
+     Max[0, Max[Exponent[#, v] & /@ IVPolySet]] <= IV$MaxAcceptableDegreeForLambda]];
    SortBy[ok, {-Boole[MemberQ[logVars, #]], -Boole[MemberQ[rationalVars, #]]} &]]
 
 (* Best-first integration, LAZY-EDGE version (v2, 2026-07-02).  The frontier
@@ -5028,11 +5028,11 @@ Module[{fibVars, fitList, result, w, workExpr = expr, lamRules = {},
 (* SECTION 7: GRAPH POLYNOMIALS                                 *)
 (* ============================================================ *)
 
-IV$GraphPolynomial[edges_List] := Module[{n = Max[Flatten[edges]], L},
-  L = Table[0, {n}, {n}];
+IV$GraphPolynomial[edges_List] := Module[{n = Max[Flatten[edges]], IVLetterL},
+  IVLetterL = Table[0, {n}, {n}];
   Do[Module[{i = edges[[e,1]], j = edges[[e,2]], xe = Global`IVx[e]},
-    L[[i,i]] += xe; L[[j,j]] += xe; L[[i,j]] -= xe; L[[j,i]] -= xe], {e, Length[edges]}];
-  Expand[Det[L[[2;;, 2;;]]]]
+    IVLetterL[[i,i]] += xe; IVLetterL[[j,j]] += xe; IVLetterL[[i,j]] -= xe; IVLetterL[[j,i]] -= xe], {e, Length[edges]}];
+  Expand[Det[IVLetterL[[2;;, 2;;]]]]
 ]
 
 IV$ForestPolynomial[edges_List, partition_List] := Module[{verts = Union[Flatten[edges]], rec},
@@ -5078,9 +5078,9 @@ IntVolAnalysis[expr_, vars_List] := Module[{S0, orderResult, order, ok, sets, si
     Print["Polynomial set evolution:"];
     Do[Print["  Step ", i, " (integrate ", order[[i]], "): |S| = ", sizes[[i]]], {i, Length[order]}];
     Print[]; Print["GPL letters at each step:"];
-    Do[Module[{S = sets[[i]], letters},
+    Do[Module[{IVPolySet = sets[[i]], letters},
       letters = Table[Module[{Q = Coefficient[p, order[[i]]], R = p /. order[[i]] -> 0},
-        If[Q =!= 0, Simplify[-R/Q], Nothing]], {p, S}];
+        If[Q =!= 0, Simplify[-R/Q], Nothing]], {p, IVPolySet}];
       Print["  ", order[[i]], ": ", Union[letters]]], {i, Length[order]}],
     Print["WARNING: No linearly reducible ordering found!"]; Print["Attempted order: ", order]];
   {ok, order, S0}
@@ -5443,7 +5443,7 @@ IV$PositiveCubeAbsReduce[expression_, variables_List] := Module[
     "IdentityGate" -> True|>]
 
 (* Main integration over [0,1]^n *)
-IntVolIntegrate[expr_, vars_List, opts:OptionsPattern[]] := Module[
+IntVolIntegrate[expr_, vars_List, IVOptions:OptionsPattern[]] := Module[
   {libSet, order, orderOpt, fitOpt, paramOpt, verbose, trackReg, simplifySteps,
    greedySearch, doLambda, mainFit, paramFit, regSyms,
    S0, orderResult, cur, ok, autoOrder, userOrder, S0evolved, remVars,
@@ -5481,7 +5481,7 @@ IntVolIntegrate[expr_, vars_List, opts:OptionsPattern[]] := Module[
       positiveAbs["AbsBefore"], " -> ", positiveAbs["AbsAfter"],
       " Abs factors"]];
     positiveResult = IntVolIntegrate[
-      positiveAbs["Expression"], positiveAbs["Variables"], opts];
+      positiveAbs["Expression"], positiveAbs["Variables"], IVOptions];
     If[AssociationQ[positiveResult],
       positiveResult = Join[positiveResult,
         <|"PositiveCubeAbsReduction" ->
@@ -5498,7 +5498,7 @@ IntVolIntegrate[expr_, vars_List, opts:OptionsPattern[]] := Module[
       terminalAffine["EliminatedVariable"]]];
     terminalResult = IntVolIntegrate[
       terminalAffine["Expression"], terminalAffine["Variables"],
-      Sequence @@ DeleteCases[Flatten[{opts}],
+      Sequence @@ DeleteCases[Flatten[{IVOptions}],
         HoldPattern["IntegrationOrder" -> _]]];
     If[AssociationQ[terminalResult],
       terminalResult = Join[terminalResult,
@@ -5542,9 +5542,9 @@ IntVolIntegrate[expr_, vars_List, opts:OptionsPattern[]] := Module[
         (* a route may also pin the order — but an explicit caller order wins *)
         IntVolIntegrate[expr, vars,
           Sequence @@ If[KeyExistsQ[libSet, "IntegrationOrder"] &&
-              FreeQ[Flatten[{opts}], HoldPattern["IntegrationOrder" -> _]],
+              FreeQ[Flatten[{IVOptions}], HoldPattern["IntegrationOrder" -> _]],
             {"IntegrationOrder" -> libSet["IntegrationOrder"]}, {}],
-          opts]]]]];
+          IVOptions]]]]];
 
   libHit = IV$LibCall[$IV$LibLookup, {expr, vars}, None];
   If[AssociationQ[libHit] && Lookup[libHit, "Result", $Failed] =!= $Failed,
@@ -5566,7 +5566,7 @@ IntVolIntegrate[expr_, vars_List, opts:OptionsPattern[]] := Module[
           If[verbose, Print["[Lib] trying learned order ", o]];
           libRes = Quiet@TimeConstrained[
             IntVolIntegrate[expr, vars, "IntegrationOrder" -> o,
-              Sequence @@ DeleteCases[Flatten[{opts}],
+              Sequence @@ DeleteCases[Flatten[{IVOptions}],
                 HoldPattern["IntegrationOrder" -> _]]],
             $IV$LibOrderCap, $Failed];
           If[AssociationQ[libRes] &&
@@ -6236,7 +6236,7 @@ IntVolIntegrate[expr_, vars_List, opts:OptionsPattern[]] := Module[
 
 Options[IntVolIntegrateGeneral] = Options[IntVolIntegrate];
 
-IntVolIntegrateGeneral[expr_, varSpecs_List, opts:OptionsPattern[]] :=
+IntVolIntegrateGeneral[expr_, varSpecs_List, IVOptions:OptionsPattern[]] :=
 Module[{integrand=expr, plainVars={}, allLamRules={}, subs={}, jacobian=1,
         verbose=OptionValue["Verbose"], doLambda=OptionValue["LambdaSubstitution"],
         order, mainFit, paramFit, regSyms, cur, classification},
@@ -6491,8 +6491,8 @@ IntVolFindOrder[expr_, vars_List, greedy_:False] := Module[{result},
   result = If[greedy || Length[vars] > 7, IV$GreedyOrder[expr, vars], IV$BestOrder[expr, vars]];
   If[result[[1]], Print["Order: ", result[[2]]], Print["No order found."]]; result[[2]]]
 
-IntVolAnalyzeAndIntegrate[expr_, vars_List, opts:OptionsPattern[IntVolIntegrate]] := (
-  IntVolAnalysis[expr, vars]; Print[]; IntVolIntegrate[expr, vars, opts])
+IntVolAnalyzeAndIntegrate[expr_, vars_List, IVOptions:OptionsPattern[IntVolIntegrate]] := (
+  IntVolAnalysis[expr, vars]; Print[]; IntVolIntegrate[expr, vars, IVOptions])
 
 (* ============================================================ *)
 (* SECTION 12: LAMBDA-SHIFT TRICK (dev v1)                      *)
@@ -6510,9 +6510,9 @@ IntVolAnalyzeAndIntegrate[expr_, vars_List, opts:OptionsPattern[IntVolIntegrate]
 
 Options[IntVolLambdaShift] = Options[IntVolIntegrate];
 
-IntVolLambdaShift[integrand_, vars_List, opts:OptionsPattern[]] :=
+IntVolLambdaShift[integrand_, vars_List, IVOptions:OptionsPattern[]] :=
 Module[{denom, factors, highPowFacs, fac, k, lambdaS, shifted, intResult,
-        resWithLam, finalResult, verbose = OptionValue[IntVolIntegrate, {opts}, "Verbose"]},
+        resWithLam, finalResult, verbose = OptionValue[IntVolIntegrate, {IVOptions}, "Verbose"]},
 
   denom = Together[integrand] // Denominator;
   factors = IV$FactorListExact[denom];
@@ -6521,7 +6521,7 @@ Module[{denom, factors, highPowFacs, fac, k, lambdaS, shifted, intResult,
 
   If[Length[highPowFacs] == 0,
     Print["[LambdaShift] No high-power denominator factor; using IntVolIntegrate directly"];
-    Return[IntVolIntegrate[integrand, vars, opts]]];
+    Return[IntVolIntegrate[integrand, vars, IVOptions]]];
 
   If[Length[highPowFacs] > 1,
     Print["[LambdaShift] WARNING: ", Length[highPowFacs],
@@ -6540,7 +6540,7 @@ Module[{denom, factors, highPowFacs, fac, k, lambdaS, shifted, intResult,
   shifted = Together[shifted];
   Print["[LambdaShift] Shifted integrand LeafCount: ", LeafCount[shifted]];
 
-  intResult = IntVolIntegrate[shifted, vars, opts];
+  intResult = IntVolIntegrate[shifted, vars, IVOptions];
 
   If[!AssociationQ[intResult] || intResult["Result"] === $Failed,
     Print["[LambdaShift] Inner integration failed"];

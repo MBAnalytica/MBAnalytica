@@ -45,7 +45,7 @@ aleCubeLaurent[red_Association, pref_, ep_, lo_Integer, hi_Integer, verbose_: Fa
   prefLead = Global`fcuLeadOrderOfSeries[prefSeries, pref]; cubeHi = hi - prefLead;
   cubeLo = Min[Global`fcuLeadOrder[Global`fcuApplyOps[#, #["R"], ep], ep, Max[0, cubeHi]] & /@ pieces];
   If[cubeLo === Infinity, Return[ConstantArray[0, hi - lo + 1], Module]];
-  bankDir = FileNameJoin[{Global`$MBStandardDir, ".cache", "affine_euler_leaf"}];
+  bankDir = FileNameJoin[{Global`$MBStandardCacheDir, "affine_euler_leaf"}];
   Quiet@CreateDirectory[bankDir, CreateIntermediateDirectories -> True];
   key = IntegerString[Hash[{"affine-leaf-v1", norm, vv}, "SHA256"], 16, 16];
   If[verbose, Print["    [affine Euler leaf] ", red["Variable"], " integrated; ", Length[vv], " variables, ",

@@ -31,7 +31,7 @@ mbeLastFoldCertificate::usage="mbeLastFoldCertificate[job] is the exact converge
 Begin["`Private`"];
 G=PolyLogTools`G;
 u=Global`psParameter1;
-canonicalRequestHash[reqFile_,jid_]:=StringTrim[RunProcess[{"python3","-c","import json,sys,hashlib;j=[x for x in json.load(open(sys.argv[1]))['jobs'] if x['id']==sys.argv[2]][0];print(hashlib.sha256(json.dumps(j['request'],sort_keys=True,separators=(',',':')).encode()).hexdigest())",reqFile,jid},"StandardOutput"]];
+canonicalRequestHash[reqFile_,jid_]:=StringTrim[RunProcess[{If[StringQ[Global`$MBStandardPythonExecutable],Global`$MBStandardPythonExecutable,"python3"],"-c","import json,sys,hashlib;j=[x for x in json.load(open(sys.argv[1]))['jobs'] if x['id']==sys.argv[2]][0];print(hashlib.sha256(json.dumps(j['request'],sort_keys=True,separators=(',',':')).encode()).hexdigest())",reqFile,jid},"StandardOutput"]];
 (* the integrator binary (release R3, 29 September 2026): "Engine" -> Automatic resolves to Global`$mbeLastFoldEngine when set,
    else the configured hyperlogarithm integrator Global`$MBStandardHyperFLINTBinary (configure_runtime.m), else the release's
    vendor binary next to this file; an explicit path is used as given.  No absolute path lives in this file. *)
@@ -39,9 +39,9 @@ $mbeLastFoldRungDir=If[StringQ[$InputFileName]&&$InputFileName=!="",DirectoryNam
 lastFoldEngine[e_String]:=e;
 lastFoldEngine[_]:=Which[StringQ[Global`$mbeLastFoldEngine],Global`$mbeLastFoldEngine,
   StringQ[Global`$MBStandardHyperFLINTBinary],Global`$MBStandardHyperFLINTBinary,
-  True,FileNameJoin[{$mbeLastFoldRungDir,"vendor","IntVolFLINT","bin","hyperflint"}]];
+  True,FileNameJoin[{ParentDirectory[ParentDirectory[$mbeLastFoldRungDir]],"dep","IntVolFLINT","bin","hyperflint"}]];
 engineRun[request_,engine_,seconds_]:=Module[{run},
-  run=TimeConstrained[RunProcess[{"prlimit","--stack=unlimited",engine,"eval-json"},All,ExportString[request,"RawJSON"],
+  run=TimeConstrained[RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[seconds+5],MBAnalytica`Portable`StackArgs[{engine,"eval-json"}]],All,ExportString[request,"RawJSON"],
     ProcessEnvironment-><|"OMP_NUM_THREADS"->"1","HF_DIAG_NONLINEAR"->"throw","PATH"->Environment["PATH"],"HOME"->Environment["HOME"]|>],seconds,$Failed];
   If[run===$Failed,Return[<|"Status"->"ENGINE_TIMEOUT"|>]];
   If[StringContainsQ[run["StandardError"],"HF_DIAG_DROPPED_NONLINEAR"],Return[<|"Status"->"ENGINE_DROPPED"|>]];

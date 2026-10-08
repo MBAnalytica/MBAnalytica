@@ -606,7 +606,7 @@ Module[{},
                workers in 56 s with no reason on record, served standalone in 4 s) *)
             "Refusals" -> If[ListQ[Global`$ivfLastRefusals], Take[StringTake[ToString[Lookup[#, "reason", ""]], UpTo[160]] & /@ Global`$ivfLastRefusals, UpTo[8]], None],
             "RaceReason" -> If[AssociationQ[Global`$ivfLastRace], Lookup[Global`$ivfLastRace, "reason", None], None]|>,
-            FileNameJoin[{Global`$MBStandardDir, ".cache", "fcu", "piece_log.m"}]]], Null];
+            FileNameJoin[{Global`$MBStandardCacheDir, "fcu", "piece_log.m"}]]], Null];
         (* FAIL-CLOSED ON DIVERGENCE (2026-09-11): when the certificate integrator refused this piece as divergent and the
            legacy chain then served a value, that value is a shuffle-REGULARISED finite part of a divergent integral,
            never the value of the piece (an unsubtracted pole, e.g. a corner's moment); it is refused here *)
@@ -1001,7 +1001,7 @@ Module[{},
     Global`$fcuLastRun = <|"Cube" -> norm, "Vars" -> vars, "Prefactor" -> pref, "Order" -> inv["Order"], "Rules" -> rulesUsed,
       "Pieces" -> pieces, "StructuralLogs" -> slogs, "Merged" -> inv["Merged"]|>;
     If[kmaxCube < kmin, Throw[ConstantArray[0, ordMax - ordMin + 1], Global`fcu$tag]];
-    bankDir = FileNameJoin[{Global`$MBStandardDir, ".cache", "fcu"}]; Quiet@CreateDirectory[bankDir, CreateIntermediateDirectories -> True];
+    bankDir = FileNameJoin[{Global`$MBStandardCacheDir, "fcu"}]; Quiet@CreateDirectory[bankDir, CreateIntermediateDirectories -> True];
     (* the bank key carries the sector structure: a blown-up cube must not read the coefficients banked before the blow-up *)
     (* a cube that needed no sector (one sector = the cube itself) keeps the pre-blow-up key: its pieces are identical *)
     key = IntegerString[Hash[If[Length[sectors] > 1, {norm, vars, rulesUsed, {"blow-up", Length[sectors], sectors[[All, 2]]}}, {norm, vars, rulesUsed}], "SHA256"], 16, 16];

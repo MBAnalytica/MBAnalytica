@@ -170,7 +170,7 @@ sagCubeLaurent[red_Association, externalPref_, ep_, lo_Integer, hi_Integer, verb
   If[! AllTrue[expansions, hbbExactQ], Throw[$Failed, sagCloseTag]];
   product = Series[red["Weight"] Times @@ expansions, {ep, 0, cubeHi}];
   cubeLo = Global`fcuLeadOrderOfSeries[product, red["Weight"] Times @@ expansions];
-  bankDir = FileNameJoin[{Global`$MBStandardDir, ".cache", "shared_affine_gauss"}];
+  bankDir = FileNameJoin[{Global`$MBStandardCacheDir, "shared_affine_gauss"}];
   Quiet@CreateDirectory[bankDir, CreateIntermediateDirectories -> True];
   key = IntegerString[Hash[{"shared-affine-gauss-v1", red["Weight"], red["GaussBlocks"]}, "SHA256"], 16, 16];
   Do[bank = FileNameJoin[{bankDir, "c_" <> key <> "_e" <> ToString[jj] <> ".m"}];

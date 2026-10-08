@@ -339,7 +339,7 @@ sealedLane[F_List,C_List,seconds_,nW0_]:=Module[{n=Length[F],jr,nW,ks,res,wf,t0,
   jr=FileNameJoin[{$TemporaryDirectory,"sealed-lane-"<>ToString[$ProcessID]<>"-"<>StringReplace[CreateUUID[],"-"->""]}];
   Quiet@CreateDirectory[jr,CreateIntermediateDirectories->True];
   Put[<|"pkgDir"->$sealedLaneDir,"pkgPath"->FileNameJoin[{$sealedLaneDir,"MB2MPL.m"}],
-        "pltPath"->FileNameJoin[{$sealedLaneDir,"vendor","PolyLogTools","PolyLogTools.m"}],"nPieces"->n,"useCertifiedLibrary"->False|>,
+        "pltPath"->FileNameJoin[{Global`$PolyLogPath,"PolyLogTools.m"}],"nPieces"->n,"useCertifiedLibrary"->False|>,
       FileNameJoin[{jr,"meta.m"}]];
   Do[Put[<|"integEps1"->F[[k]],"vrs"->Keys[C[[k]]],"epsFac"->1,"ctr"->C[[k]]|>,FileNameJoin[{jr,"p_"<>IntegerString[k,10,4]<>".m"}]],{k,n}];
   cap=If[DownValues[Global`mbtSubkernelCapDynamic]=!={},Global`mbtSubkernelCapDynamic[],nW0];

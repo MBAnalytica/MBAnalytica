@@ -196,8 +196,8 @@ integrateJobs[jobs_List, pars_List, dir_String, audit_, cache_] := Module[
     "record_directory" -> FileNameJoin[{dir, "native"}], "workers" -> $PSHNativeWorkers, "audit" -> TrueQ[audit],
     "watch" -> MBParameterSubtraction`Private`psWatchList[rows],
     "deadline_unix" -> If[$PSHDeadline===Infinity,UnixTime[]+3600,UnixTime[]+Max[0,$PSHDeadline-AbsoluteTime[]]]|>, "RawJSON"];
-  proc = RunProcess[{"timeout","--kill-after=2",ToString[Max[1,Ceiling[If[$PSHDeadline===Infinity,3600,$PSHDeadline-AbsoluteTime[]]]]],
-    MBParameterSubtraction`Private`psPython[], FileNameJoin[{$here, "mbe_parameter_subtraction_native_par.py"}], input, output}];
+  proc = RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[Max[1,Ceiling[If[$PSHDeadline===Infinity,3600,$PSHDeadline-AbsoluteTime[]]]], 2],
+    {MBParameterSubtraction`Private`psPython[], FileNameJoin[{$here, "mbe_parameter_subtraction_native_par.py"}], input, output}]];
   If[!AssociationQ[proc] || proc["ExitCode"] =!= 0 || !FileExistsQ[output], Return[refuse["Native runner failed", <|"Directory" -> dir|>], Module]];
   result = Import[output, "RawJSON"];
   If[KeyExistsQ[result, "aborted"], Return[refuse["A finite coefficient job closes neither natively nor by the exact last fold (not certifiably convergent alone)",
