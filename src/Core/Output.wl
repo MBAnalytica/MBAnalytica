@@ -33,7 +33,7 @@ LetterSign[Letter_, Vars_List] := Module[{Assumption, Refined, Points, Signs},
 HarmonicSumsHToG[Args_List, Vars_List] := Module[{Letters, Argument, Signs, Prefactor},
   Letters = Most[Args];
   Argument = Last[Args];
-  If[! FreeQ[Letters, _List], Return[$Failed]];
+  If[AnyTrue[Letters, ListQ], Return[$Failed]];
   Signs = Map[LetterSign[#, Vars] &, DeleteCases[Letters, 0]];
   If[MemberQ[Signs, $Failed], Return[$Failed]];
   Prefactor = Times @@ Map[Minus, Signs];
@@ -60,10 +60,11 @@ PolyLogToG[Order1_Integer, Argument_] := Module[{Letters},
   Return[-(PolyLogTools`G @@ Append[Letters, Argument])]];
 
 
+(* HoldPattern: HarmonicSums defines H[x] = 1, so an unheld H[Args__] would evaluate to the rule 1 :> ... *)
 ToGBasis[Expr_, Vars_List] := Module[{Res, VarPattern},
-  Res = Expr /. HarmonicSums`H[Args__] :>
+  Res = Expr /. HoldPattern[HarmonicSums`H[Args__]] :>
     With[{Converted = HarmonicSumsHToG[{Args}, Vars]}, Converted /; Converted =!= $Failed];
-  Res = Res /. HPL`HPL[Indices_List, Argument_] :>
+  Res = Res /. HoldPattern[HPL`HPL[Indices_List, Argument_]] :>
     With[{Converted = HPLToG[Indices, Argument]}, Converted /; Converted =!= $Failed];
   If[Vars =!= {},
     VarPattern = Alternatives @@ Vars;
@@ -92,8 +93,40 @@ NumericValue[Expr_] := Module[{Value},
   Return[$Failed]];
 
 
-(* the real part with every function held as a real symbol; accepted only when it agrees with the real part of the
-   full value at the probe points (or, without kinematic variables, at the single point) *)
+(* True when Cond holds on the whole domain 0 < x < 1: proved by Refine, else by Resolve within ten seconds *)
+HoldsOnDomain[Cond_, Vars_List] := Module[{Assumption, Refined, Resolved},
+  If[Vars === {}, Return[TrueQ[Quiet[Simplify[Cond]]]]];
+  Assumption = And @@ Map[(0 < # < 1) &, Vars];
+  Refined = Quiet[Refine[Cond, Assumption]];
+  If[Refined === True, Return[True]];
+  Resolved = Quiet[TimeConstrained[Resolve[ForAll[Vars, Assumption, Cond], Reals], 10, $Failed]];
+  Return[Resolved === True]];
+
+
+(* G(a1, ..., an; x) and H(a1, ..., an; x) integrate along [0, x] with poles at their letters, so they are real when
+   x > 0 and no nonzero letter lies on the path: a/x < 0 or a/x >= 1, and a1/x != 1 for the outermost letter *)
+OffPathQ[Letters_List, Argument_, Vars_List] := Module[{Positions, Conditions},
+  If[AnyTrue[Letters, ListQ], Return[False]];
+  If[! HoldsOnDomain[Argument > 0, Vars], Return[False]];
+  Positions = Select[Range[Length[Letters]], Letters[[#]] =!= 0 &];
+  Conditions = Map[If[# === 1, Letters[[#]]/Argument < 0 || Letters[[#]]/Argument > 1,
+    Letters[[#]]/Argument < 0 || Letters[[#]]/Argument >= 1] &, Positions];
+  Return[AllTrue[Conditions, HoldsOnDomain[#, Vars] &]]];
+
+
+(* whether a function is real on the whole domain *)
+RealFunctionQ[Function1_, Vars_List] := Module[{Args},
+  Args = List @@ Function1;
+  Which[
+    MatchQ[Function1, _PolyLogTools`G | _HarmonicSums`H], Return[OffPathQ[Most[Args], Last[Args], Vars]],
+    MatchQ[Function1, Log[_]], Return[HoldsOnDomain[First[Args] > 0, Vars]],
+    MatchQ[Function1, PolyLog[_Integer?Positive, _]], Return[HoldsOnDomain[Last[Args] <= 1, Vars]],
+    True, Return[False]]];
+
+
+(* the real part with every function held as a real symbol: exact when every function is real on the domain;
+   otherwise accepted only when it agrees with the real part of the full value at the probe points (or, without
+   kinematic variables, at the single point) *)
 RealPart[Expr_, Vars_List] := Module[{Functions, Holders, ToHolders, FromHolders, Held, Candidate, Points, Agree},
   Functions = DeleteDuplicates[Cases[Expr, FunctionPattern, {0, Infinity}]];
   Holders = Table[Symbol["MBAnalytica`Private`RealHolder" <> ToString[K]], {K, Length[Functions]}];
@@ -104,6 +137,7 @@ RealPart[Expr_, Vars_List] := Module[{Functions, Holders, ToHolders, FromHolders
   Candidate = Candidate /. FromHolders;
   Candidate = Expand[Candidate];
   If[Functions === {}, Return[Candidate]];
+  If[AllTrue[Functions, RealFunctionQ[#, Vars] &], Return[Candidate]];
   Points = If[Vars === {}, {{}}, Map[Function[Point1, Thread[Vars -> Point1]], {1/3, 5/7}]];
   Agree = AllTrue[Points, Function[Rules1, Module[{Whole, Part1},
     Whole = NumericValue[Expr /. Rules1];

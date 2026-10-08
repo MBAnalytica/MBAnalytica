@@ -16,9 +16,13 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
       If[ListQ[$ScriptCommandLine] && $ScriptCommandLine =!= {}, First[$ScriptCommandLine], ""]]},
       If[f === "", "", DirectoryName[ExpandFileName[f]]]], pk, t0, summary, report, rows, allPass, mfQ = False,
     fams = {{"MB13", "MB13u", "MB13u"}, {"MB8", "MB8u", "MB8au+MB8bu"}, {"MB14", "MB14u", "MB14au+MB14bu"}}, kernel, w, sec, procs = {}, t1, recDir, rec, sumFile, nh, helperPlan, helpers = {}, t2, tEnd, mfRows = {}, tPub,
-    names, after, light, tLight = 0, recs = <||>},
+    names, after, light, tLight = 0, recs = <||>, cacheDir},
   If[here === "", here = Directory[]];
   SetDirectory[here];
+  (* MBAnalytica layout: the run-time stores are in the cache folder (MBANALYTICA_CACHE, else the default of
+     configure_runtime.m), the engine in src/MB2MPL *)
+  cacheDir = With[{e = Environment["MBANALYTICA_CACHE"]}, If[StringQ[e] && e =!= "", e,
+    FileNameJoin[{$UserBaseDirectory, "ApplicationData", "MBAnalytica"}]]];
   pk = ToExpression[Environment["PK"]]; If[! IntegerQ[pk] || pk < 0, pk = Automatic];   (* Automatic = the resource policy (2026-09-08) *)
   $MBSerialPieceKernels = pk;
   $MBSerialWorkerMode = If[Environment["WORKER_MODE"] === "Processes", "Processes", "Subkernels"];
@@ -34,7 +38,7 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
      aside as well: a record read at the end is one this regression wrote. *)
   If[Environment["FRESH"] =!= "0",
     Module[{stamp = DateString[{"Year", "Month", "Day", "_", "Hour", "Minute", "Second"}], moved = {}},
-      Do[With[{d = FileNameJoin[{here, ".cache", s}]},
+      Do[With[{d = FileNameJoin[{cacheDir, s}]},
           If[DirectoryQ[d] && Quiet@Check[RenameDirectory[d, d <> "_before_" <> stamp], $Failed] =!= $Failed, AppendTo[moved, s]]],
         {s, {"fcu", "hypergeometric_blocks", "multifold_close", "multifold_family", "mb2mpl", "doab", "shared_affine_gauss", "oft_residues"}}];
       Print["FRESH  run-time state set aside before the regression: ", If[moved === {}, "none present", moved], "  (FRESH=0 keeps it)"]]];
@@ -58,7 +62,7 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
       If[StringQ[sel] && sel =!= "", items = Select[items, MemberQ[StringTrim /@ StringSplit[sel, ","], #[[2]]] &]];
       kern = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}];
       If[! FileExistsQ[kern], kern = First[$CommandLine]];
-      outDir = FileNameJoin[{here, ".cache", "regression_targets_" <> DateString[{"Year", "Month", "Day", "_", "Hour", "Minute", "Second"}]}];
+      outDir = FileNameJoin[{cacheDir, "regression_targets_" <> DateString[{"Year", "Month", "Day", "_", "Hour", "Minute", "Second"}]}];
       Quiet@CreateDirectory[outDir, CreateIntermediateDirectories -> True];
       Print["R3.1 SUBTRACTION REGRESSION  ", Length[items], " targets, one at a time, records in ", outDir];
       Do[logf = FileNameJoin[{outDir, it[[2]] <> "_" <> ToString[it[[3]]] <> "_" <> ToString[it[[4]]] <> ".log"}];
@@ -131,7 +135,7 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
       If[!StringQ[w] || ToExpression[w] === $Failed,
         w = ToString[Max[8, Floor[(If[DownValues[Global`mbtSubkernelCapDynamic] =!= {}, Global`mbtSubkernelCapDynamic[], 24] - 2)/Max[1, Length[fams] + Length[helperPlan]]]]]];
       sec = Environment["MULTIFOLD_SECONDS"]; If[!StringQ[sec] || ToExpression[sec] === $Failed, sec = "14400"];   (* closing budget per term *)
-      recDir = FileNameJoin[{here, ".cache", "multifold_family"}]; Quiet@CreateDirectory[recDir, CreateIntermediateDirectories -> True];
+      recDir = FileNameJoin[{cacheDir, "multifold_family"}]; Quiet@CreateDirectory[recDir, CreateIntermediateDirectories -> True];
       Print["MULTIFOLD START  ", fams[[All, 1]], "  eps^-7..eps^-3 through run_multifold_family.wls, ", w, " piece workers each, ", sec, " s per term, in parallel  ", DateString[]];
       Print["MULTIFOLD HELPERS  ", Length[helperPlan], " helper process(es) ", helperPlan, " (same driver, another residue or item order, shared caches)"];
       t1 = AbsoluteTime[];

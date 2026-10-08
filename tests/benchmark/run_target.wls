@@ -25,7 +25,8 @@ Module[{here, kind = Environment["KIND"], name = Environment["NAME"], lo = Quiet
   SetDirectory[here];
   If[! MemberQ[{"inc", "u"}, kind] || ! StringQ[name] || ! IntegerQ[lo] || ! IntegerQ[hi],
     Print["run_target.wls: need KIND (inc|u), NAME, LO, HI"]; Exit[1]];
-  If[! StringQ[out] || out === "", out = FileNameJoin[{here, ".cache", "regression_targets"}]];
+  If[! StringQ[out] || out === "", out = FileNameJoin[{With[{e = Environment["MBANALYTICA_CACHE"]}, If[StringQ[e] && e =!= "", e,
+    FileNameJoin[{$UserBaseDirectory, "ApplicationData", "MBAnalytica"}]]], "regression_targets"}]];
   Quiet@CreateDirectory[out, CreateIntermediateDirectories -> True];
   pk = Quiet@ToExpression[Environment["PK"]]; If[! IntegerQ[pk], pk = Automatic];
   nw = Quiet@ToExpression[Environment["NATIVE_WORKERS"]]; If[! IntegerQ[nw] || nw < 1, nw = 16];
@@ -34,14 +35,16 @@ Module[{here, kind = Environment["KIND"], name = Environment["NAME"], lo = Quiet
   cmpSec = Quiet@ToExpression[Environment["CMP_SECONDS"]]; If[! IntegerQ[cmpSec] || cmpSec < 1, cmpSec = 1800];
   cmpK = Quiet@ToExpression[Environment["CMP_KERNELS"]]; If[! IntegerQ[cmpK] || cmpK < 0, cmpK = 16];
   $MBSerialPieceKernels = pk; $MBSerialWorkerMode = "Subkernels"; $MBSerialDiskCache = False; $MBSerialResume = False;
-  $MBSerialOrderMode = "SealedStandard"; $MBSerialRoute = "Subtraction"; $MBSerialVerbose = Environment["VERBOSE"] =!= "0";
+  (* ROUTE=Standard runs the same target on the Standard route (MBAnalytica: both pages of the benchmark status) *)
+  $MBSerialOrderMode = "SealedStandard"; $MBSerialVerbose = Environment["VERBOSE"] =!= "0";
+  $MBSerialRoute = If[Environment["ROUTE"] === "Standard", "Standard", "Subtraction"];
   (* a launcher that finds no free subkernel must not start process workers beyond the main-kernel budget *)
   Global`$mbtNestedInWorker = True; Global`$mbtMainKernelBudget = b; Global`$oftResidueHelpers = h;
   Global`$orsVerbose = True;
   MBParameterSubtractionHF`$PSHNativeWorkers = nw;
   Get[FileNameJoin[{here, "MB2MPL_StandardRoute.wl"}]];
   MBtoMPL`Private`$mbtUseMB2MPLDiskCache = False;
-  Print["TARGET ", kind, " ", name, " eps^", lo, "..eps^", hi, "  Subtraction route  piece kernels ", pk, "  native workers ", nw,
+  Print["TARGET ", kind, " ", name, " eps^", lo, "..eps^", hi, "  ", $MBSerialRoute, " route  piece kernels ", pk, "  native workers ", nw,
     "  helpers ", h, "  main-kernel budget ", b, "  ", DateString[]];
   t0 = AbsoluteTime[];
   If[kind === "inc",
@@ -61,7 +64,7 @@ Module[{here, kind = Environment["KIND"], name = Environment["NAME"], lo = Quiet
     saved = Get[rawFrom]; rec = saved["Record"]; run = saved["Run"]; sec = saved["Seconds"];
     raw = If[AssociationQ[rec], rec["Result"], rec];
     Print["TARGET_RAW_FROM ", rawFrom],
-    rec = MBSubtractionRunU[name, lo, hi]; sec = Round[AbsoluteTime[] - t0];
+    rec = If[$MBSerialRoute === "Standard", MBStandardRunU[name, lo, hi], MBSubtractionRunU[name, lo, hi]]; sec = Round[AbsoluteTime[] - t0];
     raw = If[AssociationQ[rec], rec["Result"], rec]; run = MBParameter`$LastParameterRun;
     (* written with full contexts: read back after the loader, a bare u, G or regulator would resolve to a package context *)
     Block[{$Context = "zzWrite`", $ContextPath = {"System`"}},
@@ -91,8 +94,8 @@ Module[{here, kind = Environment["KIND"], name = Environment["NAME"], lo = Quiet
       If[own =!= {}, Quiet@CloseKernels[own]]; vs]];
   pass = False;
   If[AssociationQ[rec] && TrueQ[rec["Exact"]] && rec["FailedPieceCount"] === 0 && ! FailureQ[raw],
-    std = Block[{$ContextPath = $ContextPath}, Quiet@Get[FileNameJoin[{here, "mbu_results.m"}]]; Global`MBuResults];
-    sub = Block[{$ContextPath = $ContextPath}, Quiet@Get[FileNameJoin[{here, "mbu_subtraction_records.m"}]]];
+    std = Block[{$ContextPath = $ContextPath}, Quiet@Get[FileNameJoin[{ParentDirectory[here], "reference", "mbu_results.m"}]]; Global`MBuResults];
+    sub = Block[{$ContextPath = $ContextPath}, Quiet@Get[FileNameJoin[{ParentDirectory[here], "reference", "mbu_subtraction_records.m"}]]];
     refs = Select[{{"Standard records (mbu_results.m)", If[AssociationQ[std], Lookup[std, name, None], None]},
         {"Subtraction records (mbu_subtraction_records.m)", If[AssociationQ[sub], Lookup[sub, name, None], None]}}, AssociationQ[#[[2]]] &];
     (* per reference and order: exact zero difference, or the orders that need numbers *)

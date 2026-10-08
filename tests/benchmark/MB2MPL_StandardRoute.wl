@@ -17,8 +17,10 @@
 mbSerialBaseDirectory = DirectoryName[ExpandFileName[$InputFileName]];
 If[mbSerialBaseDirectory === "", mbSerialBaseDirectory = Directory[]];
 SetDirectory[mbSerialBaseDirectory];
+(* MBAnalytica layout: this driver and the targets are in tests/benchmark, the engine in src/MB2MPL *)
+mbSerialEngineDirectory = FileNameJoin[{ParentDirectory[ParentDirectory[mbSerialBaseDirectory]], "src", "MB2MPL"}];
 
-Get[FileNameJoin[{mbSerialBaseDirectory, "load_standard.m"}]];
+Get[FileNameJoin[{mbSerialEngineDirectory, "load_standard.m"}]];
 Get[FileNameJoin[{mbSerialBaseDirectory, "mb_targets_all.m"}]];
 
 ClearAll[
@@ -43,44 +45,44 @@ mbSerialZeta53 = 0.03770767298484754401136;
    core, the engines, every rung and the higher-weight package files. *)
 mbSerialDependencyFiles = DeleteDuplicates[ExpandFileName /@ {
   FileNameJoin[{mbSerialBaseDirectory, "MB2MPL_StandardRoute.wl"}],
-  FileNameJoin[{mbSerialBaseDirectory, "load_standard.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "configure_runtime.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "MB2MPL.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "MB.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "MBresolve.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "barnesroutines.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "IntVol_stable.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "IntVol_BigExpr_Helpers.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbe_strategy_dispatch_v2.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "engineN_lib.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "engineN_grouped_lib.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "hf_machinery.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "load_mbe_engines.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "intvolflint", "ivf_machinery.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "intvolflint", "ivf_dispatch_hook.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "intvolflint", "ivf_ext_finitepart_gconv.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeSeqIntegrate.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbePinchClose.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeReflZero.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeAffineBellRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbe_affine_bell_lib.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeTwoVarPsiRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeLevel6Reduce.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeBarnesPreReduce.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeBarnes2PsiReduce.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeResonantResolve.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeOneFoldTowerRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeFaithfulCubeRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeExternalParameterRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeParameterResidueRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeParameterEulerRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeParameterTransverseRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeParameterSixGammaRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeParameterBarnesSecondRung.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbeResolveLP.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "parameter_support", "contour_check.py"}],
+  FileNameJoin[{mbSerialEngineDirectory, "load_standard.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "configure_runtime.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "MB2MPL.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbtools", "MB.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbtools", "MBresolve.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbtools", "barnesroutines.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "IntVol_stable.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "IntVol_BigExpr_Helpers.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbe_strategy_dispatch_v2.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "engineN_lib.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "engineN_grouped_lib.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "hf_machinery.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "load_mbe_engines.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "intvolflint", "ivf_machinery.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "intvolflint", "ivf_dispatch_hook.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "intvolflint", "ivf_ext_finitepart_gconv.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeSeqIntegrate.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbePinchClose.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeReflZero.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeAffineBellRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbe_affine_bell_lib.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeTwoVarPsiRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeLevel6Reduce.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeBarnesPreReduce.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeBarnes2PsiReduce.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeResonantResolve.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeOneFoldTowerRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeFaithfulCubeRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeExternalParameterRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeParameterResidueRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeParameterEulerRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeParameterTransverseRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeParameterSixGammaRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeParameterBarnesSecondRung.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbeResolveLP.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "parameter_support", "contour_check.py"}],
   FileNameJoin[{mbSerialBaseDirectory, "mb_u_targets.m"}],
-  FileNameJoin[{mbSerialBaseDirectory, "mbt_piece_worker.m"}],
+  FileNameJoin[{mbSerialEngineDirectory, "mbt_piece_worker.m"}],
   FileNameJoin[{mbSerialBaseDirectory, "mb_targets_all.m"}],
   FileNameJoin[{Global`$PolyLogPath, "PolyLogTools.m"}],
   FileNameJoin[{Global`$PolyLogPath, "core", "GiNaCInterface.m"}],
@@ -92,9 +94,9 @@ mbSerialDependencyFiles = DeleteDuplicates[ExpandFileName /@ {
 (* release R3.1: every rung, closer and native driver of the package and both integrator binaries belong to the code
    state too (the handler, the family rung and the parameter Subtraction ladder were missing from the list above) *)
 mbSerialDependencyFiles = DeleteDuplicates[Join[mbSerialDependencyFiles, ExpandFileName /@ Select[Join[
-    FileNames["mbe*.m", mbSerialBaseDirectory], FileNames["mbe*.py", mbSerialBaseDirectory],
-    FileNames["*.m", FileNameJoin[{mbSerialBaseDirectory, "multifold_close"}]],
-    FileNames["*.m", FileNameJoin[{mbSerialBaseDirectory, "intvolflint"}]],
+    FileNames["mbe*.m", mbSerialEngineDirectory], FileNames["mbe*.py", mbSerialEngineDirectory],
+    FileNames["*.m", FileNameJoin[{mbSerialEngineDirectory, "multifold_close"}]],
+    FileNames["*.m", FileNameJoin[{mbSerialEngineDirectory, "intvolflint"}]],
     {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], StringQ[#] && FileExistsQ[#] &]]];
 mbSerialDependencyDigest[path_String] := If[FileExistsQ[path],
   IntegerString[FileHash[path, "SHA256"], 16, 64], "MISSING"];
@@ -311,7 +313,7 @@ mbSerialComparisonRows[result_, row_Association, orderMin_Integer, orderMax_Inte
       "AnalyticPass" -> analyticPassQ, "BenchmarkAvailable" -> benchmarkAvailableQ,
       "BenchmarkPass" -> benchmarkPassQ, "Pass" -> passQ|>], {k, orderMin, orderMax}];
 
-mbSerialCheckpointDirectory = FileNameJoin[{mbSerialBaseDirectory, "standard_serial_results"}];
+mbSerialCheckpointDirectory = FileNameJoin[{Global`$MBStandardCacheDir, "standard_serial_results"}];
 
 mbSerialCheckpointPath[row_Association, orderMin_Integer, orderMax_Integer] := FileNameJoin[
   {mbSerialCheckpointDirectory, row["Name"] <> "_" <> ToString[orderMin] <> "_" <> ToString[orderMax] <>
@@ -360,7 +362,7 @@ mbSerialFamilyRun[name_String, fams_List, orderMin_Integer, orderMax_Integer] :=
   kernel = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}];
   If[! FileExistsQ[kernel], kernel = First[$CommandLine]];
   tag = "call_" <> ToString[$ProcessID] <> "_" <> DateString[{"Year", "Month", "Day", "Hour", "Minute", "Second"}];
-  recDir = FileNameJoin[{here, ".cache", "multifold_family"}]; Quiet@CreateDirectory[recDir, CreateIntermediateDirectories -> True];
+  recDir = FileNameJoin[{Global`$MBStandardCacheDir, "multifold_family"}]; Quiet@CreateDirectory[recDir, CreateIntermediateDirectories -> True];
   If[DownValues[Global`mbtWorkerBudget] =!= {}, Global`mbtWorkerBudget[]];
   free = If[DownValues[Global`mbtMyMainKernelCount] =!= {} && IntegerQ[Global`$mbtMainKernelBudget],
     Global`$mbtMainKernelBudget - Global`mbtMyMainKernelCount[] - 1, 0];

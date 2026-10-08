@@ -25,7 +25,8 @@ Quiet@SetSystemOptions["ParallelOptions" -> {"ParallelThreadNumber" -> 1, "MKLTh
 here = DirectoryName[ExpandFileName[If[StringQ[$InputFileName] && $InputFileName =!= "", $InputFileName, First[$ScriptCommandLine]]]];
 If[here === "", here = Directory[]];
 SetDirectory[here];
-Get["load_standard.m"];   (* the release loader: core, rungs, the handler installed in the multi-fold slot *)
+(* the release loader in the MBAnalytica layout (src/MB2MPL): core, rungs, the handler installed in the multi-fold slot *)
+Get[FileNameJoin[{ParentDirectory[ParentDirectory[here]], "src", "MB2MPL", "load_standard.m"}]];
 args = Join[$ScriptCommandLine, $CommandLine];
 opt[k_, d_] := Module[{a = SelectFirst[args, StringStartsQ[#, k <> "="] &]}, If[StringQ[a], StringDrop[a, StringLength[k] + 1], d]];
 famArgs = Select[args, StringMatchQ[#, "MB" ~~ __ ~~ "u"] && !StringContainsQ[#, "/"] && !StringContainsQ[#, "="] &];
