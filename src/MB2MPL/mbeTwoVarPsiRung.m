@@ -1605,7 +1605,10 @@ If[DownValues[Global`gvExact] =!= {} && DownValues[Global`bwsGvExactOrig] === {}
    process, candidates raced at once, per-candidate budget) so that the total hyperflint thread count stays near the
    cores whatever the worker count (with 64 workers racing every candidate at 4 threads the node reached load 1700
    and the pieces stalled). *)
-Global`mbtWorkerBudget[] := Module[{lic = If[IntegerQ[$MaxLicenseSubprocesses], $MaxLicenseSubprocesses, 0], cores = Max[1, $ProcessorCount - 1]},
+(* MBAnalytica: an unlimited licence ($MaxLicenseSubprocesses = Infinity, e.g. a site licence) allows one subkernel
+   per core; it had counted as 0, which held every run to a single worker whatever was requested *)
+Global`mbtWorkerBudget[] := Module[{lic, cores = Max[1, $ProcessorCount - 1]},
+  lic = Which[IntegerQ[$MaxLicenseSubprocesses], $MaxLicenseSubprocesses, $MaxLicenseSubprocesses === Infinity, cores, True, 0];
   If[! IntegerQ[Global`$mbtSubkernelBudget], Global`$mbtSubkernelBudget = If[lic >= 32, Floor[lic/2], lic]];
   If[! IntegerQ[Global`$mbtMainKernelBudget], Global`$mbtMainKernelBudget = 10];
   Max[1, Min[Global`$mbtSubkernelBudget, cores]]];

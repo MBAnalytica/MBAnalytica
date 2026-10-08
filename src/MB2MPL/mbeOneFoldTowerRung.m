@@ -207,7 +207,8 @@ Module[{dv, pos, sym, n},
       TrueQ[Global`$oftNoSubkernels], 0,
       DownValues[Global`mbtSubkernelCapDynamic] =!= {}, Global`mbtSubkernelCapDynamic[],
       IntegerQ[Global`$mbtSubkernelCap], Global`$mbtSubkernelCap,
-      True, Min[If[IntegerQ[$MaxLicenseSubprocesses], $MaxLicenseSubprocesses, 0], Max[1, $ProcessorCount - 1]]];
+      True, Min[Which[IntegerQ[$MaxLicenseSubprocesses], $MaxLicenseSubprocesses, $MaxLicenseSubprocesses === Infinity, Infinity, True, 0],
+        Max[1, $ProcessorCount - 1]]];
     Max[0, Min[nJobs, cap]]];
 
   (* HypExp of distinct blocks on subkernels; $Failed -> the caller falls back to serial *)
