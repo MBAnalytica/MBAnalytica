@@ -1,0 +1,122 @@
+The package HypExp
+
+The Mathematica package HypExp allows to expand arbirtary hypergeometric functions JFJ-1 around their parameters. A detailed description can be found in  hep-ph/0507094
+
+-------------------------------------------------------------
+ Installation under Linux 
+-------------------------------------------------------------
+
+There is an installation program with the Package. It copies the files where they belong, updates the init.m file in the .Mathematica/Autoload/ directory in the home directory, so that you can load the package without having to give the whole path.  It also installs the package HPL which is used by the package HypExp.
+
+To install the package, copy the tar file HypExp-1.0.tar.gz  to your disk, unpack it with
+
+> gunzip HypExp-1.1.tar.gz
+> tar -xf  HypExp-1.1.tar
+
+Change directory to the HypExp-1.1 directory
+
+> cd  HypExp-1.1
+
+Copy in this directory the lib*.tar.gz file from the homepage 
+
+    http://krone.physik.unizh.ch/~maitreda/HypExp/
+
+corresponding to the libraries you want to install (it is possible to install other libraries afterwards, see below).
+
+Change the permission of the installation script:
+
+> chmod +x HypExpInstall
+
+Execute it:
+
+> ./HypExpInstall
+
+Follow the instruction...
+
+-----------------------------------------------------------------
+HypExp installation for Windows
+-----------------------------------------------------------------
+
+There is no script which automatically installs HypExp under Windows. If you want to use HypExp under Windows you should follow the following steps:
+
+- Download the file HypExp-win-1.1.tar.gz
+
+- Unpack it in the directory where you want HypExp to be installed
+
+- In this directory you find a file called init.m, modifiy the first line such that your installation path replaces
+
+              the:\path\of\the\installation
+
+- To load the package you have to type in Mathematica
+
+Get[ToFileName[{"the:\path\of\the\installation"},"init.m" ]]
+
+<<HypExp`
+
+If you don't want to type the first line each time, you can add the content of the init.m file of HypExp to the init.m file in the AutoLoad directory of your Mathematica installation. You will then only need to type the second line.
+
+------------------------------------------------------------------
+Libraries
+------------------------------------------------------------------
+
+The libraries avoid recalculating the same expansions each time they are needed. It makes the use of the package much more efficient.
+
+They can be found on the webpage of HypExp: 
+
+http://krone.physik.unizh.ch/~maitreda/HypExp/
+
+The HypExp libraries can be read from Maple, more info on this can be found at 
+
+http://krone.physik.unizh.ch/~maitreda/HypExp/Maple.html
+
+------------------------------------------------------------------
+Installing new libraries under Linux
+------------------------------------------------------------------
+
+To install new libraries, copy the corresponding lib*.tar.gz file(s) to the installation directory of the Package (if you do not remember, the Mathematica variable $HypExpPath contains it...).  Run then the programs install_libs and lib_consistency (and NOT make_lib...)
+
+> ./install_libs
+>./lib_consistency
+
+That's it.
+
+------------------------------------------------------------------
+Installation of the libraries for Windows
+------------------------------------------------------------------
+
+Here again, the procedure is not automated for Windows, you should follow these steps:
+
+- copy all the library files (lib*.tar.gz and the corresponding install_lib*.m) you want in your installation directory. These libraries can be found on the HypExp Homepage.
+
+- unpack them
+
+- copy  the install_lib*.m file for each library in the installation directory.
+
+- run for each install_libXXX.m file
+
+>cd  the:\path\of\the\installation
+> math< install_libXXX.m
+
+in the command line.
+
+------------------------------------------------------------------
+Uninstall HypExp
+------------------------------------------------------------------
+
+Run the program
+
+> ./HypExpUninstall
+
+in the installation directory of HypExp.
+
+------------------------------------------------------------------
+Bug reports, bug fixes, new versions
+------------------------------------------------------------------
+
+Great care has been taken in testing  the HypExp package.  However, if there are problems left we would appreciate to get bug reports to the adress found on the HypExp homepage. If you want to get informed upon bug fixes and new versions, please send us your address.
+
+-------------------------------------------------------------------
+More Infos
+-------------------------------------------------------------------
+
+http://krone.physik.unizh.ch/~maitreda/HypExp/

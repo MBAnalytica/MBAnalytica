@@ -1,0 +1,17 @@
+--- a/src/integrator/transform.cpp
++++ b/src/integrator/transform.cpp
+@@ -908,6 +908,14 @@
+         LinearFactorization lf_den = linear_factors(p.den(), var_idx,
+                                                      zw_tab,
+                                                      introduce_algebraic_letters);
++        // A logarithmic differential needs EVERY numerator and denominator
++        // factor. An unsupported factor cannot be replaced by zero. In
++        // particular algebraic_letters=true can still leave a quadratic
++        // unsplit when its discriminant depends on a later integration axis.
++        // Refuse the transformation in that case, independently of flags.
++        if (!lf_num.nonlinear.empty() || !lf_den.nonlinear.empty()) {
++            throw TransformFailed{};
++        }
+         std::vector<LinearFactor> facts = lf_num.linear;
+         for (auto& f : lf_den.linear) {
+             facts.push_back(LinearFactor{-f.multiplicity, std::move(f.pole)});

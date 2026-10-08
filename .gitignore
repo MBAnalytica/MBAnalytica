@@ -1,0 +1,24 @@
+# written by make
+config.m
+.venv/
+dep/IntVolFLINT/bin/
+dep/IntVolFLINT/src/build/
+dep/IntVolFLINT/src/build-*/
+# large HPL tables, fetched by make
+dep/HPL/h9table.mat
+dep/HPL/h10table.mat
+dep/HPL/ms9_rules.mx
+dep/HPL/mspm9_rules.mx
+dep/HPL/ms10_rules_v2.mx
+dep/HPL/mspm10_rules.mx
+# run-time folders
+.cache/
+src/MB2MPL/.cache/
+src/MB2MPL/worker_logs/
+src/MB2MPL/standard_serial_results/
+dep/PolyLogTools/Temp/
+tests/benchmark/results/
+# system files
+.DS_Store
+__pycache__/
+*.pyc

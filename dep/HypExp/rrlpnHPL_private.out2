@@ -1,0 +1,21 @@
+{Log[(zet_)/(-1 + (zet_))] :> Log[-zet] - Log[1 - zet], 
+ Log[(1 - (zet_))^(-1)] :> -Log[1 - zet], Log[-((zet_)/(-1 + (zet_)))] :> 
+  -Log[1 - zet] + Log[zet], Log[(zet_)/(1 - (zet_))] :> 
+  -Log[1 - zet] + Log[zet], 
+ HypExp`Private`HHPPLL[{3, 2}, (zet_)/(-1 + (zet_))] :> HypExp`Private`HHPPLL[{3, 2}, zet] + 
+   HypExp`Private`HHPPLL[{2, 2, 1}, zet] - (Pi^4*Log[1 - zet])/45 - (Pi^2*Log[1 - zet]^3)/4 - 
+   (19*Log[1 - zet]^5)/120 + (7*Log[1 - zet]^4*Log[zet])/12 - 
+   (Pi^2*Log[1 - zet]*PolyLog[2, zet])/6 + 
+   (Log[1 - zet]^2*Log[zet]*PolyLog[2, zet])/2 + 
+   (Log[1 - zet]*PolyLog[2, zet]^2)/2 + (Log[1 - zet]^2*PolyLog[3, 1 - zet])/
+    2 + PolyLog[2, zet]*PolyLog[3, 1 - zet] + 
+   (3*Log[1 - zet]^2*PolyLog[3, zet])/2 + 2*Log[1 - zet]*
+    PolyLog[4, 1 - zet] + 2*Log[1 - zet]*PolyLog[4, zet] - 
+   5*Log[1 - zet]*PolyLog[4, zet/(-1 + zet)] - 7*PolyLog[5, zet] - 
+   7*PolyLog[5, zet/(-1 + zet)] + 7*PolyLog[3, 2, zet] - 
+   (5*Log[1 - zet]^2*Zeta[3])/2 - PolyLog[2, zet]*Zeta[3], 
+ HypExp`Private`HHPPLL[{2, 2, 1}, (zet_)/(-1 + (zet_))] :> -HypExp`Private`HHPPLL[{2, 2, 1}, zet] - 
+   (Pi^4*Log[1 - zet])/30 - (Pi^2*Log[1 - zet]^3)/36 + Log[1 - zet]^5/120 + 
+   (Log[1 - zet]^4*Log[zet])/8 + (Log[1 - zet]^3*PolyLog[2, zet])/6 + 
+   Log[1 - zet]^2*PolyLog[3, 1 - zet] - 4*Log[1 - zet]*PolyLog[4, 1 - zet] + 
+   7*PolyLog[5, 1 - zet] - (Log[1 - zet]^2*Zeta[3])/2 - 7*Zeta[5]}
