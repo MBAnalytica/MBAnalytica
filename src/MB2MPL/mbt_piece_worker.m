@@ -15,7 +15,8 @@ jobRoot = If[StringQ[Global`$mbtWorkerJobRoot], Global`$mbtWorkerJobRoot, Enviro
 LO = If[IntegerQ[Global`$mbtWorkerLO], Global`$mbtWorkerLO, ToExpression@Environment["LO"]];
 STRIDE = If[IntegerQ[Global`$mbtWorkerStride], Global`$mbtWorkerStride, ToExpression@Environment["STRIDE"]];
 If[$KernelID =!= 0,
-  Global`$mbtWorkerLog = OpenWrite[FileNameJoin[{jobRoot, "w_" <> ToString[LO] <> ".log"}], FormatType -> OutputForm];
+  (* appended: the fresh workers of a later round write to the same log *)
+  Global`$mbtWorkerLog = OpenAppend[FileNameJoin[{jobRoot, "w_" <> ToString[LO] <> ".log"}], FormatType -> OutputForm];
   $Output = {Global`$mbtWorkerLog}; $Messages = {Global`$mbtWorkerLog};
   Unprotect[WriteString]; WriteString["stdout", a___] := WriteString[Global`$mbtWorkerLog, a]; Protect[WriteString];
   With[{ini = FileNameJoin[{$UserBaseDirectory, "Kernel", "init.m"}]}, If[FileExistsQ[ini], Quiet@Get[ini]]];
@@ -162,11 +163,16 @@ np = meta["nPieces"];
    (rotated) and claims a piece by an atomic mkdir (claim_####); a piece claimed by another worker is skipped.  The
    r-files, the master's polling and its mop-up guard are unchanged. *)
 claimQ[j_] := Quiet@Check[CreateDirectory[FileNameJoin[{jobRoot, "claim_" <> IntegerString[j, 10, 4]}]]; True, False];
-Do[
+(* MBAnalytica: a subkernel worker closes at most $mbtWorkerMaxPieces pieces (set by the master) and then exits, so that
+   a fresh kernel continues; a process worker has no limit *)
+maxPieces = If[IntegerQ[Global`$mbtWorkerMaxPieces] && Global`$mbtWorkerMaxPieces > 0, Global`$mbtWorkerMaxPieces, Infinity];
+closedPieces = 0;
+Catch[Do[
   Module[{tag = IntegerString[j, 10, 4], pf, rf, p, val, status,
-      learnedHits0, learnedHit, inexact, reasons},
+      learnedHits0, learnedHit, inexact, reasons, claimed = False},
     rf = FileNameJoin[{jobRoot, "r_" <> tag <> ".m"}];
     If[! FileExistsQ[rf] && claimQ[j],
+      claimed = True;
       pf = FileNameJoin[{jobRoot, "p_" <> tag <> ".m"}];
       p = Quiet @ Check[Get[pf], $Failed];
       If[! AssociationQ[p],
@@ -186,7 +192,12 @@ Do[
           If[status === "Failed" && MBtoMPL`Private`$mbtFailedPieces === {} && ! inexact, {"not-clean-numeric"}, {}]];
         Put[<|"status" -> status, "value" -> val, "epsFac" -> p["epsFac"],
           "certifiedLibraryHit" -> learnedHit, "failReasons" -> reasons|>, rf <> ".tmp"];
-        RenameFile[rf <> ".tmp", rf, OverwriteTarget -> True]]]],
-  {j, Join[Range[Min[LO, np], np], Range[1, Min[LO, np] - 1]]}];
+        RenameFile[rf <> ".tmp", rf, OverwriteTarget -> True]]];
+    If[claimed,
+      closedPieces++;
+      If[closedPieces >= maxPieces,
+        Print["[worker] recycled after ", closedPieces, " pieces"];
+        Throw[Null, "mbtRecycle"]]]],
+  {j, Join[Range[Min[LO, np], np], Range[1, Min[LO, np] - 1]]}], "mbtRecycle"];
 (* 2026-09-07: inside a subkernel the master closes the kernel afterwards; Quit here would kill it before the master collects *)
 If[$KernelID === 0, Quit[], Quiet@Close[Global`$mbtWorkerLog]];

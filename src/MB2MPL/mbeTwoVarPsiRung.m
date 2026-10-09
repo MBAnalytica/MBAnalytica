@@ -1612,6 +1612,11 @@ Global`mbtWorkerBudget[] := Module[{lic, cores = Max[1, $ProcessorCount - 1]},
   If[! IntegerQ[Global`$mbtSubkernelBudget], Global`$mbtSubkernelBudget = If[lic >= 32, Floor[lic/2], lic]];
   If[! IntegerQ[Global`$mbtMainKernelBudget], Global`$mbtMainKernelBudget = 10];
   Max[1, Min[Global`$mbtSubkernelBudget, cores]]];
+(* MBAnalytica: worker rounds.  A subkernel worker closes at most mbtWorkerPieceLimit[] pieces (MBT_WORKER_PIECES, default
+   100) and exits, and fresh workers continue on the open pieces; the master closes at most mbtMasterMopupMax[] missing
+   pieces itself (MBT_MASTER_MOPUP_MAX, default 4) and ledgers the rest (fail-closed). *)
+Global`mbtWorkerPieceLimit[] := With[{v = Quiet[ToExpression[Environment["MBT_WORKER_PIECES"]]]}, If[IntegerQ[v] && v > 0, v, 100]];
+Global`mbtMasterMopupMax[] := With[{v = Quiet[ToExpression[Environment["MBT_MASTER_MOPUP_MAX"]]]}, If[IntegerQ[v] && v >= 0, v, 4]];
 Global`mbtMySubkernelCount[] := Module[{out},
   (* kernel processes only: the "sh -c" wrapper of every subkernel repeats its arguments and must not be counted *)
   out = Quiet@Check[RunProcess[{"bash", "-c", "ps -u " <> $Username <> " -o args= | grep -- '-subkernel' | grep -v '^sh -c' | grep -c -E 'WolframKernel|MathKernel'"}, "StandardOutput"], ""];
@@ -1702,10 +1707,30 @@ If[DownValues[MBtoMPL`Private`mbtClosePiecesParallel] =!= {} && DownValues[Globa
         WriteString["stdout", "  [PieceKernels] ", nW, " subkernel workers on ", n, " pieces (job ", FileNameTake[jobRoot], ") [mop-up guard ON]...\n"];
         (* every subkernel runs the same worker file with its own start index (the pieces are claimed dynamically, so
            the stride only sets where each worker starts); ParallelEvaluate holds its argument, hence the With *)
-        Do[With[{kk = i, kern = ks[[i]], jr = jobRoot, nn = nW, sc = Global`$mbtIVFScaling},
-           Quiet@ParallelEvaluate[(Global`$mbtWorkerJobRoot = jr; Global`$mbtWorkerLO = kk; Global`$mbtWorkerStride = nn;
-             Global`$mbtIVFScaling = sc;), kern]], {i, nW}];
-        With[{w = worker}, Quiet@CheckAbort[ParallelEvaluate[Get[w], ks], Null]];   (* concurrent on all workers; returns when every piece loop has ended *)
+        (* MBAnalytica: rounds of fresh workers.  A long-lived worker accumulates memory: on MB8 (1413 pieces) both
+           workers were OOM-killed after about 170 pieces each, their claims blocked the pieces they held, and the master
+           closed the remaining 1078 serially until it was killed as well.  Each worker now exits after
+           mbtWorkerPieceLimit[] pieces; after every round the claims of the pieces without a result are cleared and fresh
+           workers are launched on them, while the rounds make progress. *)
+        Module[{round = 0, open = Range[n], before, limit = Global`mbtWorkerPieceLimit[], stall = 0},
+          While[True,
+            before = Length[open];
+            Do[With[{kk = i, kern = ks[[i]], jr = jobRoot, nn = Length[ks], sc = Global`$mbtIVFScaling, lim = limit},
+               Quiet@ParallelEvaluate[(Global`$mbtWorkerJobRoot = jr; Global`$mbtWorkerLO = kk; Global`$mbtWorkerStride = nn;
+                 Global`$mbtIVFScaling = sc; Global`$mbtWorkerMaxPieces = lim;), kern]], {i, Length[ks]}];
+            With[{w = worker}, Quiet@CheckAbort[ParallelEvaluate[Get[w], ks], Null]];   (* concurrent on all workers; returns when every piece loop has ended *)
+            Quiet@CloseKernels[];
+            open = Select[open, ! FileExistsQ[FileNameJoin[{jobRoot, "r_" <> IntegerString[#, 10, 4] <> ".m"}]] &];
+            round++;
+            If[open === {}, Break[]];
+            If[Length[open] < before, stall = 0, stall++];
+            If[stall >= 2 || round >= 200, Break[]];
+            Scan[Quiet[DeleteDirectory[FileNameJoin[{jobRoot, "claim_" <> IntegerString[#, 10, 4]}], DeleteContents -> True]] &, open];
+            WriteString["stdout", "  [PieceKernels] round ", round, ": ", Length[open], " piece(s) open -> ", nW, " fresh worker(s)\n"];
+            Global`mbtExportIVFScaling[nW];
+            Quiet@Check[LaunchKernels[nW], Null];
+            ks = Kernels[];
+            If[ks === {}, Break[]]]];
         Quiet@CloseKernels[],
         WriteString["stdout", "  [PieceKernels] ", nW, " process-workers on ", n, " pieces (job ", FileNameTake[jobRoot], ") [mop-up guard ON]...\n"];
         Global`mbtExportIVFScaling[nW];
@@ -1742,6 +1767,12 @@ If[DownValues[MBtoMPL`Private`mbtClosePiecesParallel] =!= {} && DownValues[Globa
           Do[AppendTo[MBtoMPL`Private`$mbtFailedPieces,
                <|"reason" -> "worker-failed" <> If[ListQ[failReasons[k]] && failReasons[k] =!= {}, ": " <> StringRiffle[ToString /@ failReasons[k], "; "], ""],
                  "piece" -> k, "vars" -> vars[[k]], "normalised" -> Short[integ[[k]], 3]|>], {k, failedK}]];
+        If[Length[missingK] > Global`mbtMasterMopupMax[],
+          WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[missingK], " worker-MISSING piece(s), more than the master may close (",
+            Global`mbtMasterMopupMax[], "): ledgered, NOT recomputed: ", ToString[missingK], "\n"];
+          Do[AppendTo[MBtoMPL`Private`$mbtFailedPieces,
+               <|"reason" -> "worker-missing", "piece" -> k, "vars" -> vars[[k]], "normalised" -> Short[integ[[k]], 3]|>], {k, missingK}];
+          missingK = {}];
         If[missingK =!= {},
           WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[missingK], " worker-MISSING piece(s) recomputed under CheckAbort: ", ToString[missingK], "\n"];
           Do[Module[{n0 = Length[MBtoMPL`Private`$mbtFailedPieces], v},
