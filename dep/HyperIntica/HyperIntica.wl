@@ -515,7 +515,9 @@ Example:
 Used internally by ShuffleProduct. Results are memoized in \$ShuffleWordsCache.";
 
 
-PartialFractions::usage = "PartialFractions[f, var] computes the partial fraction decomposition of the rational function f in var over \$HyperSplittingField.
+(* MBAnalytica: the explicit context keeps this symbol out of System`PartialFractions (new in Wolfram 15.0, Protected),
+   which every definition and call below would otherwise reach *)
+HyperIntica`PartialFractions::usage = "PartialFractions[f, var] computes the partial fraction decomposition of the rational function f in var over \$HyperSplittingField.
 
 Returns a list {poly, {zero1, m1, c_{1,1},...,c_{1,m1}}, ...} where:
   poly    - polynomial (integer) part

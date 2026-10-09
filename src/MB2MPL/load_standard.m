@@ -73,11 +73,13 @@ Module[{here, configure, polyLogTools, mathCandidates, mathExecutable, hplPlain,
       Print["[MB_standard] IntVolFLINT hook FAILED to install \[LongDash] old engine chain in force"]]];
   SetEnvironment["IVF_HOOK" -> If[TrueQ[Global`$IVFUseIntVolFLINT], "1", "0"]];
 
+  (* MBAnalytica: workers and helpers run the version of this kernel; the math on PATH (possibly another version, as on a
+     machine with 14.2 and 15.0) is only the last resort *)
   mathCandidates = {
-    Quiet@Check[FindExecutable["math"], $Failed],
     FileNameJoin[{$InstallationDirectory, "Executables", "math"}],
     FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}],
-    FileNameJoin[{$InstallationDirectory, "MacOS", "WolframKernel"}]};
+    FileNameJoin[{$InstallationDirectory, "MacOS", "WolframKernel"}],
+    Quiet@Check[FindExecutable["math"], $Failed]};
   mathExecutable = SelectFirst[mathCandidates, StringQ[#] && FileExistsQ[#] &, ""];
 
   MBtoMPL`Private`$mbtPolyLogToolsFile = polyLogTools;

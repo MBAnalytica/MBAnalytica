@@ -115,7 +115,7 @@ i==j,s[[i+1]]/s[[i]],
 i<j,0
 ],{i,1,n},{j,1,n-1}];
 (* Reduce H *)
-t=HermiteReduce[H];
+t=PSLQHermiteReduce[H];
 D=First[t];
 Dinv = Inverse[D];
 (*Update*)
@@ -139,7 +139,7 @@ True,0],
 {i,1,n-1},{j,1,n-1}]
 ];
 (* Step Three *)
-t=HermiteReduce[H];
+t=PSLQHermiteReduce[H];
 D=First[t];
 Dinv = Inverse[D];
 (*Update*)
@@ -155,7 +155,7 @@ Recognize2[n_,po_,v_]:=PSLQ[N[Table[n^i,{i,0,po}],100],100].Table[v^i,{i,0,po}];
 
 MaxIndex[x_List]:= Block[{i=1,j},Do[If[x[[j]]>x[[i]],i=j],{j,2,Length[x]}];i];
 
-HermiteReduce[H_]:=Block[
+PSLQHermiteReduce[H_]:=Block[
 {n=Length[H],i,j,k,q,H2=H,D=IdentityMatrix[Length[H]]},
 Do[
 q=Round[H[[i,j]]/H[[j,j]]];
