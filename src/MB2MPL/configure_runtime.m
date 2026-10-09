@@ -16,7 +16,7 @@
    config.m, else $UserBaseDirectory/ApplicationData/MBAnalytica. *)
 
 Module[{here, root, dep, config, configFile, setting, systemPath, ginshExecutable, binary, binaryOK, required, missing,
-    cache, envCache},
+    cache, envCache, riscPath},
   here = DirectoryName[ExpandFileName[$InputFileName]];
   If[here === "" || here === ".", here = Directory[]];
   root = ParentDirectory[ParentDirectory[here]];
@@ -40,6 +40,12 @@ Module[{here, root, dep, config, configFile, setting, systemPath, ginshExecutabl
   Global`$HPLPath = FileNameJoin[{dep, "HPL"}];
   Global`$HypExpPath = FileNameJoin[{dep, "HypExp"}];
   Global`$HyperInticaPath = FileNameJoin[{dep, "HyperIntica"}];
+
+  (* the RISC packages (HarmonicSums, ...) that the user downloaded: $MBAnalyticaRISCPath, else the folder make
+     recorded, on $Path of this kernel and of every worker that reads this file *)
+  riscPath = If[StringQ[Global`$MBAnalyticaRISCPath] && DirectoryQ[Global`$MBAnalyticaRISCPath],
+    Global`$MBAnalyticaRISCPath, setting["RISCPath", ""]];
+  If[DirectoryQ[riscPath] && ! MemberQ[$Path, riscPath], PrependTo[$Path, riscPath]];
 
   (* caches and logs never go inside the package folder *)
   envCache = Environment["MBANALYTICA_CACHE"];

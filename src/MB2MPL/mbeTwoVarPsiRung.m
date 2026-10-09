@@ -1628,6 +1628,9 @@ Global`mbtExportIVFScaling[nW_Integer] := Module[{running, total, budget, t, w, 
   budget = Max[1, Floor[Max[1, $ProcessorCount]/total]];
   t = Which[budget >= 16, 4, budget >= 8, 2, True, 1];
   w = Max[1, Floor[budget/t]];
+  (* MBAnalytica: IVF_RACE_LIMIT caps the candidates raced at once; every hyperflint process can hold a gigabyte, and
+     the race only decides which certified order finishes first, never the value *)
+  With[{limit = Quiet[ToExpression[Environment["IVF_RACE_LIMIT"]]]}, If[IntegerQ[limit] && limit >= 1, w = Min[w, limit]]];
   s = Min[1800, 900 Ceiling[4/t]];
   (* one argument: a list of rules (the three-rule form is refused by SetEnvironment and set nothing) *)
   SetEnvironment[{"IVF_THREADS" -> ToString[t], "IVF_RACE_WIDTH" -> ToString[w], "IVF_SECONDS" -> ToString[s]}];

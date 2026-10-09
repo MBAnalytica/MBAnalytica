@@ -9,7 +9,10 @@
    (GI[r2] = -Pi/3, GR[-1] = Log 2, GR[r4] = Log[3]/2, GR[0,0,1] = -Zeta[3]).  Anything else left symbolic makes
    the result inexact and the caller refuses it (fail-closed).  Numeric self-gate: the tables' 4000-digit basis
    values against HyperFLINT's own numeric of the raw words (a development gate, not a producer). *)
-Global`$bwsL6Dir = FileNameJoin[{DirectoryName[ExpandFileName[$InputFileName]], "level6_tables"}] <> $PathnameSeparator;
+(* MBAnalytica layout: the tables are in dep/level6_tables, two folders above src/MB2MPL (the release had them next to
+   this file; the silent DirectoryQ test below then skipped the load and every sixth-root reduction was refused) *)
+Global`$bwsL6Dir = FileNameJoin[{ParentDirectory[ParentDirectory[DirectoryName[ExpandFileName[$InputFileName]]]], "dep",
+  "level6_tables"}] <> $PathnameSeparator;
 Global`$bwsL6Loaded = False;
 (* 2026-09-05 (worker test): the table files name their symbols GI, GR, r1..r4 UNQUALIFIED.  Read inside the running
    engines (lazy load from a piece computation) they resolved to symbols of another context, so no rule matched the
@@ -90,4 +93,5 @@ bwsL6Reduce[raw_] := Catch[Module[{g, x, re, im, rr, ri, num, val, hfnum},
   val], "l6"];
 WriteString["stdout", "[mbeLevel6Reduce] sidecar installed (bwsL6Reduce: Henn-Smirnov-Smirnov sixth-root tables, weight <= 4).\n"];
 (* eager load at install time (top level), so a table problem is visible in the load log and not first inside a piece *)
-If[DirectoryQ[Global`$bwsL6Dir], Quiet@Check[bwsL6Load[], WriteString["stdout", "    [L6] table load FAILED at install\n"]]];
+If[DirectoryQ[Global`$bwsL6Dir], Quiet@Check[bwsL6Load[], WriteString["stdout", "    [L6] table load FAILED at install\n"]],
+  WriteString["stdout", "    [L6] WARNING: no tables at " <> Global`$bwsL6Dir <> " -- sixth-root reductions will be refused\n"]];
