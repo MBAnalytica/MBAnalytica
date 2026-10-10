@@ -611,13 +611,17 @@ bwsAtOne[F_, s_] := Module[{F1 = Quiet[F /. s -> 1], L},
    with irrational roots: on such cubes the certified value has been WRONG twice (MB13: -17 Pi^4/120 for 11 Pi^4/540;
    MB14 p_0247: -3 Zeta[3] for -9 Zeta[3], certified in 3 s inside a raised closure with the quadratic variable last),
    while the same cubes integrate numerically to the right value.  A second, cheaper attempt when the first fails. *)
-bwsCubeQuad[f_, evars_] := Module[{q, rg = Sequence @@ ({#, 0, 1} & /@ evars)},
+bwsCubeQuad[f_, evars_] := Module[{q, rg = Sequence @@ ({#, 0, 1} & /@ evars), unconverged},
   (* NIntegrate holds its arguments: the range list must be spliced with Evaluate (without it the quadrature
      silently fails and every gate is UNGATED -- seen in the first MB14 worker test). *)
-  q = Quiet@TimeConstrained[NIntegrate[f, Evaluate[rg], WorkingPrecision -> 20, PrecisionGoal -> 5, MaxRecursion -> 10,
-      Method -> {"GlobalAdaptive", "SymbolicProcessing" -> 0}], 240, $Failed];
-  If[! NumericQ[q], q = Quiet@TimeConstrained[NIntegrate[f, Evaluate[rg], WorkingPrecision -> 20, PrecisionGoal -> 3, MaxRecursion -> 7,
-      Method -> {"GlobalAdaptive", "SymbolicProcessing" -> 0}], 180, $Failed]];
+  (* MBAnalytica: a quadrature that did not converge is no gate.  Wolfram 14.2 gave up ($Failed) on the nearly
+     non-integrable cube of MB14 p_0240; Wolfram 15.0 returns a number of order 10^7 with a convergence warning, and
+     that number refused the right regularized value (-0.5117037, the contour integral of the piece) *)
+  unconverged = {NIntegrate::ncvb, NIntegrate::slwcon, NIntegrate::eincr, NIntegrate::maxp};
+  q = Quiet@TimeConstrained[Check[NIntegrate[f, Evaluate[rg], WorkingPrecision -> 20, PrecisionGoal -> 5, MaxRecursion -> 10,
+      Method -> {"GlobalAdaptive", "SymbolicProcessing" -> 0}], $Failed, unconverged], 240, $Failed];
+  If[! NumericQ[q], q = Quiet@TimeConstrained[Check[NIntegrate[f, Evaluate[rg], WorkingPrecision -> 20, PrecisionGoal -> 3, MaxRecursion -> 7,
+      Method -> {"GlobalAdaptive", "SymbolicProcessing" -> 0}], $Failed, unconverged], 180, $Failed]];
   If[NumericQ[q], q, $Failed]];
 Global`$bwsCertGateTol = 10^-2;   (* loose: correct 5-dimensional values sit a few 10^-3 from their quadratures *)
 Global`$bwsRegGateTol = 10^-3;    (* the regularized gate (was 10^-4: too tight for the 5-dimensional S cubes) *)
