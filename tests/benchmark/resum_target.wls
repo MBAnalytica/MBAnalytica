@@ -1,12 +1,14 @@
 #!/usr/bin/env wolframscript
 (* ::Package:: *)
-(* resum_target.wls -- one example of Examples_MBResum through MBEvaluate[..., Method -> "Resum"] in this fresh kernel.
+(* resum_target.wls -- one example of the MBResum benchmark through MBEvaluate[..., Method -> "Resum"] in this fresh
+   kernel: every verdict is on the value MBAnalytica returns (G, Log, Zeta, Pi), never on MBResum's own output.
    Environment: NAME (MB1, MB2, ..., MB13, or MB1u, ..., MB13u; MB2 = MB21 + MB22 and MB8 = MB81 + MB82),
-   ORDER (the order of the example), OUT (record folder), KERNELS ($KernelLaunch, default 4).
-   inclusive: the exact difference with MBnVal must vanish at every order.
-   differential: every order of the raw MBResum value equals the audited record results_t/MBn_diff_<k>.m at
-   u = 31/100 and 7/100 (each H on its cut as a G-function ODE on an arc, as nbdiffcheck.wls), and the G form returned by
-   MBEvaluate equals the raw value at the same points.  The last line is RESUM_RESULT ... *)
+   ORDER (the deepest order), OUT (record folder), KERNELS ($KernelLaunch, default 4), RESULTS_T (the audited records).
+   Every row: the MBEvaluate value is free of MBFailed and of HarmonicSums H.
+   inclusive: the exact difference of the MBEvaluate value with MBnVal vanishes at every order.
+   differential: every order of the MBEvaluate value equals the audited record results_t/MBn_diff_<k>.m at u = 31/100
+   and 7/100 to 10^-12: each G of MBEvaluate by GiNaC (30 digits), each H of the record on its cut as a G-function ODE
+   on an arc (40 digits), as nbdiffcheck.wls.  The last line is RESUM_RESULT ... *)
 SetOptions[$Output, PageWidth -> Infinity]; $HistoryLength = 0;
 ScriptDir = DirectoryName[ExpandFileName[If[StringQ[$InputFileName] && $InputFileName =!= "", $InputFileName,
   First[Select[Join[$ScriptCommandLine, $CommandLine], StringEndsQ[#, "resum_target.wls"] &]]]]];
@@ -22,16 +24,16 @@ Parts = Switch[Name, "MB2", {MB21, MB22}, "MB2u", {MB21u, MB22u}, "MB8", {MB81, 
 DiffQ = StringEndsQ[Name, "u"];
 T0 = AbsoluteTime[];
 GForm = Total[Map[MBEvaluate[#, {Eps, Ord}, Method -> "Resum"] &, Parts]];
-(* the raw MBResum value: the same call again, served by MBResum's caches *)
-Raw = Total[Map[Block[{$ContextPath = MBAnalytica`Private`ResumContextPath},
-  MBAnalytica`Resum`MBCH2MPL[#, {Eps, Ord}]] &, Parts]];
 Seconds = Round[AbsoluteTime[] - T0];
 Lo = Exponent[Expand[GForm], Eps, Min];
-Pass = True; Rows = {};
+Clean = FreeQ[GForm, MBAnalytica`MBFailed] && FreeQ[GForm, _HarmonicSums`H];
+Print["RESUM_FORM ", Name, " MBEvaluate value free of MBFailed and H: ", Clean, "  G functions: ",
+  Count[GForm, _PolyLogTools`G, {0, Infinity}]];
+Pass = Clean; Rows = {};
 If[! DiffQ,
   Val = ToExpression[Name <> "Val"];
   Diff = Quiet[Simplify[Expand[GForm - Normal[Series[Val, {Eps, 0, Ord}]]]]];
-  Pass = TrueQ[Diff === 0] && FreeQ[GForm, MBAnalytica`MBFailed];
+  Pass = Pass && TrueQ[Diff === 0];
   Print["RESUM_INCL ", Name, " exact difference with ", Name, "Val: ", InputForm[Diff]]];
 If[DiffQ,
   Wp = 40;
@@ -73,24 +75,21 @@ If[DiffQ,
     N[Vx, 20]];
   ZetaSym[V_] := V /. Q_Symbol /; StringMatchQ[SymbolName[Q], "z" ~~ DigitCharacter ..] :> Zeta[ToExpression[StringDrop[SymbolName[Q], 1]]];
   Idx = StringReplace[StringDrop[Name, -1], {"MB" -> ""}];
-  Do[Module[{File1, RawC, GC, Ref, Same, RelRef, RelG},
+  Do[Module[{File1, GC, Ref, Rel},
      File1 = FileNameJoin[{RefDir, "MB" <> Idx <> "_diff_" <> StringReplace[ToString[K], "-" -> "m"] <> ".m"}];
-     RawC = Coefficient[Expand[Raw], Eps, K]; GC = Coefficient[Expand[GForm], Eps, K];
+     GC = Coefficient[Expand[GForm], Eps, K];
      If[! FileExistsQ[File1], Print["RESUM_DIFF ", Name, " eps^", K, " no reference"]; Pass = False; Continue[]];
      (* the records write H without its context *)
      Ref = Block[{$ContextPath = Prepend[$ContextPath, "HarmonicSums`"]}, Get[File1]];
-     Same = TrueQ[Expand[ZetaSym[RawC] - ZetaSym[Ref]] === 0];
-     RelRef = Table[Module[{A = HValue[ZetaSym[RawC], P], B = HValue[ZetaSym[Ref], P]},
+     Rel = Table[Module[{A = GValue[GC, P], B = HValue[ZetaSym[Ref], P]},
        If[NumericQ[A] && NumericQ[B], N[Abs[Re[A] - Re[B]]/Max[1, Abs[Re[B]]], 3], Infinity]], {P, {31/100, 7/100}}];
-     RelG = Table[Module[{A = HValue[ZetaSym[RawC], P], B = GValue[GC, P]},
-       If[NumericQ[A] && NumericQ[B], N[Abs[Re[A] - Re[B]]/Max[1, Abs[Re[A]]], 3], Infinity]], {P, {31/100, 7/100}}];
-     If[! (Max[RelRef] < 10^-12 && Max[RelG] < 10^-12), Pass = False];
-     Print["RESUM_DIFF ", Name, " eps^", K, "  identical to record ", Same, "  vs record ", RelRef, "  G form vs raw ", RelG,
-       If[Max[RelRef] < 10^-12 && Max[RelG] < 10^-12, "  EQUAL", "  UNEQUAL"]]],
+     If[! (Max[Rel] < 10^-12), Pass = False];
+     Print["RESUM_DIFF ", Name, " eps^", K, "  MBEvaluate vs record at u = 31/100, 7/100: ", Rel,
+       If[Max[Rel] < 10^-12, "  EQUAL", "  UNEQUAL"]]],
    {K, Lo, Ord}]];
 Quiet[CreateDirectory[RecordDir, CreateIntermediateDirectories -> True]];
 Block[{$Context = "zzWrite`", $ContextPath = {"System`"}},
-  Put[<|"Name" -> Name, "Order" -> Ord, "Seconds" -> Seconds, "Pass" -> Pass, "GForm" -> GForm, "Raw" -> Raw|>,
+  Put[<|"Name" -> Name, "Order" -> Ord, "Seconds" -> Seconds, "Pass" -> Pass, "GForm" -> GForm|>,
     FileNameJoin[{RecordDir, Name <> "_" <> ToString[Ord] <> ".m"}]]];
 Print["RESUM_RESULT ", Name, "  order ", Ord, "  seconds ", Seconds, "  pass ", Pass, "  ", DateString[]];
 Exit[0];
