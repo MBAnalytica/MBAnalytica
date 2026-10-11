@@ -87,9 +87,16 @@ Print["MBEVAL ", Method1, " ", Kind, " ", Name, "  ", Length[Parts], " part(s)  
 
 
 T0 = AbsoluteTime[];
-Values1 = Map[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ] &, Parts];
+(* RECHECK = a record of this script: its saved MBEvaluate value is checked again (after a fix of the checks) *)
+Recheck = Environment["RECHECK"];
+If[StringQ[Recheck] && Recheck =!= "" && FileExistsQ[Recheck],
+  Saved = Get[Recheck];
+  Values1 = {Saved["Value"]};
+  Seconds = Saved["Seconds"];
+  Print["MBEVAL_RECHECK ", Name, "  the MBEvaluate value saved in ", Recheck],
+  Values1 = Map[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ] &, Parts];
+  Seconds = Round[AbsoluteTime[] - T0]];
 GForm = Total[Values1];
-Seconds = Round[AbsoluteTime[] - T0];
 If[! IntegerQ[Lo], Lo = Exponent[Expand[GForm], Eps, Min]];
 Clean = ! MemberQ[Values1, $Failed] && FreeQ[GForm, MBAnalytica`MBFailed] && FreeQ[GForm, _HarmonicSums`H] &&
   (Names["HPL`HPL"] === {} || FreeQ[GForm, _HPL`HPL]);
@@ -185,18 +192,29 @@ If[Kind === "u" && Method1 === "Resum",
     Sol = NDSolve[Join[Eqs, Ics], Fs, {s, S0, 1}, WorkingPrecision -> 40, AccuracyGoal -> 30, PrecisionGoal -> 28,
       MaxSteps -> Infinity, Method -> "ExplicitRungeKutta"];
     AssociationThread[Words, Map[(GName[#][1] /. First[Sol]) &, Words]]];
-  (* the records: HarmonicSums H at argument 1 with letters on the path through the arc, as nbdiffcheck.wls *)
-  HValue[V_, U0_] := Module[{Hs, OnH, Words, Gs, Rules, Vx},
-    Hs = DeleteDuplicates[Cases[V, HoldPattern[HarmonicSums`H[__]], {0, Infinity}]];
+  (* the records: every HarmonicSums H by GiNaC, H(c; x) = Prod over c != 0 of (-sign c) times G(c; x) (HarmonicSums
+     integrates 1/(|c| - sign(c) t)); H whose letters lie on the path are left to the G-function ODE on an arc, as
+     nbdiffcheck.wls.  (The N rule of H, used before for words containing the letter 1, is good to about 10^-9 only.) *)
+  HValue[V_, U0_] := Module[{Hs, OnH, Words, Gs, Rules, Vx, Off, OffWords, GR},
+    Vx = V /. Global`u -> U0;
+    Off = Select[DeleteDuplicates[Cases[Vx, HoldPattern[HarmonicSums`H[__]], {0, Infinity}]],
+      VectorQ[List @@ #, NumericQ] && VectorQ[N[List @@ #], Im[#] == 0 &] &&
+        ! AnyTrue[N[Most[List @@ #]], (0 < # < N[Last[List @@ #]]) && # =!= 0. &] &];
+    If[Off =!= {},
+      OffWords = Map[PolyLogTools`G @@ (List @@ #) &, Off];
+      GR = GRules[OffWords, 35];
+      If[GR =!= $Failed,
+        Vx = Vx /. Thread[Off -> MapThread[(Times @@ Map[If[TrueQ[# > 0], -1, 1] &, DeleteCases[Most[List @@ #1], 0]])*(#2 /. GR) &,
+          {Off, OffWords}]]]];
+    Hs = DeleteDuplicates[Cases[Vx, HoldPattern[HarmonicSums`H[__]], {0, Infinity}]];
     OnH = Select[Hs, (Last[List @@ #] === 1 && ! MemberQ[Most[List @@ #], 1] &&
-       VectorQ[N[Most[List @@ #] /. Global`u -> U0], Im[#] == 0 &]) &];
-    Vx = V;
+       VectorQ[N[Most[List @@ #]], Im[#] == 0 &]) &];
     If[OnH =!= {},
-      Words = Map[(Most[List @@ #] /. Global`u -> U0) &, OnH];
+      Words = Map[Most[List @@ #] &, OnH];
       Gs = GArc[Words, 1];
       Rules = Thread[OnH -> Map[(Times @@ Map[If[TrueQ[# > 0], -1, 1] &, DeleteCases[#, 0]])*Gs[#] &, Words]];
       Vx = Vx /. Rules];
-    N[Vx /. Global`u -> U0, 20]];
+    N[Vx, 20]];
   ZetaSym[V_] := V /. Q_Symbol /; StringMatchQ[SymbolName[Q], "z" ~~ DigitCharacter ..] :> Zeta[ToExpression[StringDrop[SymbolName[Q], 1]]];
   Idx = StringReplace[StringDrop[Name, -1], {"MB" -> ""}];
   Do[Module[{File1, GC, Ref, Rel},
@@ -205,6 +223,8 @@ If[Kind === "u" && Method1 === "Resum",
      If[! FileExistsQ[File1], Print["MBEVAL_ORDER ", Name, " eps^", K, "  no record"]; OrderPass[K] = False; Continue[]];
      (* the records write H without its context *)
      Ref = Block[{$ContextPath = Prepend[$ContextPath, "HarmonicSums`"]}, Get[File1]];
+     (* without HarmonicSums loaded (a recheck) the bare H of the record is Global`H *)
+     Ref = Ref /. Global`H -> HarmonicSums`H;
      Rel = Table[Module[{A = NumberOf[GC /. Global`u -> P, 30], B = HValue[ZetaSym[Ref], P]},
        If[NumericQ[A] && NumericQ[B], N[Abs[Re[A] - Re[B]]/Max[1, Abs[Re[B]]], 3], Infinity]], {P, {31/100, 7/100}}];
      OrderPass[K] = Max[Rel] < 10^-12;
