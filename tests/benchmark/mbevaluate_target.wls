@@ -198,8 +198,9 @@ If[Kind === "u" && Method1 === "Resum",
   HValue[V_, U0_] := Module[{Hs, OnH, Words, Gs, Rules, Vx, Off, OffWords, GR},
     Vx = V /. Global`u -> U0;
     Off = Select[DeleteDuplicates[Cases[Vx, HoldPattern[HarmonicSums`H[__]], {0, Infinity}]],
-      VectorQ[List @@ #, NumericQ] && VectorQ[N[List @@ #], Im[#] == 0 &] &&
-        ! AnyTrue[N[Most[List @@ #]], (0 < # < N[Last[List @@ #]]) && # =!= 0. &] &];
+      Function[H1, Module[{L = N[List @@ H1]},
+        VectorQ[L, NumericQ] && AllTrue[L, Im[#] == 0 &] &&
+          ! AnyTrue[Most[L], Function[C1, C1 != 0 && 0 < C1 < Last[L]]]]]];
     If[Off =!= {},
       OffWords = Map[PolyLogTools`G @@ (List @@ #) &, Off];
       GR = GRules[OffWords, 35];
