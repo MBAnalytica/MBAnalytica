@@ -178,6 +178,10 @@ RunResum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, E
   Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Orders]]]];
 
 
+(* the time an engine step may take: 12 hours, as in the benchmark runs of the engine *)
+EngineSeconds = 43200;
+
+
 (* the MB2MPL engine: one call for the whole range; when a piece was ledgered, the orders are re-run one by one so
    that exactly the open orders are reported *)
 EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Association] := Module[
@@ -186,10 +190,15 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   Integrand = MBInt /. Eps -> Reg;
   Options1 = {"EpsOrderMin" -> Lo, "EpsOrderMax" -> Hi, "Route" -> Route, "Verbose" -> TrueQ[Opts["Verbose"]],
     "PieceKernels" -> KernelCount[], "UseCertifiedLibrary" -> False, "Simplify" -> True, "DiskCache" -> True};
+  (* a parameter rung may take as long as the benchmark families did (the engine's default is 300 s) *)
   If[Kinematics =!= {},
     Options1 = Join[Options1, {"ExternalParameters" -> Kinematics,
-      "ParameterAssumptions" -> (And @@ Map[(0 < # < 1) &, Kinematics])}]];
-  Result = Block[{$ContextPath = EngineContextPath},
+      "ParameterAssumptions" -> (And @@ Map[(0 < # < 1) &, Kinematics]), "ParameterTimeConstraint" -> EngineSeconds}]];
+  (* the engine's resources follow $KernelLaunch: piece workers, residue helper processes (main kernels with the
+     HPL tables, about 3.5 GB each) and native integrator processes; the global Barnes route gets the time budget of
+     the benchmark runs (the engine's default, 2400 s, aborts the large integrals and every order is then rerun) *)
+  Result = Block[{$ContextPath = EngineContextPath, MBtoMPL`Private`$mbtGlobalBarnesBudget = EngineSeconds,
+      Global`$oftResidueHelpers = Max[0, KernelCount[] - 1], MBParameterSubtractionHF`$PSHNativeWorkers = Max[1, KernelCount[]]},
     CheckAbort[MBtoMPL`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]];
   Ledger = If[Kinematics === {} && ListQ[MBtoMPL`Private`$mbtFailedPieces], MBtoMPL`Private`$mbtFailedPieces, {}];
   Exact = Result =!= $Failed && Result =!= $Aborted && ! FailureQ[Result] && Ledger === {} &&
