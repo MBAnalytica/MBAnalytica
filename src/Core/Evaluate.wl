@@ -151,16 +151,33 @@ LowestPower[Integrand_, Reg_] := Module[{Terms, Powers},
   Return[Min[Powers]]];
 
 
-LeadingPole[MBInt_, Eps_, Ord_] := LeadingPole[MBInt, Eps, Ord] = Module[{Resolved, Expanded, Powers},
-  LoadMBTools[];
+(* the residue list of MBresolve, or False when MBresolve finds no straight contour *)
+ResolveIntegral[MBInt_, Eps_] := Module[{Resolved},
   Block[{$Output = {}},
-    Resolved = Quiet[MB`MBresolve[MBInt /. Eps -> MB`ep, MB`ep]];
+    Resolved = Quiet[MB`MBresolve[MBInt /. Eps -> MB`ep, MB`ep]]];
+  Return[Resolved]];
+
+
+ResolvedQ[Resolved_] := ListQ[Resolved] && Resolved =!= {};
+
+
+(* a resonant integral (a zero-sum cycle of Gamma arguments: no straight contour at any value of the regulator) is
+   resolved by the analytic continuation of the engine, which wraps MBresolve once the engine is loaded; without a
+   residue list the leading pole is unknown and $Failed is returned, never Ord, which would drop the lower orders *)
+LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
+  LoadMBTools[];
+  Resolved = ResolveIntegral[MBInt, Eps];
+  If[! ResolvedQ[Resolved] && IntersectingQ[$MBAnalyticaMethods, {"Standard", "Subtraction"}] && LoadMB2MPL[],
+    Resolved = ResolveIntegral[MBInt, Eps]];
+  If[! ResolvedQ[Resolved], Return[$Failed]];
+  Block[{$Output = {}},
     Expanded = Quiet[MB`MBexpand[Resolved, 1, {MB`ep, 0, Ord}]]];
   If[! ListQ[Expanded], Return[$Failed]];
   Powers = Map[LowestPower[First[#], MB`ep] &, Expanded];
   Powers = Select[Powers, IntegerQ];
-  If[Powers === {}, Return[Ord]];
-  Return[Min[Min[Powers], Ord]]];
+  Lo = If[Powers === {}, Ord, Min[Min[Powers], Ord]];
+  LeadingPole[MBInt, Eps, Ord] = Lo;
+  Return[Lo]];
 
 
 (* ::Section:: *)
