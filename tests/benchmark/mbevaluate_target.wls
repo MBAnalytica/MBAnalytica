@@ -111,7 +111,13 @@ OrderPass = <||>;
 
 
 GinshBinary = Lookup[Quiet[Check[Get[FileNameJoin[{PackageDir, "config.m"}]], <||>]], "Ginsh", "ginsh"];
-GinshNumber[X_] := ToString[InputForm[X]];
+(* rationals exactly; an algebraic letter (Sqrt[5], (1 + Sqrt[17])/2, ...) is reduced exactly first and passed with 60
+   digits, since ginsh reads no Mathematica syntax *)
+GinshNumber[X_] := Module[{Reduced, Value1},
+  Reduced = If[IntegerQ[X] || Head[X] === Rational || ! NumericQ[X], X, Quiet[RootReduce[X]]];
+  If[IntegerQ[Reduced] || Head[Reduced] === Rational, Return[ToString[InputForm[Reduced]]]];
+  Value1 = N[Reduced, 60];
+  Return[StringReplace[ToString[Value1, InputForm, NumberMarks -> False], "*^" -> "E"]]];
 GinshRun[Lines_List, Digits1_] := Module[{Reply, Values2},
   Reply = RunProcess[{GinshBinary}, "StandardOutput", "Digits=" <> ToString[Digits1] <> ":\n" <> StringRiffle[Lines, "\n"] <> "\n"];
   Values2 = StringSplit[StringTrim[Reply], "\n"];
