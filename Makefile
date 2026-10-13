@@ -36,11 +36,18 @@ ifeq ($(OS),Darwin)
   CMAKE_PLATFORM := -DCMAKE_CXX_COMPILER=/usr/bin/clang++ $(if $(OMP_ROOT),-DOpenMP_ROOT=$(OMP_ROOT),)
   MIMALLOC := $(if $(BREW),$(if $(shell brew --prefix mimalloc 2>/dev/null),ON,OFF),OFF)
   DEPS_COMMAND := brew install cmake flint gmp mpfr libomp mimalloc ginac python
+else ifneq ($(shell command -v dnf 2>/dev/null),)
+  CMAKE_PLATFORM :=
+  MIMALLOC := OFF
+  DEPS_COMMAND := sudo dnf install cmake gcc-c++ pkgconf-pkg-config patch gmp-devel mpfr-devel flint-devel ginac-utils python3
 else
   CMAKE_PLATFORM :=
   MIMALLOC := OFF
-  DEPS_COMMAND := sudo apt install cmake g++ pkg-config libflint-dev libgmp-dev libmpfr-dev ginac-tools python3-venv
+  DEPS_COMMAND := sudo apt install cmake g++ pkg-config patch libflint-dev libgmp-dev libmpfr-dev ginac-tools python3-venv
 endif
+
+# the SHA-256 check of the HPL tables: shasum (macOS, Debian) or sha256sum (coreutils: RHEL, Fedora)
+SHA256 := $(if $(shell command -v shasum 2>/dev/null),shasum -a 256,sha256sum)
 
 # HyperFLINT needs FLINT >= 3.4; an older system FLINT (Ubuntu 24.04 ships 3.0) is replaced by a private build of
 # FLINT $(FLINT_LOCAL_VERSION) inside the package folder
@@ -71,6 +78,7 @@ check:
 	if "$(CMAKE)" --version >/dev/null 2>&1; then echo "  found    cmake $$("$(CMAKE)" --version | head -1 | awk '{print $$3}')"; \
 	else echo "  MISSING  cmake (or it does not run; set CMAKE=/path/to/cmake)"; missing=1; fi; \
 	if command -v pkg-config >/dev/null 2>&1; then echo "  found    pkg-config"; else echo "  MISSING  pkg-config"; missing=1; fi; \
+	if command -v patch >/dev/null 2>&1; then echo "  found    patch"; else echo "  MISSING  patch (the guarded HyperFLINT build applies a patch)"; missing=1; fi; \
 	for lib in gmp mpfr; do \
 	  if pkg-config --exists $$lib 2>/dev/null || [ -n "$$(ls /usr/include/$$lib.h /opt/homebrew/include/$$lib.h /usr/local/include/$$lib.h 2>/dev/null)" ]; \
 	  then echo "  found    $$lib"; else echo "  MISSING  $$lib (development files)"; missing=1; fi; \
@@ -163,7 +171,7 @@ tables:
 	  elif [ -n "$(TABLES_URL)" ]; then curl -fL --retry 3 -o "$(HPL)/$$f" "$(TABLES_URL)/$$f" || exit 1; \
 	  else echo "The HPL table $$f is missing. Give the folder that holds it: make TABLES=/path"; exit 1; fi; \
 	done
-	@cd "$(HPL)" && shasum -a 256 -c "$(ROOT)/dep/HPL_TABLES.sha256" > /dev/null && echo "  HPL weight 9 and 10 tables present and verified"
+	@cd "$(HPL)" && $(SHA256) -c "$(ROOT)/dep/HPL_TABLES.sha256" > /dev/null && echo "  HPL weight 9 and 10 tables present and verified"
 
 # ---- config.m: the paths found on this machine, read by MBAnalytica.wl and by every worker ------------------------
 
