@@ -134,6 +134,7 @@ $(HF_BIN)/hyperflint_guarded: $(FLINT_DEP)
 	  > "$(HF_SRC)/build-guarded.log" 2>&1 || { tail -20 "$(HF_SRC)/build-guarded.log"; exit 1; }
 	"$(CMAKE)" --build "$(HF_SRC)/build-guarded" --target hyperflint-cli -j $(JOBS) >> "$(HF_SRC)/build-guarded.log" 2>&1 || \
 	  { tail -20 "$(HF_SRC)/build-guarded.log"; exit 1; }
+	mkdir -p "$(HF_BIN)"
 	cp "$(HF_SRC)/build-guarded/hyperflint" "$(HF_BIN)/hyperflint_guarded"
 	rm -rf "$(HF_SRC)/build-guarded-src"
 	@echo "  guarded HyperFLINT built: $(HF_BIN)/hyperflint_guarded"
