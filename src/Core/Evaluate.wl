@@ -199,11 +199,18 @@ RunResum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, E
 EngineSeconds = 43200;
 
 
+(* the regulator the engine was validated with: MBresolve orders the variables by name, so the name of the regulator
+   decides the contours and with them the residue pieces, and some rungs of the engine test a piece for
+   Global`\[Epsilon]; a symbol of that name in a private context when the integrand uses Global`\[Epsilon] otherwise *)
+EngineRegulator[MBInt_, Eps_] := If[Eps === Global`\[Epsilon] || FreeQ[MBInt, Global`\[Epsilon]],
+  Global`\[Epsilon], MBAnalytica`Private`\[Epsilon]];
+
+
 (* the MB2MPL engine: one call for the whole range; when a piece was ledgered, the orders are re-run one by one so
    that exactly the open orders are reported *)
 EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Association] := Module[
   {Reg, Integrand, Options1, Result, Ledger, Exact},
-  Reg = MBAnalytica`Private`Regulator;
+  Reg = EngineRegulator[MBInt, Eps];
   Integrand = MBInt /. Eps -> Reg;
   Options1 = {"EpsOrderMin" -> Lo, "EpsOrderMax" -> Hi, "Route" -> Route, "Verbose" -> TrueQ[Opts["Verbose"]],
     "PieceKernels" -> KernelCount[], "UseCertifiedLibrary" -> False, "Simplify" -> True, "DiskCache" -> True};
