@@ -199,11 +199,16 @@ RunResum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, E
 EngineSeconds = 43200;
 
 
-(* the regulator the engine was validated with: MBresolve orders the variables by name, so the name of the regulator
-   decides the contours and with them the residue pieces, and some rungs of the engine test a piece for
-   Global`\[Epsilon]; a symbol of that name in a private context when the integrand uses Global`\[Epsilon] otherwise *)
-EngineRegulator[MBInt_, Eps_] := If[Eps === Global`\[Epsilon] || FreeQ[MBInt, Global`\[Epsilon]],
-  Global`\[Epsilon], MBAnalytica`Private`\[Epsilon]];
+(* the regulator the engine was validated with: its benchmark drivers read \[Epsilon] after PolyLogTools is loaded,
+   which exports a public \[Epsilon], so every validated run had PolyLogTools`\[Epsilon].  The symbol matters twice:
+   MBresolve orders the variables by name, so the name decides the contours and the residue pieces; and parts of the
+   engine take Global`\[Epsilon] as the regulator by default (the corner pre-scan's MBtoEulerMellin, rung tests of
+   FreeQ[..., Global`\[Epsilon]]), which never fired in the validated runs.  With Global`\[Epsilon] the pre-scan
+   reports corners for the phase-bearing MBpilot13 and the global Barnes route loses its phase (pi^2 terms wrong).
+   A private symbol of the same name when the integrand uses PolyLogTools`\[Epsilon] otherwise *)
+EngineRegulator[MBInt_, Eps_] := Module[{PltEps},
+  PltEps = Symbol["PolyLogTools`\[Epsilon]"];
+  Return[If[Eps === PltEps || FreeQ[MBInt, PltEps], PltEps, MBAnalytica`Private`\[Epsilon]]]];
 
 
 (* the MB2MPL engine: one call for the whole range; when a piece was ledgered, the orders are re-run one by one so
