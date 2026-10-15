@@ -226,11 +226,11 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   (* the engine's resources follow $KernelLaunch: piece workers, residue helper processes (main kernels with the
      HPL tables, about 3.5 GB each), native integrator processes and the subkernels of the faithful-cube rung (its own
      policy launched up to one per core: 14 subkernels of 3.8 GB for Subtraction MB4, past any memory cap of a shared
-     machine); the global Barnes route gets the time budget of the benchmark runs (the engine's default, 2400 s,
+     machine) with their integrator race of 3 lanes per subkernel (8 by default, about 1 GB a lane); the global Barnes route gets the time budget of the benchmark runs (the engine's default, 2400 s,
      aborts the large integrals and every order is then rerun) *)
   Result = Block[{$ContextPath = EngineContextPath, MBtoMPL`Private`$mbtGlobalBarnesBudget = EngineSeconds,
       Global`$oftResidueHelpers = Max[0, KernelCount[] - 1], MBParameterSubtractionHF`$PSHNativeWorkers = Max[1, KernelCount[]],
-      Global`$fcuMaxWorkers = Max[1, KernelCount[]]},
+      Global`$fcuMaxWorkers = Max[1, KernelCount[]], Global`$fcuLaneBudget = 3 Max[1, KernelCount[]]},
     CheckAbort[MBtoMPL`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]];
   Ledger = If[Kinematics === {} && ListQ[MBtoMPL`Private`$mbtFailedPieces], MBtoMPL`Private`$mbtFailedPieces, {}];
   Exact = Result =!= $Failed && Result =!= $Aborted && ! FailureQ[Result] && Ledger === {} &&

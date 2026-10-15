@@ -47,6 +47,9 @@ Module[{},
   If[! ValueQ[Global`$fcuMaxVars], Global`$fcuMaxVars = 9];
   If[! ValueQ[Global`$fcuPieceSeconds], Global`$fcuPieceSeconds = 7200];
   If[! ValueQ[Global`$fcuMaxWorkers], Global`$fcuMaxWorkers = 100];
+  (* the lane budget of a run: the race width of a piece is about this over the number of subkernels, between 3 and 8
+     (a caller on a smaller machine than the 128-core reference sets it, e.g. MBEvaluate: 3 per kernel) *)
+  If[! ValueQ[Global`$fcuLaneBudget], Global`$fcuLaneBudget = 80];
   If[! ValueQ[Global`$fcuRules], Global`$fcuRules = "v2"];      (* "v2" (v1 fallback) | "v1" *)
   If[! ValueQ[Global`$fcuGate], Global`$fcuGate = False];   (* dev only: numeric faithfulness gate at eps=-1/40 *)
   Global`$fcuLastRun = <||>;
@@ -650,7 +653,7 @@ Module[{},
       (* 2026-09-11 15:35: the lane budget is PER RUN, so several concurrent runs multiply into a memory blow-up
          (six runs reached 525 lanes = 1.7 TB, 59 GB free); the constant is 80 (was 160), and no more than three heavy
          cube runs are kept concurrent -- a 20-kernel run then races 4 lanes, three runs about 240 lanes ~ 0.75 TB *)
-      t = Which[budget >= 16, 4, budget >= 8, 2, True, 1]; w = Max[3, Min[8, Floor[80/Max[1, Min[nPieces, Length[ks]]]]]];
+      t = Which[budget >= 16, 4, budget >= 8, 2, True, 1]; w = Max[3, Min[8, Floor[Global`$fcuLaneBudget/Max[1, Min[nPieces, Length[ks]]]]]];
       With[{tt = t, ww = w}, Quiet@ParallelEvaluate[
         Global`$ivfRaceThreads = tt; Global`$ivfThreadsSingle = tt; Global`$ivfChartThreads = tt;
         Global`$ivfRaceWidth = ww; Global`$ivfScaledQ = True;, ks]];
