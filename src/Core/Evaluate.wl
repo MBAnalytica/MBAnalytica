@@ -214,7 +214,7 @@ EngineRegulator[MBInt_, Eps_] := Module[{PltEps},
 (* the MB2MPL engine: one call for the whole range; when a piece was ledgered, the orders are re-run one by one so
    that exactly the open orders are reported *)
 EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Association] := Module[
-  {Reg, Integrand, Options1, Result, Ledger, Exact},
+  {Reg, Integrand, Options1, Result, Ledger, Exact, Census, Budget},
   Reg = EngineRegulator[MBInt, Eps];
   Integrand = MBInt /. Eps -> Reg;
   Options1 = {"EpsOrderMin" -> Lo, "EpsOrderMax" -> Hi, "Route" -> Route, "Verbose" -> TrueQ[Opts["Verbose"]],
@@ -228,10 +228,20 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
      policy launched up to one per core: 14 subkernels of 3.8 GB for Subtraction MB4, past any memory cap of a shared
      machine) with their integrator race of 3 lanes per subkernel (8 by default, about 1 GB a lane); the global Barnes route gets the time budget of the benchmark runs (the engine's default, 2400 s,
      aborts the large integrals and every order is then rerun) *)
+  (* the subkernel pools of the other rungs (one-fold towers, the multifold ladder, the sealed lane, the last-fold
+     workers) take the engine's policy budget less the subkernels this account already runs; that budget was the whole
+     node (one subkernel per core), so a run asked for 2 kernels launched 8-10 (Subtraction MB5, MB11: 44 GB in minutes).
+     The budget is $KernelLaunch on top of what runs now, in this kernel and, through MBT_SUBKERNEL_BUDGET, in the
+     residue helpers it starts *)
+  Census = If[DownValues[Global`mbtMySubkernelCount] =!= {}, Global`mbtMySubkernelCount[], 0];
+  Budget = Max[1, KernelCount[]] + If[IntegerQ[Census], Census, 0];
+  SetEnvironment["MBT_SUBKERNEL_BUDGET" -> ToString[Budget]];
   Result = Block[{$ContextPath = EngineContextPath, MBtoMPL`Private`$mbtGlobalBarnesBudget = EngineSeconds,
       Global`$oftResidueHelpers = Max[0, KernelCount[] - 1], MBParameterSubtractionHF`$PSHNativeWorkers = Max[1, KernelCount[]],
-      Global`$fcuMaxWorkers = Max[1, KernelCount[]], Global`$fcuLaneBudget = 3 Max[1, KernelCount[]]},
+      Global`$fcuMaxWorkers = Max[1, KernelCount[]], Global`$fcuLaneBudget = 3 Max[1, KernelCount[]],
+      Global`$mbtSubkernelBudget = Budget},
     CheckAbort[MBtoMPL`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]];
+  SetEnvironment["MBT_SUBKERNEL_BUDGET" -> None];
   Ledger = If[Kinematics === {} && ListQ[MBtoMPL`Private`$mbtFailedPieces], MBtoMPL`Private`$mbtFailedPieces, {}];
   Exact = Result =!= $Failed && Result =!= $Aborted && ! FailureQ[Result] && Ledger === {} &&
     FreeQ[Result, $Failed | $Aborted | Indeterminate | ComplexInfinity | MBtoMPL`Private`mbeUnsubtractedPole] &&

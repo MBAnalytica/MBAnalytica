@@ -1611,8 +1611,13 @@ If[DownValues[Global`gvExact] =!= {} && DownValues[Global`bwsGvExactOrig] === {}
    and the pieces stalled). *)
 (* MBAnalytica: an unlimited licence ($MaxLicenseSubprocesses = Infinity, e.g. a site licence) allows one subkernel
    per core; it had counted as 0, which held every run to a single worker whatever was requested *)
-Global`mbtWorkerBudget[] := Module[{lic, cores = Max[1, $ProcessorCount - 1]},
+(* MBAnalytica 2026-10-16: MBT_SUBKERNEL_BUDGET (set by MBEvaluate from $KernelLaunch) is the budget of a process that
+   has none of its own: the residue helpers are started by the run and inherit it, so that their worker pools are held
+   by the same budget as the run's (they had the whole node: 8-10 subkernels of ~3.8 GB in a run asked for 2) *)
+Global`mbtWorkerBudget[] := Module[{lic, cores = Max[1, $ProcessorCount - 1], asked},
   lic = Which[IntegerQ[$MaxLicenseSubprocesses], $MaxLicenseSubprocesses, $MaxLicenseSubprocesses === Infinity, cores, True, 0];
+  asked = Quiet[ToExpression[Environment["MBT_SUBKERNEL_BUDGET"]]];
+  If[! IntegerQ[Global`$mbtSubkernelBudget] && IntegerQ[asked] && asked >= 0, Global`$mbtSubkernelBudget = asked];
   If[! IntegerQ[Global`$mbtSubkernelBudget], Global`$mbtSubkernelBudget = If[lic >= 32, Floor[lic/2], lic]];
   If[! IntegerQ[Global`$mbtMainKernelBudget], Global`$mbtMainKernelBudget = 10];
   Max[1, Min[Global`$mbtSubkernelBudget, cores]]];
