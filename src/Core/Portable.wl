@@ -29,7 +29,7 @@ StackPrefix::usage =
 "StackPrefix is the shell text that raises the stack limit as far as the system allows.";
 
 SetsidArgs::usage =
-"SetsidArgs[] is {\"setsid\"} where setsid exists (Linux) and {} elsewhere.";
+"SetsidArgs[] is {\"setsid\", \"--wait\"} where setsid exists (Linux; without --wait when it lacks the option) and {} elsewhere.";
 
 ChildPIDs::usage =
 "ChildPIDs[Pid] lists the process IDs of the children of the process Pid.";
@@ -38,8 +38,7 @@ KillTree::usage =
 "KillTree[Pid] kills the process Pid and all of its descendants.";
 
 KillGroup::usage =
-"KillGroup[Pid] kills the process group led by Pid when it was started with SetsidArgs[], and the process tree of \
-Pid otherwise.";
+"KillGroup[Pid] kills the process Pid, all of its descendants and their process groups.";
 
 KernelBinaryPattern::usage =
 "KernelBinaryPattern[] is the part of the path of this system's kernel binary that identifies a running kernel in \
@@ -125,10 +124,18 @@ StackArgs[Command_List] := Module[{Prlimit},
 (*Process groups and trees*)
 
 
+(* Wolfram 15 starts every StartProcess child as a process-group leader, so setsid forks: without --wait the PID that
+   StartProcess reports is a process that has already exited, and nothing below it can be found or killed.  With
+   --wait that process stays until the command ends, and the command is its descendant *)
+SetsidWaitArgs[Tool_String] := SetsidWaitArgs[Tool] = Module[{Code},
+  Code = Quiet[Check[RunProcess[{Tool, "--wait", "true"}, "ExitCode"], 1]];
+  Return[If[Code === 0, {"--wait"}, {}]]];
+
+
 SetsidArgs[] := Module[{Tool},
   Tool = SetsidTool[];
   If[Tool === None, Return[{}]];
-  Return[{Tool}]];
+  Return[Join[{Tool}, SetsidWaitArgs[Tool]]]];
 
 
 ChildPIDs[Pid_Integer] := Module[{Found, Words},
@@ -151,10 +158,14 @@ KillTree[Pid_Integer] := Module[{Doomed},
   Return[Null]];
 
 
-KillGroup[Pid_Integer] := Module[{},
+(* the tree is read before anything is killed: the children of a killed process are re-parented and no longer found.
+   Every member's group is killed as well: GNU timeout puts itself and its program into a group of their own *)
+KillGroup[Pid_Integer] := Module[{Doomed, Words},
+  Doomed = Join[{Pid}, Descendants[Pid]];
+  Words = Map[ToString, Doomed];
   If[SetsidTool[] =!= None,
-    Quiet[RunProcess[{"kill", "-9", "--", "-" <> ToString[Pid]}]]];
-  KillTree[Pid];
+    Quiet[RunProcess[{"/bin/sh", "-c", "kill -9 -- " <> StringRiffle[Map["-" <> # &, Words], " "] <> " 2>/dev/null"}]]];
+  Quiet[RunProcess[{"/bin/sh", "-c", "kill -9 " <> StringRiffle[Words, " "] <> " 2>/dev/null"}]];
   Return[Null]];
 
 

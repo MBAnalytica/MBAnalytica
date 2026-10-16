@@ -125,13 +125,20 @@ ivfRaceParallel[f0_, vars_, orders_List, tmo_, reg_: False, ps_List: {}] := Modu
     res, ivfRaceTag]];
 (* 2026-09-01 16:45: kill a race candidate's WHOLE process group (the candidate is started under setsid, so its bash PID is
    the group id): kill -9 -- -PID reaches bash, timeout and hyperflint; KillProcess alone only killed bash and the
-   timeout/hyperflint pair kept computing to its budget (measured 16:36: 178 orphaned candidates, load average 231). *)
+   timeout/hyperflint pair kept computing to its budget (measured 16:36: 178 orphaned candidates, load average 231).
+   MBAnalytica 2026-10-16: under Wolfram 15 StartProcess makes the child a group leader, so setsid forks and PID is a
+   process that has already exited; KillGroup (Portable.wl) now waits in setsid and kills the process tree read before
+   the first kill, timeout's own process group included. *)
 ivfKillGroup[pr_] := Module[{pid = Quiet[pr["PID"]]},
   If[IntegerQ[pid], MBAnalytica`Portable`KillGroup[pid]];
   Quiet@KillProcess[pr]];
 ivfRaceParallelBatch[f0_, vars_, orders_List, tmo_, reg_: False, ps_List: {}] := Module[
   {f = ivfPolyLogToHlog[f0 /. constToHF], base, procs = {}, files = {}, t0 = AbsoluteTime[], done = False, result = <|"ok" -> False, "reason" -> "race-failed"|>, k = 0, refusals = {}},
   base = FileNameJoin[{$TemporaryDirectory, "ivf_race_" <> ToString[$ProcessID] <> "_" <> ToString[Round[1000 t0]]}];
+  (* MBAnalytica 2026-10-16: the lanes are killed on EVERY exit of the race, an abort included: the TimeConstrained of a
+     faithful-cube piece aborts this loop, and the lanes then ran on to their own time limit, a few GB each (Subtraction
+     MB4 on wrk1: 26 lanes where 6 race, 40-80 GB) *)
+  Internal`WithLocalSettings[Null,
   Do[k++;
     Module[{req, inF = base <> "_" <> ToString[k] <> ".in", outF = base <> "_" <> ToString[k] <> ".out", pr},
       req = <|"op" -> "hyperflint", "expr" -> exprStr[f], "vars_int" -> (SymbolName /@ o),
@@ -162,9 +169,9 @@ ivfRaceParallelBatch[f0_, vars_, orders_List, tmo_, reg_: False, ps_List: {}] :=
         files[[i, 2]] = "";]],
       {i, Length[files]}];
     If[! done && AllTrue[files, #[[2]] === "" &], Break[]];
-    If[! done, Pause[0.1]]];   (* 2026-08-30: 0.5 s granularity dominated trivial cubes *)
+    If[! done, Pause[0.1]]],   (* 2026-08-30: 0.5 s granularity dominated trivial cubes *)
   Do[ivfKillGroup[pr], {pr, procs}];
-  Do[Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".in"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out.tmp"], {i, Length[orders]}];
+  Do[Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".in"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out.tmp"], {i, Length[orders]}]];
   If[! done, result["refusals"] = refusals; result["divergent"] = AnyTrue[refusals, TrueQ[#["divergent"]] &];
     result["reason"] = If[refusals === {}, "race-timeout", First[refusals]["reason"]]];
   $ivfLastRefusals = refusals;
@@ -286,6 +293,8 @@ ivfRaceRequests[reqs_List, tmo_, bin_, envStr_] := Module[{w, env2, res = <|"ok"
 ivfRaceRequestsBatch[reqs_List, tmo_, bin_, envStr_] := Module[
   {base, procs = {}, files = {}, t0 = AbsoluteTime[], done = False, result = <|"ok" -> False, "reason" -> "race-failed"|>, k = 0, refusals = {}},
   base = FileNameJoin[{$TemporaryDirectory, "ivfp_race_" <> ToString[$ProcessID] <> "_" <> ToString[Round[1000 t0]]}];
+  (* MBAnalytica 2026-10-16: the lanes are killed on every exit of the race, an abort included (see ivfRaceParallelBatch) *)
+  Internal`WithLocalSettings[Null,
   Do[k++;
     Module[{inF = base <> "_" <> ToString[k] <> ".in", outF = base <> "_" <> ToString[k] <> ".out", pr},
       Export[inF, rq[[2]], "Text"];
@@ -307,9 +316,9 @@ ivfRaceRequestsBatch[reqs_List, tmo_, bin_, envStr_] := Module[
         files[[i, 2]] = "";]],
       {i, Length[files]}];
     If[! done && AllTrue[files, #[[2]] === "" &], Break[]];
-    If[! done, Pause[0.1]]];   (* 2026-08-30: 0.5 s granularity dominated trivial cubes *)
+    If[! done, Pause[0.1]]],   (* 2026-08-30: 0.5 s granularity dominated trivial cubes *)
   Do[ivfKillGroup[pr], {pr, procs}];
-  Do[Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".in"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out.tmp"], {i, Length[reqs]}];
+  Do[Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".in"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out"]; Quiet@DeleteFile[base <> "_" <> ToString[i] <> ".out.tmp"], {i, Length[reqs]}]];
   If[! done, result["refusals"] = refusals; result["divergent"] = AnyTrue[refusals, TrueQ[#["divergent"]] &];
     result["reason"] = If[refusals === {}, "race-timeout", First[refusals]["reason"]]];
   $ivfLastRefusals = refusals; $ivfLastRace = result;
