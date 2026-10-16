@@ -104,11 +104,11 @@ PythonReadyQ[] := Module[{Code},
 (* each row: name, what it is, its test, the methods that need it, and what to do when it is missing *)
 DependencyRows[] := {
   <|"Name" -> "Mathematica 14 or later", "Kind" -> "system",
-    "Test" -> (TrueQ[$VersionNumber >= 14] &), "Methods" -> {"Resum", "Standard", "Subtraction"},
+    "Test" -> (TrueQ[$VersionNumber >= 14] &), "Methods" -> {"Resum", "HyperLog", "Subtraction"},
     "Hint" -> "MBAnalytica is tested with Mathematica 14.2 and 15.0."|>,
   <|"Name" -> "MB tools (MB, MBresolve, barnesroutines)", "Kind" -> "bundled",
     "Test" -> (AllFilesQ[{DepFile["MB", "MB.m"], DepFile["MB", "MBresolve.m"], DepFile["MB", "barnesroutines.m"]}] &),
-    "Methods" -> {"Resum", "Standard", "Subtraction"},
+    "Methods" -> {"Resum", "HyperLog", "Subtraction"},
     "Hint" -> "They ship in dep/MB; the folder is incomplete. Clone the repository again."|>,
   <|"Name" -> "MBConicHulls", "Kind" -> "bundled",
     "Test" -> (AllFilesQ[{DepFile["MBConicHulls", "MBConicHulls.wl"], DepFile["MBConicHulls", "MultivariateResidues.m"]}] &),
@@ -123,17 +123,17 @@ DependencyRows[] := {
   <|"Name" -> "PolyLogTools, HPL, HypExp, HyperIntica", "Kind" -> "bundled",
     "Test" -> (AllFilesQ[{DepFile["PolyLogTools", "PolyLogTools.m"], DepFile["HPL", "HPL.m"], DepFile["HypExp", "HypExp.m"],
         DepFile["HyperIntica", "HyperIntica.wl"]}] &),
-    "Methods" -> {"Standard", "Subtraction"},
+    "Methods" -> {"HyperLog", "Subtraction"},
     "Hint" -> "They ship in dep/; the folder is incomplete. Clone the repository again."|>,
   <|"Name" -> "HPL weight 9 and 10 tables", "Kind" -> "downloaded by make",
     "Test" -> (AllFilesQ[{DepFile["HPL", "h9table.mat"], DepFile["HPL", "h10table.mat"], DepFile["HPL", "ms9_rules.mx"],
         DepFile["HPL", "mspm9_rules.mx"], DepFile["HPL", "ms10_rules_v2.mx"], DepFile["HPL", "mspm10_rules.mx"]}] &),
-    "Methods" -> {"Standard", "Subtraction"},
+    "Methods" -> {"HyperLog", "Subtraction"},
     "Hint" -> "Run make in the MBAnalytica folder."|>,
   <|"Name" -> "HyperFLINT (built for this machine)", "Kind" -> "built by make", "Test" -> (HyperFLINTRunsQ[] &),
-    "Methods" -> {"Standard", "Subtraction"},
+    "Methods" -> {"HyperLog", "Subtraction"},
     "Hint" -> "Run make in the MBAnalytica folder (it needs cmake, FLINT, GMP and MPFR; make deps shows how to install them)."|>,
-  <|"Name" -> "ginsh (GiNaC)", "Kind" -> "external", "Test" -> (GinshPath[] =!= None &), "Methods" -> {"Standard", "Subtraction"},
+  <|"Name" -> "ginsh (GiNaC)", "Kind" -> "external", "Test" -> (GinshPath[] =!= None &), "Methods" -> {"HyperLog", "Subtraction"},
     "Hint" -> "Install GiNaC and CLN (macOS: brew install ginac; Debian/Ubuntu: apt install ginac-tools), or run make deps."|>,
   <|"Name" -> "Python 3 with numpy, scipy, sympy", "Kind" -> "built by make", "Test" -> (PythonReadyQ[] &),
     "Methods" -> {"Subtraction with kinematic variables"},
@@ -154,7 +154,7 @@ CheckDependencies[] := Module[{Rows, Results},
 MethodsFrom[Results_List] := Module[{Absent, Blocked},
   Absent = Select[Results, ! #["Found"] &];
   Blocked = DeleteDuplicates[Flatten[Map[#["Methods"] &, Absent]]];
-  Return[Select[{"Resum", "Standard", "Subtraction"}, ! MemberQ[Blocked, #] &]]];
+  Return[Select[{"Resum", "HyperLog", "Subtraction"}, ! MemberQ[Blocked, #] &]]];
 
 
 RefreshMethods[] := Module[{Results},

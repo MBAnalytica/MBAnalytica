@@ -10,7 +10,7 @@
 
 (* ::Text:: *)
 (*Authors: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias.*)
-(*Three methods: Resum (series solutions summed by EvaluateMultiSums), Standard and Subtraction (the MB2MPL*)
+(*Three methods: Resum (series solutions summed by EvaluateMultiSums), HyperLog and Subtraction (the MB2MPL*)
 (*engine: exact Euler integrals and boundary subtraction).  This file is the only one a user loads; it loads the*)
 (*methods themselves the first time they are used.  See README.md for installation and Examples.nb for examples.*)
 
@@ -41,15 +41,15 @@ are whatever is left, so neither has to be given. MBEvaluate[MBInt, MBVar, {Eps,
 variables explicitly; they are taken in 0 < x < 1.\n\n\
 A coefficient that could not be brought to a closed form is returned as MBFailed[reasons].\n\n\
 Options:\n  \
-Method -> Automatic       tries the methods available on this machine in the order \"Resum\", \"Standard\", \
-\"Subtraction\", each one only on the orders the earlier ones left open; \"Resum\", \"Standard\" or \"Subtraction\" uses \
-that method alone\n  \
+Method -> Automatic       tries the methods available on this machine in the order \"Resum\", \"HyperLog\", \
+\"Subtraction\", each one only on the orders the earlier ones left open; \"Resum\", \"HyperLog\" or \"Subtraction\" uses \
+that method alone (\"Standard\" is accepted as an alias of \"HyperLog\")\n  \
 Verbose -> False          prints one line per stage\n  \
 BarnesReduce -> True      applies the Barnes lemmas before the Resum method solves the integral\n  \
 Complex -> False          returns the real part; True returns the full complex value\n\n\
 Examples:\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}]\n  \
-MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"Standard\"]\n  \
+MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"HyperLog\"]\n  \
 MBEvaluate[MB1u, {\[Epsilon], -1}, Complex -> True]";
 
 
@@ -98,7 +98,7 @@ $MBAnalyticaDirectory::usage = "$MBAnalyticaDirectory is the folder MBAnalytica 
 
 
 $MBAnalyticaMethods::usage =
-"$MBAnalyticaMethods lists the methods that can run on this machine (\"Resum\", \"Standard\", \"Subtraction\").";
+"$MBAnalyticaMethods lists the methods that can run on this machine (\"Resum\", \"HyperLog\", \"Subtraction\").";
 
 
 (* ::Section::Closed:: *)

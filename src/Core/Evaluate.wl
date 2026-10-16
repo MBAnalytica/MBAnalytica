@@ -6,7 +6,7 @@
 
 (* ::Text:: *)
 (*Read inside MBAnalytica`Private` by MBAnalytica.wl.  Each method is loaded the first time it is used.  With*)
-(*Method -> Automatic the methods available on this machine are tried in the order Resum, Standard, Subtraction,*)
+(*Method -> Automatic the methods available on this machine are tried in the order Resum, HyperLog, Subtraction,*)
 (*and every later method only receives the orders the earlier ones could not close.*)
 
 
@@ -112,7 +112,7 @@ LoadMB2MPL[] := Module[{Loader, StartDirectory},
 
 LoadMethod[Method1_String] := Switch[Method1,
   "Resum", LoadResum[],
-  "Standard" | "Subtraction", LoadMB2MPL[],
+  "HyperLog" | "Subtraction", LoadMB2MPL[],
   _, False];
 
 
@@ -167,7 +167,7 @@ ResolvedQ[Resolved_] := ListQ[Resolved] && Resolved =!= {};
 LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
   LoadMBTools[];
   Resolved = ResolveIntegral[MBInt, Eps];
-  If[! ResolvedQ[Resolved] && IntersectingQ[$MBAnalyticaMethods, {"Standard", "Subtraction"}] && LoadMB2MPL[],
+  If[! ResolvedQ[Resolved] && IntersectingQ[$MBAnalyticaMethods, {"HyperLog", "Subtraction"}] && LoadMB2MPL[],
     Resolved = ResolveIntegral[MBInt, Eps]];
   If[! ResolvedQ[Resolved], Return[$Failed]];
   Block[{$Output = {}},
@@ -249,18 +249,24 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   Return[<|"Exact" -> Exact, "Result" -> (Result /. Reg -> Eps)|>]];
 
 
-RunEngine[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Association] := Module[
-  {Call, Expanded, Coefs, Single},
-  If[! LoadMB2MPL[], Return[FailAll[Lo, Hi, Route, "the method could not be loaded"]]];
+(* the engine route of a method: the HyperLog method is the Standard route of the MB2MPL engine *)
+EngineRoute["HyperLog"] = "Standard";
+EngineRoute["Subtraction"] = "Subtraction";
+
+
+RunEngine[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Method1_String, Opts_Association] := Module[
+  {Route, Call, Expanded, Coefs, Single},
+  Route = EngineRoute[Method1];
+  If[! LoadMB2MPL[], Return[FailAll[Lo, Hi, Method1, "the method could not be loaded"]]];
   Call = EngineCall[MBInt, Kinematics, Eps, Lo, Hi, Route, Opts];
   If[TrueQ[Call["Exact"]],
     Expanded = Expand[Call["Result"]];
     Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Range[Lo, Hi]]]]];
-  If[Lo === Hi, Return[FailAll[Lo, Hi, Route, "a piece could not be closed"]]];
+  If[Lo === Hi, Return[FailAll[Lo, Hi, Method1, "a piece could not be closed"]]];
   Coefs = Association[Map[Function[K1,
     Single = EngineCall[MBInt, Kinematics, Eps, K1, K1, Route, Opts];
     K1 -> If[TrueQ[Single["Exact"]], Coefficient[Expand[Single["Result"]], Eps, K1],
-      MBFailed[{Route, "a piece could not be closed"}]]], Range[Lo, Hi]]];
+      MBFailed[{Method1, "a piece could not be closed"}]]], Range[Lo, Hi]]];
   Return[Coefs]];
 
 
@@ -269,7 +275,7 @@ FailAll[Lo_, Hi_, Method1_, Reason_] := Association[Map[# -> MBFailed[{Method1, 
 
 RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_Association] := Switch[Method1,
   "Resum", RunResum[MBInt, MBVar, Eps, Lo, Hi, Opts],
-  "Standard", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "Standard", Opts],
+  "HyperLog", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "HyperLog", Opts],
   "Subtraction", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "Subtraction", Opts]];
 
 
@@ -280,7 +286,7 @@ RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_
 Options[MBEvaluate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False};
 
 
-MBEvaluate::method = "Method -> `1` is not Automatic, \"Resum\", \"Standard\" or \"Subtraction\".";
+MBEvaluate::method = "Method -> `1` is not Automatic, \"Resum\", \"HyperLog\" or \"Subtraction\".";
 MBEvaluate::unavailable = "The method `1` cannot run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::none = "No method can run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::pole = "The leading pole of the integral could not be determined (MBresolve or MBexpand failed).";
@@ -297,7 +303,9 @@ MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
 MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
   {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders},
   Method1 = OptionValue[Method];
-  If[! MemberQ[{Automatic, "Resum", "Standard", "Subtraction"}, Method1],
+  (* "Standard", the earlier name of the HyperLog method, is accepted as an alias *)
+  If[Method1 === "Standard", Method1 = "HyperLog"];
+  If[! MemberQ[{Automatic, "Resum", "HyperLog", "Subtraction"}, Method1],
     Message[MBEvaluate::method, Method1];
     Return[$Failed]];
   Settings = <|"Verbose" -> TrueQ[OptionValue[Verbose]], "BarnesReduce" -> TrueQ[OptionValue[BarnesReduce]],
