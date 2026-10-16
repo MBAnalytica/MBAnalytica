@@ -8,6 +8,7 @@
      NAME       the row (MB1, ..., MB14, MBpilot12, MBpilot13, MB1u, ..., MB14u)
      LO, HI     the orders of the row (LO = auto: from the leading pole)
      OUT        record folder;  KERNELS  $KernelLaunch;  RESULTS_T  the audited MBResum records (results_t)
+     VERBOSE    1 = MBEvaluate[..., Verbose -> True] (the engine's progress in the log; the value is the same)
    The inputs are those of the reference tables: MBResum rows from mb_resum_targets.m (status_mb2mpl.pdf: MB2 = MB21 +
    MB22, MB8 = MB81 + MB82), Standard and Subtraction rows from mb_targets_all.m and mb_u_targets.m (benchmark_status.pdf:
    MB8 = MB8a + MB8b, MB14 = MB14a + MB14b; the rows marked k and f on the Subtraction page are, as there, the exact
@@ -32,6 +33,7 @@ Hi = ToExpression[Environment["HI"]];
 RecordDir = Environment["OUT"];
 Kern = Quiet[ToExpression[Environment["KERNELS"]]];
 RefDir = Environment["RESULTS_T"];
+VerboseQ = Environment["VERBOSE"] === "1";
 Global`$KernelLaunch = If[IntegerQ[Kern], Kern, 4];
 If[StringQ[Environment["MBANALYTICA_CACHE"]], Global`$MBAnalyticaCacheDirectory = Environment["MBANALYTICA_CACHE"]];
 Get[FileNameJoin[{PackageDir, "MBAnalytica.wl"}]];
@@ -94,7 +96,7 @@ If[StringQ[Recheck] && Recheck =!= "" && FileExistsQ[Recheck],
   Values1 = {Saved["Value"]};
   Seconds = Saved["Seconds"];
   Print["MBEVAL_RECHECK ", Name, "  the MBEvaluate value saved in ", Recheck],
-  Values1 = Map[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ] &, Parts];
+  Values1 = Map[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ, Verbose -> VerboseQ] &, Parts];
   Seconds = Round[AbsoluteTime[] - T0]];
 GForm = Total[Values1];
 If[! IntegerQ[Lo], Lo = Exponent[Expand[GForm], Eps, Min]];
