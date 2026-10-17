@@ -80,27 +80,40 @@ ToGBasis[Expr_, Vars_List] := Module[{Res, VarPattern},
 FunctionPattern = _PolyLogTools`G | _HarmonicSums`H | _HPL`HPL | _PolyLog | _Log;
 
 
-(* a number for an exact expression: N, then the engine's G evaluator, then PolyLogTools' ginsh interface *)
-NumericValue[Expr_] := Module[{Value},
+(* a number for an exact expression: N, then the engine's G evaluator, then PolyLogTools' ginsh interface; all with
+   PolyLogTools` on the context path, since N of a G reaches ginsh too and ginsh rejects a G written with its context *)
+NumericValue[Expr_] := Block[{$ContextPath = Prepend[$ContextPath, "PolyLogTools`"]}, Module[{Value},
   Value = Quiet[Check[N[Expr, 20], $Failed]];
-  If[NumberQ[Value], Return[Value]];
+  If[NumberQ[Value], Return[Value, Module]];
   If[DownValues[Global`gvN] =!= {},
     Value = Quiet[Check[Global`gvN[Expr], $Failed]];
-    If[NumberQ[Value], Return[N[Value]]]];
+    If[NumberQ[Value], Return[N[Value], Module]]];
   If[Names["PolyLogTools`Ginsh"] =!= {} && DownValues[PolyLogTools`Ginsh] =!= {},
     Value = Quiet[Check[TimeConstrained[PolyLogTools`Ginsh[Expr, {}], 120, $Failed], $Failed]];
-    If[NumberQ[Value], Return[N[Value]]]];
-  Return[$Failed]];
+    If[NumberQ[Value], Return[N[Value], Module]]];
+  Return[$Failed, Module]]];
 
 
 (* True when Cond holds on the whole domain 0 < x < 1: proved by Refine, else by Resolve within ten seconds *)
-HoldsOnDomain[Cond_, Vars_List] := Module[{Assumption, Refined, Resolved},
+DecideOnDomain[Cond_, Vars_List] := Module[{Assumption, Refined, Resolved},
   If[Vars === {}, Return[TrueQ[Quiet[Simplify[Cond]]]]];
   Assumption = And @@ Map[(0 < # < 1) &, Vars];
   Refined = Quiet[Refine[Cond, Assumption]];
   If[Refined === True, Return[True]];
   Resolved = Quiet[TimeConstrained[Resolve[ForAll[Vars, Assumption, Cond], Reals], 10, $Failed]];
   Return[Resolved === True]];
+
+
+(* the decided conditions, keyed by {Cond, Vars}: the same letters recur across thousands of G functions, and each
+   undecided Resolve costs its ten seconds again *)
+HoldsOnDomainCache = <||>;
+HoldsOnDomain[Cond_, Vars_List] := Module[{Key, Res},
+  Key = {Cond, Vars};
+  Res = Lookup[HoldsOnDomainCache, Key, Missing[]];
+  If[! MissingQ[Res], Return[Res]];
+  Res = DecideOnDomain[Cond, Vars];
+  HoldsOnDomainCache[Key] = Res;
+  Return[Res]];
 
 
 (* G(a1, ..., an; x) and H(a1, ..., an; x) integrate along [0, x] with poles at their letters, so they are real when
@@ -124,26 +137,64 @@ RealFunctionQ[Function1_, Vars_List] := Module[{Args},
     True, Return[False]]];
 
 
-(* the real part with every function held as a real symbol: exact when every function is real on the domain;
-   otherwise accepted only when it agrees with the real part of the full value at the probe points (or, without
-   kinematic variables, at the single point) *)
-RealPart[Expr_, Vars_List] := Module[{Functions, Holders, ToHolders, FromHolders, Held, Candidate, Points, Agree},
+(* a product of the real symbols to integer powers *)
+RealMonomialQ[Factor1_, RealPattern_] := Module[{Fs},
+  Fs = If[Head[Factor1] === Times, List @@ Factor1, {Factor1}];
+  Return[AllTrue[Fs, MatchQ[#, RealPattern | Power[RealPattern, _Integer]] &]]];
+
+
+(* ComplexExpand[Re[Held]] term by term: for a term c m with m a product of the real symbols to integer powers the
+   real part is Re[c] m, with ComplexExpand[Re[c]] taken once per distinct constant c; any other term goes through
+   ComplexExpand as before.  The same result as ComplexExpand of the whole sum, which on a three-site cosmological
+   coefficient (13802 terms) took longer than four minutes *)
+RealPartByTerms[Held_, RealSymbols_List] := Module[{Expanded, Terms, RealPattern, ConstantRe, TermRe},
+  Expanded = Expand[Held];
+  Terms = If[Head[Expanded] === Plus, List @@ Expanded, {Expanded}];
+  RealPattern = Alternatives @@ RealSymbols;
+  ConstantRe = <||>;
+  TermRe[Term_] := Module[{Fs, Constant1, Rest},
+    Fs = If[Head[Term] === Times, List @@ Term, {Term}];
+    Constant1 = Times @@ Select[Fs, FreeQ[#, RealPattern] &];
+    Rest = Times @@ Select[Fs, ! FreeQ[#, RealPattern] &];
+    If[! RealMonomialQ[Rest, RealPattern], Return[ComplexExpand[Re[Term]], Module]];
+    If[! KeyExistsQ[ConstantRe, Constant1], ConstantRe[Constant1] = ComplexExpand[Re[Constant1]]];
+    Return[ConstantRe[Constant1] Rest, Module]];
+  Return[Total[Map[TermRe, Terms]]]];
+
+
+(* seconds for the reality proof of all functions together, and for each numeric probe: past them the proof counts as
+   not given and the probe as failed, so a large coefficient falls back to its full complex value instead of stalling
+   (a three-site cosmological sector with tens of thousands of G functions sat here for hours) *)
+RealPartBudget = 300;
+
+
+(* the real part with every function held as a real symbol: accepted when it agrees with the real part of the full
+   value at the probe points (or, without kinematic variables, at the single point), or when every function is
+   proved real on the domain.  The probes come first: they are cheap, and when they are numbers they decide (if
+   every function is real the candidate is the exact real part, so a disagreement means some function is not); the
+   proof runs only when a probe could not be evaluated. *)
+RealPart[Expr_, Vars_List] := Module[{Functions, Holders, ToHolders, FromHolders, Held, Candidate, Points, Probes, Proved},
   Functions = DeleteDuplicates[Cases[Expr, FunctionPattern, {0, Infinity}]];
   Holders = Table[Symbol["MBAnalytica`Private`RealHolder" <> ToString[K]], {K, Length[Functions]}];
-  ToHolders = Thread[Functions -> Holders];
-  FromHolders = Thread[Holders -> Functions];
+  ToHolders = Dispatch[Thread[Functions -> Holders]];
+  FromHolders = Dispatch[Thread[Holders -> Functions]];
   Held = Expr /. ToHolders;
-  Candidate = ComplexExpand[Re[Held]];
+  Candidate = RealPartByTerms[Held, Join[Holders, Vars]];
   Candidate = Candidate /. FromHolders;
   Candidate = Expand[Candidate];
   If[Functions === {}, Return[Candidate]];
-  If[AllTrue[Functions, RealFunctionQ[#, Vars] &], Return[Candidate]];
   Points = If[Vars === {}, {{}}, Map[Function[Point1, Thread[Vars -> Point1]], {1/3, 5/7}]];
-  Agree = AllTrue[Points, Function[Rules1, Module[{Whole, Part1},
-    Whole = NumericValue[Expr /. Rules1];
-    Part1 = NumericValue[Candidate /. Rules1];
-    NumberQ[Whole] && NumberQ[Part1] && Abs[Re[Whole] - Part1] <= 10^-8 Max[1, Abs[Whole]]]]];
-  If[Agree, Return[Candidate]];
+  Probes = Map[Function[Rules1, Module[{Whole, Part1},
+    Whole = TimeConstrained[NumericValue[Expr /. Rules1], RealPartBudget, $Failed];
+    Part1 = TimeConstrained[NumericValue[Candidate /. Rules1], RealPartBudget, $Failed];
+    Which[
+      ! NumberQ[Whole] || ! NumberQ[Part1], Missing[],
+      Abs[Re[Whole] - Part1] <= 10^-8 Max[1, Abs[Whole]], True,
+      True, False]]], Points];
+  If[MemberQ[Probes, False], Return[$Failed]];
+  If[AllTrue[Probes, TrueQ], Return[Candidate]];
+  Proved = TimeConstrained[AllTrue[Functions, RealFunctionQ[#, Vars] &], RealPartBudget, False];
+  If[Proved, Return[Candidate]];
   Return[$Failed]];
 
 
