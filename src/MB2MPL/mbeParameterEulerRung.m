@@ -19,10 +19,16 @@ If[DownValues[baseVarSymbolQ] === {},
 If[DownValues[baseFresh] === {},
   DownValues[baseFresh] = DownValues[Global`bwsFresh] /. Global`bwsFresh -> baseFresh];
 
-parameterPoints[pars_, dom_] := Module[{grid, pt},
+parameterPoints[pars_, dom_] := Module[{grid, pt, spread},
   If[pars === {}, Return[{{}, {}}, Module]];
-  If[Length[pars] > 3, Return[{}, Module]];
-  grid = Thread[pars -> #] & /@ Tuples[{1/3, 2/3, 1/2, 2, 3}, Length[pars]];
+  (* up to three parameters: the full grid; more (a three-site cosmological sector has four or more): well-spread
+     points with distinct coordinates, so that no two parameters coincide, then the diagonal grid points *)
+  spread = {{1/3, 2/5, 3/7, 4/9, 5/11, 6/13, 7/15, 8/17}, {1/2, 2/7, 3/8, 2/9, 5/12, 3/10, 4/11, 5/13},
+    {2/3, 3/5, 4/7, 5/9, 6/11, 7/13, 8/15, 9/17}, {2, 3, 5/2, 7/3, 9/4, 11/5, 13/6, 15/7}};
+  grid = If[Length[pars] <= 3, Tuples[{1/3, 2/3, 1/2, 2, 3}, Length[pars]],
+    Join[Map[Take[#, Length[pars]] &, Select[spread, Length[#] >= Length[pars] &]],
+      Map[ConstantArray[#, Length[pars]] &, {1/3, 2/3, 1/2, 2, 3}]]];
+  grid = Thread[pars -> #] & /@ grid;
   pt = Select[grid, TrueQ[dom /. #] &]; Take[pt, UpTo[2]]];
 parseScaled[ig_, vars_, dom_] := Module[{ff = factors[ig], kin, p},
   kin = Select[ff, MatchQ[#, _Power] && !FreeQ[#[[2]], Alternatives @@ vars] &];
