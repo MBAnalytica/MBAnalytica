@@ -67,13 +67,17 @@ CosmoPushed[Edges_List, Push_List, C0_List] := Module[{Cs, Prev, Earlier},
   Return[Cs]];
 
 
-(* every push map (each vertex keeps its coefficient or pushes it along a line on which it is the later end) with all
-   coefficients positive at the point, fewest pushes first *)
-CosmoPushChoices[Edges_List, Later_List, XP_List, YP_List, KLegs_List] := Module[{NV, Options1, C0, Good},
+(* every push map (each vertex keeps its coefficient or pushes it along a line on which it is the later end) with every
+   coefficient either identically zero in the energies (its monomial is dropped, as at the boundary x_i = y_i of a
+   mixing vertex) or positive at the point, fewest pushes first *)
+CosmoPushChoices[Edges_List, Later_List, XP_List, YP_List, KP_List, XX_List, YY_List, KLegs_List] := Module[{NV, Options1,
+    C0, CS, Good},
   NV = Length[XP];
   Options1 = Table[Join[{0}, Select[Range[Length[Edges]], Later[[#]] === V &]], {V, NV}];
-  C0 = CosmoVertexCoefficients[Edges, Later, XP, YP, KLegs];
-  Good = Select[Tuples[Options1], Min[CosmoPushed[Edges, #, C0]] > 0 &];
+  C0 = CosmoVertexCoefficients[Edges, Later, XP, YP, KP];
+  CS = CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs];
+  Good = Select[Tuples[Options1], Function[Push, Module[{Cn = CosmoPushed[Edges, Push, C0], Cs = CosmoPushed[Edges, Push, CS]},
+      AllTrue[Range[NV], PossibleZeroQ[Cs[[#]]] || TrueQ[Cn[[#]] > 0] &] && ! AllTrue[Cs, PossibleZeroQ]]]];
   Return[SortBy[Good, {Count[#, Except[0]] &, Identity}]]];
 
 
@@ -109,7 +113,7 @@ CosmoKLegFactor[Mu_, U_] := If[Mu === 0, Sqrt[Pi/2] (U/2)^(-1/2), Sqrt[Pi/2] (U/
 
 CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_List, KLegs_List, XX_List, YY_List,
   VarName_String] := Module[{NL, NK, NV, MJ, M, J, Xi, Ww, Uu, Zl, MuL, MuK, AV, AA, Q, ToXi, MQ, Weights, C0, Cs, Scale,
-    VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand},
+    Kept, VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand},
   NL = Length[Edges];
   NK = Length[KLegs];
   NV = Length[RV];
@@ -119,7 +123,9 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
   J = MJ[[2]];
   Xi = Table[Symbol["Global`k" <> ToString[L1]], {L1, NL}];
   Ww = Table[Symbol["Global`w" <> ToString[L1]], {L1, NL}];
-  Uu = Table[Symbol["Global`" <> VarName <> ToString[I1]], {I1, NL + NK + NV - 1}];
+  Kept = Select[DeleteCases[Range[NV], BaseV], ! PossibleZeroQ[CosmoPushed[Edges, Push,
+      CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs]][[#]]] &];
+  Uu = Table[Symbol["Global`" <> VarName <> ToString[I1]], {I1, NL + NK + Length[Kept]}];
   Zl = Table[Symbol["Global`z" <> FromCharacterCode[96 + L1]], {L1, NL + NK}];
   MuL = NuL - 1/2;
   MuK = Map[#[[3]] - 1/2 &, KLegs];
@@ -136,11 +142,11 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
   C0 = CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs];
   Cs = CosmoPushed[Edges, Push, C0];
   Scale = Cs[[BaseV]];
-  VertexU = Association[MapThread[#1 -> #2 &, {DeleteCases[Range[NV], BaseV], Uu[[NL + NK + 1 ;;]]}]];
+  VertexU = Association[MapThread[#1 -> #2 &, {Kept, Uu[[NL + NK + 1 ;;]]}]];
   Mons = Join[
     Table[Earlier = First[DeleteCases[Edges[[L1]], Later[[L1]]]];
       {Uu[[L1]], Join[MQ[Earlier], <|Ww[[L1]] -> 1|>], <||>}, {L1, NL}],
-    Map[{VertexU[#], MQ[#], If[Push[[#]] === 0, <||>, <|Xi[[Push[[#]]]] -> 1|>]} &, DeleteCases[Range[NV], BaseV]]];
+    Map[{VertexU[#], MQ[#], If[Push[[#]] === 0, <||>, <|Xi[[Push[[#]]]] -> 1|>]} &, Kept]];
   Lines = Table[{MuL[[L1]], Zl[[L1]], Uu[[L1]], MQ[Later[[L1]]]}, {L1, NL}];
   KLines = Table[{MuK[[K1]], Zl[[NL + K1]], Uu[[NL + K1]], MQ[KLegs[[K1, 1]]]}, {K1, NK}];
   Spec = <|"Vars" -> Join[Xi, Ww], "Weights" -> Weights, "Base" -> MQ[BaseV], "Monomials" -> Mons,
@@ -188,11 +194,12 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
   If[Orients === All, Orients = Tuples[Edges]];
   If[CosmoTreeM[Edges, First[Orients], NV] === $Failed, Message[CosmoTreeMB::tree, Edges, NV]; Return[$Failed]];
   Results = Map[Function[Later, Module[{Pushes, Push, Cs, Free, BaseV},
-      Pushes = CosmoPushChoices[Edges, Later, XP, YP, KP];
+      Pushes = CosmoPushChoices[Edges, Later, XP, YP, KP, XX, YY, KLegs];
       If[Pushes === {}, Message[CosmoTreeMB::nopush, Later]; Return[$Failed, Module]];
       Push = First[Pushes];
       Cs = CosmoPushed[Edges, Push, CosmoVertexCoefficients[Edges, Later, XP, YP, KP]];
-      Free = Select[Range[NV], Push[[#]] === 0 &];
+      Free = Select[Range[NV], Push[[#]] === 0 && ! PossibleZeroQ[CosmoPushed[Edges, Push,
+          CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs]][[#]]] &];
       BaseV = First[MaximalBy[Free, Cs[[#]] &]];
       CosmoOrientation[Edges, Later, Push, BaseV, RV, NuL, KLegs, XX, YY, OptionValue["VariableName"]]]], Orients];
   Return[Results]];
