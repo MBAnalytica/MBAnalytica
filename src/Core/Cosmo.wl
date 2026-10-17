@@ -113,7 +113,7 @@ CosmoKLegFactor[Mu_, U_] := If[Mu === 0, Sqrt[Pi/2] (U/2)^(-1/2), Sqrt[Pi/2] (U/
 
 CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_List, KLegs_List, XX_List, YY_List,
   VarName_String] := Module[{NL, NK, NV, MJ, M, J, Xi, Ww, Uu, Zl, MuL, MuK, AV, AA, Q, ToXi, MQ, Weights, C0, Cs, Scale,
-    Kept, VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand},
+    Kept, VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand, Constants, Merged},
   NL = Length[Edges];
   NK = Length[KLegs];
   NV = Length[RV];
@@ -155,6 +155,17 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
     (Times @@ MapThread[CosmoKLegFactor, {MuK, Uu[[NL + 1 ;; NL + NK]]}]) CosmoSectorMB[Spec];
   URules = Join[Table[Uu[[L1]] -> 2 YY[[L1]]/Scale, {L1, NL}], Table[Uu[[NL + K1]] -> 2 KLegs[[K1, 2]]/Scale, {K1, NK}],
     KeyValueMap[#2 -> Cs[[#1]]/Scale &, VertexU]];
+  (* variables that are constants in the energies (u = 1 when the base is the line's own energy, at mixing vertices)
+     are substituted, and variables equal to an earlier one are merged: fewer kinematic variables for MBEvaluate *)
+  URules = Map[First[#] -> Together[Last[#]] &, URules];
+  Constants = Select[URules, NumericQ[Last[#]] &];
+  Integrand = Integrand /. Constants;
+  URules = Complement[URules, Constants];
+  URules = SortBy[URules, Position[Uu, First[#]] &];
+  Merged = Flatten[Map[If[Length[#] > 1, Map[Function[R1, First[R1] -> First[First[#]]], Rest[#]], {}] &,
+      GatherBy[URules, Last]]];
+  Integrand = Integrand /. Merged;
+  URules = Select[URules, ! MemberQ[Merged[[All, 1]], First[#]] &];
   Return[<|"Later" -> Later, "Push" -> Push, "Base" -> BaseV, "Integrand" -> Integrand, "Variables" -> URules,
     "Scale" -> Scale, "Prefactor" -> Scale^(-Total[RV])|>]];
 
