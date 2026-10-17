@@ -63,6 +63,17 @@ MBFailed::usage =
 left unresolved.";
 
 
+CosmoTreeMB::usage =
+"CosmoTreeMB[lines, r, nu] gives balanced unit-slope MB integrals, one per orientation of the lines, for the de Sitter \
+tree time integral Int prod_v dt_v t_v^(r_v - 1) Exp[-x_v t_v] prod_l BesselK[nu_l, y_l t>] BesselI[nu_l, y_l t<]. \
+lines lists the vertex pairs {v, w} of a tree on the vertices 1, ..., Length[r]; nu lists the Bessel orders. Each \
+result is an association: \"Integrand\" (the MB, for MBEvaluate), \"Variables\" (the MB variables in the energies), \
+\"Prefactor\", \"Later\" (the later vertex of each line), \"Push\" and \"Base\"; the integral is the sum over the \
+orientations of Prefactor times the integrand's value. Options: \"Energies\" -> {{x1, ...}, {y1, ...}}, \"Point\" -> \
+numeric energies (needed to choose positive rewritings), \"KLegs\" -> {{v, energy, nu}, ...} (factors BesselK[nu, \
+energy t_v] of an in-in block), \"Orientations\" and \"VariableName\".";
+
+
 (* ::Subsection::Closed:: *)
 (*Options*)
 
@@ -122,6 +133,7 @@ $ContextPath = DeleteCases[$ContextPath, "MBAnalytica`Portable`"];
 Get[FileNameJoin[{PackageRoot, "src", "Core", "Check.wl"}]];
 Get[FileNameJoin[{PackageRoot, "src", "Core", "Output.wl"}]];
 Get[FileNameJoin[{PackageRoot, "src", "Core", "Evaluate.wl"}]];
+Get[FileNameJoin[{PackageRoot, "src", "Core", "Cosmo.wl"}]];
 
 
 End[];
