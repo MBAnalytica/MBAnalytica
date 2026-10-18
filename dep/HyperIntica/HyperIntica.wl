@@ -4934,9 +4934,9 @@ HyperInt[f_, vars_, opts:OptionsPattern[]] := MaybeQuiet[Module[
     Which[
       MatchQ[vars[[i]], _Symbol],
         AppendTo[varList, vars[[i]]],
-      MatchQ[vars[[i]], _Rule],
-        var = vars[[i, 1]];
-        {a, b} = vars[[i, 2]];
+      MatchQ[vars[[i]], _Rule | {_Symbol, _, _}],
+        (* {x, a, b} inside the variable list is the limit x -> {a, b}, not a variable named {x, a, b} *)
+        {var, {a, b}} = If[ListQ[vars[[i]]], {vars[[i, 1]], vars[[i, {2, 3}]]}, {vars[[i, 1]], vars[[i, 2]]}];
         scaledVar = Unique["sv"];
         AppendTo[varList, scaledVar];
         Which[
@@ -4988,9 +4988,12 @@ HyperInt[f_, vars_, opts:OptionsPattern[]] := MaybeQuiet[Module[
 *)
 Clear[HyperIntica];
 
-(* Integrate-style: HyperIntica[f, {x,0,1}, {y,0,Infinity}, ...] *)
+(* Integrate-style: HyperIntica[f, {x,0,1}, {y,0,Infinity}, ...]
+   A lone list of three symbols, HyperIntica[f, {x, y, z}], is a variable list (HyperInt syntax), not "x from y to z":
+   the old pattern silently integrated x from y to z and left y, z unintegrated. *)
 HyperIntica[f_, limits__List, opts:OptionsPattern[]] /;
-    AllTrue[{limits}, MatchQ[#, {_Symbol, _, _}]&] :=
+    AllTrue[{limits}, MatchQ[#, {_Symbol, _, _}]&] &&
+    ! (Length[{limits}] === 1 && AllTrue[First[{limits}], MatchQ[#, _Symbol]&]) :=
     HyperInt[f,
         (#[[1]] -> {#[[2]], #[[3]]})& /@ {limits},
         opts
