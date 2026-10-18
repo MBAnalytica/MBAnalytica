@@ -198,7 +198,7 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
 
 
 Options[CosmoTreeMB] = {"Energies" -> Automatic, "Point" -> Automatic, "KLegs" -> {}, "Orientations" -> All,
-  "VariableName" -> "u", "LightSplit" -> False, "Terms" -> All};
+  "VariableName" -> "u", "LightSplit" -> False, "Terms" -> All, "PushChoice" -> 1};
 
 
 CosmoTreeMB::point = "A numeric kinematic point {x, y} (or {x, y, K-leg energies}) is needed to choose the positive rewriting of each orientation.";
@@ -230,7 +230,9 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
   Results = Map[Function[Later, Module[{Pushes, Push, Cs, Free, BaseV, Choices, Terms1},
       Pushes = CosmoPushChoices[Edges, Later, XP, YP, KP, XX, YY, KLegs];
       If[Pushes === {}, Message[CosmoTreeMB::nopush, Later]; Return[$Failed, Module]];
-      Push = First[Pushes];
+      (* "PushChoice" -> n takes the n-th valid push (fewest pushes first; the last one if fewer exist): the MB of a hard
+         orientation can close under another push *)
+      Push = Pushes[[Min[OptionValue["PushChoice"], Length[Pushes]]]];
       Cs = CosmoPushed[Edges, Push, CosmoVertexCoefficients[Edges, Later, XP, YP, KP]];
       Free = Select[Range[NV], Push[[#]] === 0 && ! PossibleZeroQ[CosmoPushed[Edges, Push,
           CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs]][[#]]] &];
