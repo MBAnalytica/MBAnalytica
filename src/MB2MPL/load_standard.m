@@ -118,6 +118,8 @@ Module[{here, configure, polyLogTools, mathCandidates, mathExecutable, hplPlain,
          "mbePositiveCubePowerCount.m", "mbeJobConvergenceRung.m", "mbeParameterSubtractionRoots.m", "mbeExactLastFoldRung.m",
          "mbeExternalParameterRung.m", "mbeParameterResidueRung.m", "mbeParameterEulerRung.m",
          "mbeParameterTransverseRung.m", "mbeParameterSixGammaRung.m", "mbeParameterBarnesSecondRung.m",
+         (* the trig-pair Barnes-to-Euler closer, the last fallback of the parameter coefficient closer (2026-10-18) *)
+         "mbeParameterTrigPairRung.m",
          (* release R3.1 (3 October 2026): the u-dependent SUBTRACTION route (development tree, 22 September 2026): exact scaled
             Barnes closure + regulated Gauss word recurrence, parameter factor times unscaled towers, faithful Euler cubes
             with parameter signs certified on the open unit domain, native periods to endpoint-regularized GPL words;

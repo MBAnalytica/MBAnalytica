@@ -186,16 +186,25 @@ psHeavyValue[term_,i_,ep_,lo_,hi_,pars_,dom_,seconds_,cache_,baseRoot_]:=Catch[M
    MBParameter`Private`closePiece (exact, with its source gate), exactly as MBParameter`Private`resolvedExpansion does
    for a whole source.  Only the WHOLE-integral fallback to the Standard route is excluded from the Subtraction route;
    this one closes one residue and is recorded in the trace ("PerResidueStandardCloser"). *)
+(* 2026-10-18: when a coefficient kernel fails, the trig-pair closer (mbeParameterTrigPairRung.m) gets the whole group of
+   the terms of the same part with the same order and the same fold structure: a second-order polygamma dressing is in
+   its Bell span only together with its partner terms.  Members closed one by one before are taken back out of the
+   total; later members are skipped. *)
+psGroupStructure[tm_,ep_,power_,vars_]:=MBParameter`Private`trigPairStructure[
+ MBParameter`Private`trigPairRationalToGamma[Cancel[tm/ep^power],vars],vars];
 psStandardTerm[term_,i_,ep_,lo_,hi_,pars_,dom_,seconds_]:=Catch[Module[
- {xx,ctr,vars,terms,power,coefficient,constant,kernel,key,value,total=0,count=0,t0=AbsoluteTime[]},
+ {xx,ctr,vars,terms,power,coefficient,constant,kernel,key,value,total=0,count=0,t0=AbsoluteTime[],
+  added=<||>,grouped={},group,groupValue},
  If[DownValues[MBParameter`Private`closePiece]==={},Throw[refuse["No per-residue Standard closer installed"],psStdTag]];
  xx=Quiet@MB`MBexpand[{term},1,{ep,0,hi}];
  If[!ListQ[xx]||!AllTrue[xx,MatchQ[#,MB`MBint[_,{_,_List}]]&],Throw[refuse["Per-residue Standard closer: expansion failed"],psStdTag]];
  Do[ctr=part[[2,2]]/.r_Real:>SetPrecision[r,Infinity];vars=First/@ctr;
    terms=If[Head[Expand[part[[1]]]]===Plus,List@@Expand[part[[1]]],{Expand[part[[1]]]}];
+   added=<||>;grouped={};
    Do[power=Exponent[Numerator[Together[tm]],ep]-Exponent[Denominator[Together[tm]],ep];
      If[!IntegerQ[power],Throw[refuse["Per-residue Standard closer: noninteger Laurent order"],psStdTag]];
      If[power<lo||power>hi,Continue[]];
+     If[MemberQ[grouped,tm],Continue[]];
      coefficient=Cancel[tm/ep^power];
      If[!FreeQ[coefficient,ep],Throw[refuse["Per-residue Standard closer: regulator left in a coefficient"],psStdTag]];
      constant=Times@@Select[MBParameter`Private`factors[coefficient],FreeQ[#,Alternatives@@vars]&];
@@ -205,9 +214,20 @@ psStandardTerm[term_,i_,ep_,lo_,hi_,pars_,dom_,seconds_]:=Catch[Module[
        MBParameter`Private`$pieceValues[key],
        If[vars==={},kernel,MBParameter`Private`closePiece[kernel,ctr,vars,pars,dom,
          Max[1,Min[Which[Length[vars]>=4,1200,True,600],seconds-(AbsoluteTime[]-t0)]]]]];
+     If[FailureQ[value]&&vars=!={}&&DownValues[MBParameter`Private`trigPairClose]=!={},
+       group=Select[terms,(Exponent[Numerator[Together[#]],ep]-Exponent[Denominator[Together[#]],ep])===power&&
+         psGroupStructure[#,ep,power,vars]===psGroupStructure[tm,ep,power,vars]&];
+       groupValue=MBParameter`Private`trigPairClose[Cancel[Total[group]/ep^power],ctr,vars,pars,dom,
+         Max[1,Min[Which[Length[vars]>=4,1200,True,600],seconds-(AbsoluteTime[]-t0)]]];
+       If[groupValue=!=$Failed,
+         total-=Total[Lookup[added,group,0]];
+         total+=ep^power groupValue;count++;
+         grouped=Join[grouped,group];
+         Continue[]]];
      If[FailureQ[value],Throw[refuse["Per-residue Standard closer: a coefficient kernel failed",
        <|"Order"->power,"Kernel"->kernel,"Contour"->ctr,"Cause"->value|>],psStdTag]];
      If[AssociationQ[MBParameter`Private`$pieceValues],AssociateTo[MBParameter`Private`$pieceValues,key->value]];
+     AssociateTo[added,tm->constant ep^power value];
      total+=constant ep^power value;count++,{tm,terms}],{part,xx}];
  total=truncate[total,ep,lo,hi];
  If[!MBParameter`Private`exactQ[total,Append[pars,ep]],Throw[refuse["Per-residue Standard closer: exactness contract"],psStdTag]];

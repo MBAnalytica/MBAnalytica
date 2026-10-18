@@ -332,6 +332,14 @@ closePiece[ig_, ctr_, vars_, pars_, dom_, seconds_] := Module[{key, saved, value
   evaluationContour = If[AssociationQ[centered], centered["Contour"], ctr];
   value = TimeConstrained[closePieceUncached[kernel, evaluationContour, vars, pars, dom, seconds],
     seconds, fail["Coefficient closure timed out.", <|"SecondsAllowed" -> seconds|>]];
+  (* the last fallback: the trig-pair Barnes-to-Euler closer (mbeParameterTrigPairRung.m), with its own exactness
+     contract and source gate *)
+  If[FailureQ[value] && DownValues[trigPairClose] =!= {},
+    Module[{pairValue},
+      pairValue = trigPairClose[kernel, evaluationContour, vars, pars, dom, seconds];
+      If[pairValue =!= $Failed,
+        value = pairValue;
+        $lastSourceGate = Join[$lastSourceGate, <|"TrigPairEulerCloser" -> True|>]]]];
   If[AssociationQ[centered], $lastSourceGate = Join[$lastSourceGate,
     <|"PoleChamberDeformation" -> centered|>]];
   If[AssociationQ[normalized], $lastSourceGate = Join[$lastSourceGate,
