@@ -195,12 +195,13 @@ RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Seri
   Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Orders]]]];
 
 
-(* the time an engine step may take: no limit by default (a limit only wastes the work done when it is hit); the
-   environment variable MBANALYTICA_ENGINE_SECONDS sets one in seconds, and 0 or Infinity means no limit *)
+(* the time an engine step may take: no limit in practice by default (10^9 s; a limit only wastes the work done when it is
+   hit); the environment variable MBANALYTICA_ENGINE_SECONDS sets one in seconds, and 0 means the default.  The budget
+   stays finite: it is written into the JSON requests and the timeout(1) arguments of the native job runner, where
+   Infinity breaks them *)
 EngineSeconds = With[{Seconds = Environment["MBANALYTICA_ENGINE_SECONDS"]},
-  Which[
-    StringQ[Seconds] && StringMatchQ[Seconds, DigitCharacter ..] && ToExpression[Seconds] > 0, ToExpression[Seconds],
-    True, Infinity]];
+  If[StringQ[Seconds] && StringMatchQ[Seconds, DigitCharacter ..] && ToExpression[Seconds] > 0,
+    ToExpression[Seconds], 1000000000]];
 
 
 (* the regulator the engine was validated with: its benchmark drivers read \[Epsilon] after PolyLogTools is loaded,
