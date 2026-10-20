@@ -8,7 +8,8 @@
 #   make benchmark  the MB1-MB14 benchmarks of the paper (hours)
 #   make clean      remove the build, the Python environment and the downloaded tables
 #
-# Variables:  RISC=/folder/with/HarmonicSums-Sigma-EvaluateMultiSums   TABLES=/folder/with/the/HPL/tables
+# Variables:  RISC=/folder/with/HarmonicSums-Sigma-EvaluateMultiSums
+#             TABLES=/folder/with/the/HPL/tables (optional: otherwise they are downloaded from TABLES_URL)
 #             WOLFRAMSCRIPT=/path/to/wolframscript   GINSH=/path/to/ginsh   CMAKE=/path/to/cmake   JOBS=8
 
 SHELL := /bin/bash
@@ -21,7 +22,8 @@ HF_BIN := $(ROOT)/dep/IntVolFLINT/bin
 HF_VERSION := 1.2.13
 HPL := $(ROOT)/dep/HPL
 TABLE_FILES := h9table.mat h10table.mat ms9_rules.mx mspm9_rules.mx ms10_rules_v2.mx mspm10_rules.mx
-TABLES_URL ?=
+# the weight-9 and weight-10 HPL tables, gzipped, as assets of the GitHub release hpl-tables-v1
+TABLES_URL ?= https://github.com/MBAnalytica/MBAnalytica/releases/download/hpl-tables-v1
 
 WOLFRAMSCRIPT ?= $(firstword $(shell command -v wolframscript 2>/dev/null) \
   $(wildcard /Applications/Wolfram.app/Contents/MacOS/wolframscript) \
@@ -169,7 +171,9 @@ tables:
 	@for f in $(TABLE_FILES); do \
 	  if [ -f "$(HPL)/$$f" ]; then continue; fi; \
 	  if [ -n "$(TABLES)" ] && [ -f "$(TABLES)/$$f" ]; then cp "$(TABLES)/$$f" "$(HPL)/$$f"; \
-	  elif [ -n "$(TABLES_URL)" ]; then curl -fL --retry 3 -o "$(HPL)/$$f" "$(TABLES_URL)/$$f" || exit 1; \
+	  elif [ -n "$(TABLES)" ] && [ -f "$(TABLES)/$$f.gz" ]; then gunzip -c "$(TABLES)/$$f.gz" > "$(HPL)/$$f" || exit 1; \
+	  elif [ -n "$(TABLES_URL)" ]; then echo "  downloading $$f.gz"; \
+	    curl -fL --retry 3 -o "$(HPL)/$$f.gz" "$(TABLES_URL)/$$f.gz" && gunzip -f "$(HPL)/$$f.gz" || exit 1; \
 	  else echo "The HPL table $$f is missing. Give the folder that holds it: make TABLES=/path"; exit 1; fi; \
 	done
 	@cd "$(HPL)" && $(SHA256) -c "$(ROOT)/dep/HPL_TABLES.sha256" > /dev/null && echo "  HPL weight 9 and 10 tables present and verified"

@@ -8,7 +8,9 @@ license files retained in the bundle are authoritative.
   module; its weight 7--10 boundary-value branch `core/ReduceCG78.m` depended on DIOGENES tables that are not
   shipped, is reached by no route, and is a fail-closed identity.
 - HPL 2.0 and HypExp 2.0: Daniel Maitre and Tobias Huber. See `dep/HPL/HPL_README`, `dep/HPL/HPLnolicense`
-  and `dep/HypExp/README`. The bundled copies carry the project's weight-9/10 minimal-set and MZV tables.
+  and `dep/HypExp/README`. The bundled copies carry the project's weight-9/10 minimal-set and MZV tables, generated
+  from the bases of the MZV data mine (J. Bluemlein, D. J. Broadhurst, J. A. M. Vermaseren, arXiv:0907.2557); the
+  large ones are attached to the release hpl-tables-v1 and downloaded by `make`.
 - HyperIntica (SubTropica): M. Giroux, S. Mizera and G. Salvatori, *SubTropica*, arXiv:2604.20954; a native
   Mathematica reimplementation of E. Panzer's HyperInt (arXiv:1403.3385).  See `dep/HyperIntica/LICENSE`,
   `dep/HyperIntica/LICENSE-DATA` and `dep/HyperIntica/README.md`.  Used by MB2MPL's IntVolFLINT strategy as
