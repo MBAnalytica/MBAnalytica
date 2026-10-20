@@ -195,8 +195,10 @@ RunResum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, E
   Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Orders]]]];
 
 
-(* the time an engine step may take: 12 hours, as in the benchmark runs of the engine *)
-EngineSeconds = 43200;
+(* the time an engine step may take: 12 hours by default, as in the benchmark runs of the engine; the environment variable
+   MBANALYTICA_ENGINE_SECONDS (a whole number of seconds) overrides it, e.g. for runs without a time limit *)
+EngineSeconds = With[{Seconds = Environment["MBANALYTICA_ENGINE_SECONDS"]},
+  If[StringQ[Seconds] && StringMatchQ[Seconds, DigitCharacter ..], ToExpression[Seconds], 43200]];
 
 
 (* the regulator the engine was validated with: its benchmark drivers read \[Epsilon] after PolyLogTools is loaded,
