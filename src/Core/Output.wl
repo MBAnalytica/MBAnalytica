@@ -6,7 +6,7 @@
 
 (* ::Text:: *)
 (*Read inside MBAnalytica`Private` by MBAnalytica.wl.  Every method returns its Laurent coefficients in multiple*)
-(*polylogarithms G (PolyLogTools`G), Log, Zeta, Pi and EulerGamma: harmonic polylogarithms of HarmonicSums (MBResum)*)
+(*polylogarithms G (PolyLogTools`G), Log, Zeta, Pi and EulerGamma: harmonic polylogarithms of HarmonicSums (MBSymbolicSum)*)
 (*and of HPL (the MB2MPL engine) and classical polylogarithms of the kinematic variables are rewritten as G.*)
 (*With Complex -> False the real part is taken; with Complex -> True the full complex value is kept.*)
 

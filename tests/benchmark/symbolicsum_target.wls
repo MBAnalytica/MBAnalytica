@@ -1,7 +1,7 @@
 #!/usr/bin/env wolframscript
 (* ::Package:: *)
-(* resum_target.wls -- one example of the MBResum benchmark through MBEvaluate[..., Method -> "Resum"] in this fresh
-   kernel: every verdict is on the value MBAnalytica returns (G, Log, Zeta, Pi), never on MBResum's own output.
+(* symbolicsum_target.wls -- one example of the MBSymbolicSum benchmark through MBEvaluate[..., Method -> "SymbolicSum"] in this fresh
+   kernel: every verdict is on the value MBAnalytica returns (G, Log, Zeta, Pi), never on MBSymbolicSum's own output.
    Environment: NAME (MB1, MB2, ..., MB13, or MB1u, ..., MB13u; MB2 = MB21 + MB22 and MB8 = MB81 + MB82),
    ORDER (the deepest order), OUT (record folder), KERNELS ($KernelLaunch, default 4), RESULTS_T (the audited records).
    Every row: the MBEvaluate value is free of MBFailed and of HarmonicSums H.
@@ -11,19 +11,19 @@
    on an arc (40 digits), as nbdiffcheck.wls.  The last line is RESUM_RESULT ... *)
 SetOptions[$Output, PageWidth -> Infinity]; $HistoryLength = 0;
 ScriptDir = DirectoryName[ExpandFileName[If[StringQ[$InputFileName] && $InputFileName =!= "", $InputFileName,
-  First[Select[Join[$ScriptCommandLine, $CommandLine], StringEndsQ[#, "resum_target.wls"] &]]]]];
+  First[Select[Join[$ScriptCommandLine, $CommandLine], StringEndsQ[#, "symbolicsum_target.wls"] &]]]]];
 PackageDir = ParentDirectory[ParentDirectory[ScriptDir]];
 Name = Environment["NAME"]; Ord = ToExpression[Environment["ORDER"]]; RecordDir = Environment["OUT"];
 Kern = ToExpression[Environment["KERNELS"]]; Global`$KernelLaunch = If[IntegerQ[Kern], Kern, 4];
 RefDir = Environment["RESULTS_T"];
-Get[FileNameJoin[{ScriptDir, "mb_resum_targets.m"}]];
+Get[FileNameJoin[{ScriptDir, "mb_symbolicsum_targets.m"}]];
 Get[FileNameJoin[{PackageDir, "MBAnalytica.wl"}]];
 Eps = ToExpression["\[Epsilon]"];
 Parts = Switch[Name, "MB2", {MB21, MB22}, "MB2u", {MB21u, MB22u}, "MB8", {MB81, MB82}, "MB8u", {MB81u, MB82u},
   _, {ToExpression[Name]}];
 DiffQ = StringEndsQ[Name, "u"];
 T0 = AbsoluteTime[];
-GForm = Total[Map[MBEvaluate[#, {Eps, Ord}, Method -> "Resum"] &, Parts]];
+GForm = Total[Map[MBEvaluate[#, {Eps, Ord}, Method -> "SymbolicSum"] &, Parts]];
 Seconds = Round[AbsoluteTime[] - T0];
 Lo = Exponent[Expand[GForm], Eps, Min];
 Clean = FreeQ[GForm, MBAnalytica`MBFailed] && FreeQ[GForm, _HarmonicSums`H];
@@ -58,7 +58,7 @@ If[DiffQ,
       Rules = Thread[OnH -> Map[(Times @@ Map[If[TrueQ[# > 0], -1, 1] &, DeleteCases[#, 0]])*Gs[#] &, Words]];
       Vx = Vx /. Rules];
     N[Vx /. Global`u -> U0, 20]];
-  (* G form: every PolyLogTools G by GiNaC (ginsh, 30 digits), independent of MBResum and of the conversion to G *)
+  (* G form: every PolyLogTools G by GiNaC (ginsh, 30 digits), independent of MBSymbolicSum and of the conversion to G *)
   GinshBinary = Lookup[Quiet[Check[Get[FileNameJoin[{PackageDir, "config.m"}]], <||>]], "Ginsh", "ginsh"];
   GinshNumber[X_] := ToString[InputForm[X]];
   GinshValues[Gs_List] := Module[{Lines, Reply, Values1},

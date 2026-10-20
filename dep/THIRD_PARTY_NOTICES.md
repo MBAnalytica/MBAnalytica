@@ -20,7 +20,7 @@ license files retained in the bundle are authoritative.
 - Henn--Smirnov--Smirnov tables of multiple polylogarithm values at sixth roots of unity (arXiv:1512.08389),
   weights 1--4 only: `dep/level6_tables/PROVENANCE.md`.
 - MBConicHulls 1.3 (arXiv:2012.15108, 2212.11839, 2309.00409,
-  2512.19803); GPL-3.0, see `dep/MBConicHulls/LICENSE`.  Used by the Resum method for the series representations.
+  2512.19803); GPL-3.0, see `dep/MBConicHulls/LICENSE`.  Used by the SymbolicSum method for the series representations.
 - MB.m (M. Czakon), MBresolve.m (A. V. Smirnov, V. A. Smirnov) and the Barnes routines retain their original source
   headers and startup attribution in `dep/MB/`.
 - DIOGENES (M. A. Bezuglov, A. I. Onishchenko, arXiv:2312.06242; GPL-3.0) is NOT shipped.  The multifold handler's

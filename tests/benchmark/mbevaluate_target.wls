@@ -3,20 +3,20 @@
 (* mbevaluate_target.wls -- one row of a benchmark status table through MBEvaluate[..., Method -> METHOD] in this fresh
    kernel.  Every verdict is on the value MBEvaluate returns; nothing else of the package is called for the result.
    Environment:
-     METHOD     Resum | Standard | Subtraction
+     METHOD     SymbolicSum | Standard | Subtraction
      KIND       inc (inclusive row) | u (differential row, u unintegrated, 0 < u < 1)
      NAME       the row (MB1, ..., MB14, MBpilot12, MBpilot13, MB1u, ..., MB14u)
      LO, HI     the orders of the row (LO = auto: from the leading pole)
-     OUT        record folder;  KERNELS  $KernelLaunch;  RESULTS_T  the audited MBResum records (results_t)
+     OUT        record folder;  KERNELS  $KernelLaunch;  RESULTS_T  the audited MBSymbolicSum records (results_t)
      VERBOSE    1 = MBEvaluate[..., Verbose -> True] (the engine's progress in the log; the value is the same)
-   The inputs are those of the reference tables: MBResum rows from mb_resum_targets.m (status_mb2mpl.pdf: MB2 = MB21 +
+   The inputs are those of the reference tables: MBSymbolicSum rows from mb_symbolicsum_targets.m (status_mb2mpl.pdf: MB2 = MB21 +
    MB22, MB8 = MB81 + MB82), Standard and Subtraction rows from mb_targets_all.m and mb_u_targets.m (benchmark_status.pdf:
    MB8 = MB8a + MB8b, MB14 = MB14a + MB14b; the rows marked k and f on the Subtraction page are, as there, the exact
    u-integrals of their differential kernels or families at the MB level, u^a (1-u)^b G -> G Gamma(1+a) Gamma(1+b) /
    Gamma(2+a+b)).  Each part is one MBEvaluate call; the row is their sum.
    Checks: the value is free of MBFailed, H and HPL;
      inclusive rows: every order equals the exact benchmark MBnVal (exact zero difference, else 10^-30 at 40 digits);
-     MBResum differential rows: every order equals results_t/MBn_diff_k.m at u = 31/100, 7/100 to 10^-12;
+     MBSymbolicSum differential rows: every order equals results_t/MBn_diff_k.m at u = 31/100, 7/100 to 10^-12;
      Standard and Subtraction differential rows: the full complex value (Complex -> True) equals the records of both
      routes (mbu_results.m, mbu_subtraction_records.m) at u = 1/5, 1/3, 3/7, 4/5 to 10^-20.
    The last line is MBEVAL_RESULT ... *)
@@ -26,6 +26,7 @@ ScriptDir = DirectoryName[ExpandFileName[If[StringQ[$InputFileName] && $InputFil
   First[Select[Join[$ScriptCommandLine, $CommandLine], StringEndsQ[#, "mbevaluate_target.wls"] &]]]]];
 PackageDir = ParentDirectory[ParentDirectory[ScriptDir]];
 Method1 = Environment["METHOD"];
+If[Method1 === "Resum", Method1 = "SymbolicSum"];  (* the earlier name of the method *)
 Kind = Environment["KIND"];
 Name = Environment["NAME"];
 Lo = Quiet[ToExpression[Environment["LO"]]];
@@ -58,8 +59,8 @@ Parts = {};
 Val = None;
 UData = None;
 Which[
-  Method1 === "Resum",
-    Get[FileNameJoin[{ScriptDir, "mb_resum_targets.m"}]];
+  Method1 === "SymbolicSum",
+    Get[FileNameJoin[{ScriptDir, "mb_symbolicsum_targets.m"}]];
     Parts = Switch[Name, "MB2", {Global`MB21, Global`MB22}, "MB2u", {Global`MB21u, Global`MB22u},
       "MB8", {Global`MB81, Global`MB82}, "MB8u", {Global`MB81u, Global`MB82u}, _, {ToExpression["Global`" <> Name]}];
     If[Kind === "inc", Val = ToExpression["Global`" <> Name <> "Val"]],
@@ -79,7 +80,7 @@ Which[
     Parts = Map[UData["Targets"][#]["Integrand"] /. {UData["Regulator"] -> Eps, UData["Parameter"] -> Global`u} &,
       Lookup[UData["ComponentGroups"], Name, {Name}]]];
 If[Parts === {} || MemberQ[Parts, $Failed], Print["MBEVAL_RESULT ", Method1, " ", Kind, " ", Name, "  NO INPUT"]; Exit[1]];
-ComplexQ = Kind === "u" && Method1 =!= "Resum";
+ComplexQ = Kind === "u" && Method1 =!= "SymbolicSum";
 Print["MBEVAL ", Method1, " ", Kind, " ", Name, "  ", Length[Parts], " part(s)  orders through eps^", Hi,
   "  Complex -> ", ComplexQ, "  $KernelLaunch ", Global`$KernelLaunch, "  ", DateString[]];
 
@@ -183,10 +184,10 @@ If[Kind === "inc",
 
 
 (* ::Section:: *)
-(*MBResum differential rows: the audited records*)
+(*MBSymbolicSum differential rows: the audited records*)
 
 
-If[Kind === "u" && Method1 === "Resum",
+If[Kind === "u" && Method1 === "SymbolicSum",
   GArc[Words_, Sig_] := Module[{Suffixes, GName, Eqs, Ics, Fs, Sol, S0, Zs, Dz},
     Suffixes = DeleteDuplicates[Flatten[Map[Function[W, Table[Drop[W, J - 1], {J, Length[W]}]], Words], 1]];
     GName = AssociationThread[Suffixes, Table[Unique["gv"], {Length[Suffixes]}]];
@@ -245,7 +246,7 @@ If[Kind === "u" && Method1 === "Resum",
 (*Standard and Subtraction differential rows: the records of both routes*)
 
 
-If[Kind === "u" && Method1 =!= "Resum",
+If[Kind === "u" && Method1 =!= "SymbolicSum",
   Points = {1/5, 1/3, 3/7, 4/5};
   Std = Block[{$ContextPath = $ContextPath}, Quiet[Get[FileNameJoin[{ParentDirectory[ScriptDir], "reference", "mbu_results.m"}]]]; Global`MBuResults];
   Sub = Block[{$ContextPath = $ContextPath}, Quiet[Get[FileNameJoin[{ParentDirectory[ScriptDir], "reference", "mbu_subtraction_records.m"}]]]];

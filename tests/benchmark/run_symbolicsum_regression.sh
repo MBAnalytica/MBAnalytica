@@ -1,8 +1,8 @@
 #!/bin/bash
-# The MBResum benchmark through MBEvaluate[..., Method -> "Resum"], each integral in its own kernel, JOBS at a time:
+# The MBSymbolicSum benchmark through MBEvaluate[..., Method -> "SymbolicSum"], each integral in its own kernel, JOBS at a time:
 # every row to the deepest order that is green in status_mb2mpl.pdf (2026-09-23, 118 green cells); ORDERS=examples
-# takes the orders of Examples_MBResum.nb instead.
-# Usage:  RESULTS_T=/path/to/results_t OUT=/path/to/records JOBS=2 KERNELS=4 ./run_resum_regression.sh [NAME ...]
+# takes the orders of Examples_MBSymbolicSum.nb instead.
+# Usage:  RESULTS_T=/path/to/results_t OUT=/path/to/records JOBS=2 KERNELS=4 ./run_symbolicsum_regression.sh [NAME ...]
 HERE=$(cd "$(dirname "$0")" && pwd)
 WS=${WOLFRAMSCRIPT:-wolframscript}
 JOBS=${JOBS:-2}
@@ -23,6 +23,6 @@ mkdir -p "$OUT"
 for item in $LIST; do echo "$item"; done | xargs -P "$JOBS" -I{} bash -c '
   item={}; name=${item%%:*}; ord=${item##*:}
   NAME=$name ORDER=$ord OUT="'"$OUT"'" KERNELS='"${KERNELS:-4}"' RESULTS_T="'"$RESULTS_T"'" \
-    "'"$WS"'" -file "'"$HERE"'/resum_target.wls" > "'"$OUT"'/$name.log" 2>&1
+    "'"$WS"'" -file "'"$HERE"'/symbolicsum_target.wls" > "'"$OUT"'/$name.log" 2>&1
   grep -h "RESUM_RESULT" "'"$OUT"'/$name.log" || echo "RESUM_RESULT $name  order $ord  NO RESULT (see $name.log)"'
 echo "RESUM_REGRESSION_DONE $(date)"

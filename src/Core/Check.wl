@@ -104,21 +104,21 @@ PythonReadyQ[] := Module[{Code},
 (* each row: name, what it is, its test, the methods that need it, and what to do when it is missing *)
 DependencyRows[] := {
   <|"Name" -> "Mathematica 14 or later", "Kind" -> "system",
-    "Test" -> (TrueQ[$VersionNumber >= 14] &), "Methods" -> {"Resum", "HyperLog", "Subtraction"},
+    "Test" -> (TrueQ[$VersionNumber >= 14] &), "Methods" -> {"SymbolicSum", "HyperLog", "Subtraction"},
     "Hint" -> "MBAnalytica is tested with Mathematica 14.2 and 15.0."|>,
   <|"Name" -> "MB tools (MB, MBresolve, barnesroutines)", "Kind" -> "bundled",
     "Test" -> (AllFilesQ[{DepFile["MB", "MB.m"], DepFile["MB", "MBresolve.m"], DepFile["MB", "barnesroutines.m"]}] &),
-    "Methods" -> {"Resum", "HyperLog", "Subtraction"},
+    "Methods" -> {"SymbolicSum", "HyperLog", "Subtraction"},
     "Hint" -> "They ship in dep/MB; the folder is incomplete. Clone the repository again."|>,
   <|"Name" -> "MBConicHulls", "Kind" -> "bundled",
     "Test" -> (AllFilesQ[{DepFile["MBConicHulls", "MBConicHulls.wl"], DepFile["MBConicHulls", "MultivariateResidues.m"]}] &),
-    "Methods" -> {"Resum"},
+    "Methods" -> {"SymbolicSum"},
     "Hint" -> "It ships in dep/MBConicHulls; the folder is incomplete. Clone the repository again."|>,
-  <|"Name" -> "HarmonicSums", "Kind" -> "external", "Test" -> (RISCPackageQ["HarmonicSums"] &), "Methods" -> {"Resum"},
+  <|"Name" -> "HarmonicSums", "Kind" -> "external", "Test" -> (RISCPackageQ["HarmonicSums"] &), "Methods" -> {"SymbolicSum"},
     "Hint" -> "Download it from https://risc.jku.at/sw/harmonicsums/ and set $MBAnalyticaRISCPath to its folder (or run make RISC=/path)."|>,
-  <|"Name" -> "Sigma", "Kind" -> "external", "Test" -> (RISCPackageQ["Sigma"] &), "Methods" -> {"Resum"},
+  <|"Name" -> "Sigma", "Kind" -> "external", "Test" -> (RISCPackageQ["Sigma"] &), "Methods" -> {"SymbolicSum"},
     "Hint" -> "Download it from https://risc.jku.at/sw/sigma/ and set $MBAnalyticaRISCPath to its folder (or run make RISC=/path)."|>,
-  <|"Name" -> "EvaluateMultiSums", "Kind" -> "external", "Test" -> (RISCPackageQ["EvaluateMultiSums"] &), "Methods" -> {"Resum"},
+  <|"Name" -> "EvaluateMultiSums", "Kind" -> "external", "Test" -> (RISCPackageQ["EvaluateMultiSums"] &), "Methods" -> {"SymbolicSum"},
     "Hint" -> "Download it from https://risc.jku.at/sw/evaluatemultisums/ and set $MBAnalyticaRISCPath to its folder (or run make RISC=/path)."|>,
   <|"Name" -> "PolyLogTools, HPL, HypExp, HyperIntica", "Kind" -> "bundled",
     "Test" -> (AllFilesQ[{DepFile["PolyLogTools", "PolyLogTools.m"], DepFile["HPL", "HPL.m"], DepFile["HypExp", "HypExp.m"],
@@ -154,7 +154,7 @@ CheckDependencies[] := Module[{Rows, Results},
 MethodsFrom[Results_List] := Module[{Absent, Blocked},
   Absent = Select[Results, ! #["Found"] &];
   Blocked = DeleteDuplicates[Flatten[Map[#["Methods"] &, Absent]]];
-  Return[Select[{"Resum", "HyperLog", "Subtraction"}, ! MemberQ[Blocked, #] &]]];
+  Return[Select[{"SymbolicSum", "HyperLog", "Subtraction"}, ! MemberQ[Blocked, #] &]]];
 
 
 RefreshMethods[] := Module[{Results},

@@ -1,7 +1,7 @@
 (* ::Package:: *)
 
 (* ::Title:: *)
-(*MBResum*)
+(*MBSymbolicSum*)
 
 
 (* ::Subtitle:: *)
@@ -33,11 +33,11 @@ Unprotect[Print, CellPrint, NotebookWrite, NotebookPrint];
 Clear[Print, CellPrint, NotebookWrite, NotebookPrint];
 Protect[Print, CellPrint, NotebookWrite, NotebookPrint];
 
-MBResumOuterPath = $ContextPath;
+MBSymbolicSumOuterPath = $ContextPath;
 
-BeginPackage["MBAnalytica`Resum`"];
+BeginPackage["MBAnalytica`SymbolicSum`"];
 $ContextPath = DeleteDuplicates[Join[$ContextPath,
-   DeleteCases[Global`MBResumOuterPath, "Global`"]]];
+   DeleteCases[Global`MBSymbolicSumOuterPath, "Global`"]]];
 ParallelEvaluate[Off[SetDelayed::write]];
 SetOptions[ResolveMB,RunInParallel->False];
 SetOptions[EvaluateSeries,RunInParallel->False];
@@ -48,7 +48,7 @@ LastUpdate="\!\(\*SuperscriptBox[\(21\), \(st\)]\) September, 2026";
 (*Author Credits*)
 
 
-Print[Style["MBResum 1.0",Blue,14,FontFamily->"Courier",Bold],Style[" - a Mathematica package for the analytic evaluation of Mellin-Barnes integrals in terms of multiple polylogarithms.",Blue,14,FontFamily->"Courier"]];
+Print[Style["MBSymbolicSum 1.0",Blue,14,FontFamily->"Courier",Bold],Style[" - a Mathematica package for the analytic evaluation of Mellin-Barnes integrals in terms of multiple polylogarithms.",Blue,14,FontFamily->"Courier"]];
 Print[Style["Authors: ",Black,Bold],Style["Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias",Brown,Bold,12.5]];
 Print[Style["Dependencies: ",Black,Bold],
   Hyperlink[Style["MB",RGBColor[0,0.45,0.8],Bold,12.5],"https://gitlab.com/feynmanintegrals/MB"],
@@ -194,7 +194,7 @@ MBCHScale    = {};        (* kinematic variables, set by MBCH2MPL *)
 MBCHParallel = True;      (* solve distinct structures on the parallel subkernels *)
 
 
-MBResumParallelOk = False;  (* set by LoadWorkers once the subkernels pass the self-test *)
+MBSymbolicSumParallelOk = False;  (* set by LoadWorkers once the subkernels pass the self-test *)
 
 
 MBCHRegGood   = 0;          (* regulator slot that worked last time *)
@@ -203,12 +203,12 @@ MBSolveCache  = <||>;       (* solved structures, shared by serial and parallel 
 MBVerifyCache = <||>;       (* contour value of each structure *)
 MBSeriesCache = <||>;       (* expanded charts of the structure being solved *)
 MBCHTaskMem   = Infinity;   (* bytes one structure may use on a subkernel; Infinity = no cap *)
-MBResumFile   = $InputFileName;  (* reloaded into each subkernel on first use *)
+MBSymbolicSumFile   = $InputFileName;  (* reloaded into each subkernel on first use *)
 MBRexExpCache = <||>;       (* one epsilon expansion per integral *)
-MBResumStatus = "";         (* live status shown by PrintTemporary *)
-MBResumLog    = {};         (* the last few steps, so none flashes past *)
-MBResumJ      = 0;          (* structure being solved, for the status *)
-MBResumN      = 0;
+MBSymbolicSumStatus = "";         (* live status shown by PrintTemporary *)
+MBSymbolicSumLog    = {};         (* the last few steps, so none flashes past *)
+MBSymbolicSumJ      = 0;          (* structure being solved, for the status *)
+MBSymbolicSumN      = 0;
 
 
 MBCHCanonVar = {zc1, zc2, zc3, zc4, zc5, zc6};
@@ -252,8 +252,8 @@ ProbeRule[] := Map[(# -> MBCHProbe) &, MBCHScale];
 
 
 (* emptying $Output silences Print; with no front end Verbose echoes the step *)
-Say[Msg_] := (AppendTo[MBResumLog, Msg];
-   MBResumStatus = Column[Take[MBResumLog, -Min[Length[MBResumLog], 8]]];
+Say[Msg_] := (AppendTo[MBSymbolicSumLog, Msg];
+   MBSymbolicSumStatus = Column[Take[MBSymbolicSumLog, -Min[Length[MBSymbolicSumLog], 8]]];
    If[$FrontEnd === Null && TrueQ[MBCHVerbose], Print["      ", Msg]]);
 
 SetAttributes[Silent, HoldAll];
@@ -326,8 +326,8 @@ ClearSolveCaches[] := Module[{Kept},
   MBSolveCache = <||>;
   Kept = Select[DownValues[MBSolveOne], ! FreeQ[First[#], Pattern] &];
   DownValues[MBSolveOne] = Kept;
-  If[$KernelID === 0 && $KernelCount > 0 && TrueQ[MBResumParallelOk],
-    Quiet[ParallelEvaluate[MBAnalytica`Resum`Private`ClearSolveCaches[]]]];
+  If[$KernelID === 0 && $KernelCount > 0 && TrueQ[MBSymbolicSumParallelOk],
+    Quiet[ParallelEvaluate[MBAnalytica`SymbolicSum`Private`ClearSolveCaches[]]]];
   Return[Null]];
 
 
@@ -1929,11 +1929,11 @@ GNum[Word_, X_] := Module[{W1, Nz, Fac},
 
 (* load the package into the subkernels once, at load time: loaded later they misbehave *)
 LoadWorkers[] := Module[{Got, Probe, Want, Seen},
-  MBResumParallelOk = False;
+  MBSymbolicSumParallelOk = False;
   If[$KernelID =!= 0, Return[False]];
   If[! TrueQ[MBCHParallel], Return[False]];
   If[$KernelCount < 2, Return[False]];
-  Got = With[{F = MBResumFile, D = Directory[], P = $Path},
+  Got = With[{F = MBSymbolicSumFile, D = Directory[], P = $Path},
     Quiet[ParallelEvaluate[
       If[Length[DownValues[MBSolveOne]] === 0,
        $Path = P;
@@ -1946,8 +1946,8 @@ LoadWorkers[] := Module[{Got, Probe, Want, Seen},
   Probe = {1, {{MBCHCanonVar[[1]] -> -1/2}, {1}, {-MBCHCanonVar[[1]], MBCHCanonVar[[1]]}, {}}};
   Want = SolveTask[Probe];
   Seen = With[{Pb = Probe}, Quiet[ParallelEvaluate[SolveTask[Pb]]]];
-  MBResumParallelOk = ListQ[Seen] && ! DirtyQ[Want] && AllTrue[Seen, (# === Want) &];
-  Return[MBResumParallelOk]];
+  MBSymbolicSumParallelOk = ListQ[Seen] && ! DirtyQ[Want] && AllTrue[Seen, (# === Want) &];
+  Return[MBSymbolicSumParallelOk]];
 
 (* ::Subsubsection::Closed:: *)
 (*Recycled Subkernels*)
@@ -1990,7 +1990,7 @@ KernelRSS[] := Module[{Lines, Hit, Kb},
 
 (* a new subkernel gets the package and the master's current settings *)
 InitKernel[K_] := Module[{Ok, Vals},
-  Ok = With[{F = MBResumFile, D = Directory[], P = $Path},
+  Ok = With[{F = MBSymbolicSumFile, D = Directory[], P = $Path},
     Quiet[ParallelEvaluate[
       ($Path = P;
        SetDirectory[D];
@@ -2091,11 +2091,11 @@ RecycleMap[Sent_] := Module[{N1, Queue, Running, Out, Submit, Skips, Tries, Mark
 
 (* parallel only if the self-test passed and every kernel still holds the package *)
 WorkersReady[] := Module[{Got},
-  If[! TrueQ[MBCHParallel] || ! TrueQ[MBResumParallelOk], Return[False]];
+  If[! TrueQ[MBCHParallel] || ! TrueQ[MBSymbolicSumParallelOk], Return[False]];
   If[$KernelCount < 2, Return[False]];
   Got = Quiet[ParallelEvaluate[Length[DownValues[MBSolveOne]] > 0]];
   If[ListQ[Got] && AllTrue[Got, TrueQ], Return[True]];
-  MBResumParallelOk = False;
+  MBSymbolicSumParallelOk = False;
   Return[False]];
 
 SyncWorkers[] := DistributeDefinitions[MBCHScale, MBCHVerbose, MBCHComplex, MBCHVerifyDiff, MBCHTol,
@@ -2116,7 +2116,7 @@ LearnFromWorkers[] := Module[{Seen, Slot, Chart},
 
 (* a task may carry the master's contour value, so the subkernel need not integrate it again *)
 SolveTask[Task_] := Module[{Val},
-  MBResumJ = Task[[1]];
+  MBSymbolicSumJ = Task[[1]];
   (* a task sent to the subkernels that comes back to the master means the pool died: do not risk the master *)
   If[Length[Task] > 2 && $KernelID === 0, Return[$Failed]];
   If[Length[Task] > 2 && NumericQ[Task[[3]]], MBVerifyCache[Task[[2]]] = Task[[3]]];
@@ -2805,7 +2805,7 @@ MBSolveOne[IntVar_, MBVars_, Num_, Den_] :=
   Say["Obtaining series solutions ..."];
   MarkStage[{"series"}];
   Got = MBGetSeries[IntVar, MBVars, Num, Den];
-  If[Got =!= $Failed, MBResumStatus = "Series solution obtained!"];
+  If[Got =!= $Failed, MBSymbolicSumStatus = "Series solution obtained!"];
   If[Got === $Failed, Return[Indeterminate]];
   {ResolveOut, Order1, Kind} = Got;
   If[Kind === "Multi",
@@ -2845,8 +2845,8 @@ MBSolveOne[IntVar_, MBVars_, Num_, Den_] :=
       Continue[]];
      T0 = AbsoluteTime[];
      Say["Series solution obtained!"];
-     Say["Resumming with EvaluateMultiSums " <> ToString[MBResumJ] <>
-         "/" <> ToString[MBResumN]];
+     Say["Summing with EvaluateMultiSums " <> ToString[MBSymbolicSumJ] <>
+         "/" <> ToString[MBSymbolicSumN]];
      Val = TimeConstrained[MBSumSeries[ResolveOut, Sub, K], MBCHChartTime, $Failed];
      Spent = Spent + (AbsoluteTime[] - T0);
      If[Val === $Failed || DirtyQ[Val],
@@ -2966,9 +2966,9 @@ MBCH2MPL[MBInt_, MBVar_, {Eps_, Ord_}, OptionsPattern[]] := Module[
   {Expanded, IntVars, SafeVars, Low, Res, Coeffs, K, Tmp, Structs, Groups},
   MBCHVerbose = TrueQ[OptionValue[Verbose]];
   SetComplex[TrueQ[OptionValue[Complex]]];
-  MBResumLog = {};
+  MBSymbolicSumLog = {};
   Say["Starting ..."];
-  If[$FrontEnd =!= Null, Tmp = PrintTemporary[Dynamic[MBResumStatus]]];
+  If[$FrontEnd =!= Null, Tmp = PrintTemporary[Dynamic[MBSymbolicSumStatus]]];
   VPrint["MBCH2MPL: expansion of the integral through ", Eps, "^", Ord];
 
   Expanded = MBRexExp[MBInt, Eps, Ord, BarnesReduce -> OptionValue[BarnesReduce]];
@@ -2979,7 +2979,7 @@ MBCH2MPL[MBInt_, MBVar_, {Eps_, Ord_}, OptionsPattern[]] := Module[
   (* EMS writes zeta values as z2, z3, z5, ...: an integration variable named z5 would be taken
      for a leftover variable wherever Zeta[5] appears, so the variables are renamed; they stay in
      Global`, since CoefOf treats any other context as a leak and drops those terms *)
-  SafeVars = Table[Symbol["Global`MBResumIntVar" <> ToString[K1]], {K1, Length[IntVars]}];
+  SafeVars = Table[Symbol["Global`MBSymbolicSumIntVar" <> ToString[K1]], {K1, Length[IntVars]}];
   Expanded = Expanded /. Thread[IntVars -> SafeVars];
   IntVars = SafeVars;
 
@@ -3089,7 +3089,7 @@ MBCH2MPLOrder[Groups_, IntVars_, Ord_] := Module[
   If[Groups === {}, Return[0]];
   VPrint["  eps^", Ord, "      : ", Length[Flatten[Groups, 1]], " structures -> ", Length[Groups], " distinct"];
 
-  MBResumN = Length[Groups];
+  MBSymbolicSumN = Length[Groups];
   Tasks = GroupTasks[Groups];
   Vals = AssociationThread[Map[First, Tasks], SolveAll[Tasks]];
 
@@ -3127,5 +3127,5 @@ MBCH2MPLOrder[Groups_, IntVars_, Ord_] := Module[
 End[];
 EndPackage[];
 $ContextPath = DeleteDuplicates[Join[$ContextPath,
-   DeleteCases[MBResumOuterPath, "Global`"]]];
-MBAnalytica`Resum`Private`LoadWorkers[];
+   DeleteCases[MBSymbolicSumOuterPath, "Global`"]]];
+MBAnalytica`SymbolicSum`Private`LoadWorkers[];

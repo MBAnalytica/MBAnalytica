@@ -6,7 +6,7 @@
 
 (* ::Text:: *)
 (*Read inside MBAnalytica`Private` by MBAnalytica.wl.  Each method is loaded the first time it is used.  With*)
-(*Method -> Automatic the methods available on this machine are tried in the order Resum, HyperLog, Subtraction,*)
+(*Method -> Automatic the methods available on this machine are tried in the order SymbolicSum, HyperLog, Subtraction,*)
 (*and every later method only receives the orders the earlier ones could not close.*)
 
 
@@ -74,25 +74,25 @@ LoadMBTools[] := Module[{},
   Return[MBToolsLoaded]];
 
 
-LoadResum[] := Module[{ResumFile, Folder},
-  If[TrueQ[ResumLoaded], Return[True]];
+LoadSymbolicSum[] := Module[{SymbolicSumFile, Folder},
+  If[TrueQ[SymbolicSumLoaded], Return[True]];
   LoadMBTools[];
   AddRISCPath[];
   Folder = FileNameJoin[{PackageRoot, "dep", "MBConicHulls"}];
   If[! MemberQ[$Path, Folder], PrependTo[$Path, Folder]];
   CacheDirectory[];
-  (* MBResum launches the subkernels before MBConicHulls loads (MBConicHulls would start two per core); it reads
+  (* MBSymbolicSum launches the subkernels before MBConicHulls loads (MBConicHulls would start two per core); it reads
      Global`$KernelLaunch, which keeps the user's value and otherwise gets the default *)
   If[! IntegerQ[Global`$KernelLaunch], Global`$KernelLaunch = KernelCount[]];
-  ResumFile = FileNameJoin[{PackageRoot, "src", "Resum", "MBResum.wl"}];
-  (* MBResum reads the option and failure symbols of MBAnalytica`; its own context stays off the user's path *)
-  (* as in a fresh kernel after MB.m, MBresolve.m and barnesroutines.m, with MBAnalytica` first so that MBResum's
+  SymbolicSumFile = FileNameJoin[{PackageRoot, "src", "SymbolicSum", "MBSymbolicSum.wl"}];
+  (* MBSymbolicSum reads the option and failure symbols of MBAnalytica`; its own context stays off the user's path *)
+  (* as in a fresh kernel after MB.m, MBresolve.m and barnesroutines.m, with MBAnalytica` first so that MBSymbolicSum's
      option and failure symbols are those of MBEvaluate *)
   Block[{$ContextPath = Join[{"MBAnalytica`", "BarnesRoutines`", "MB`"}, FreshContextPath], $Output = {}},
-    Get[ResumFile];
-    ResumContextPath = $ContextPath];
-  ResumLoaded = DownValues[MBAnalytica`Resum`MBCH2MPL] =!= {};
-  Return[ResumLoaded]];
+    Get[SymbolicSumFile];
+    SymbolicSumContextPath = $ContextPath];
+  SymbolicSumLoaded = DownValues[MBAnalytica`SymbolicSum`MBCH2MPL] =!= {};
+  Return[SymbolicSumLoaded]];
 
 
 LoadMB2MPL[] := Module[{Loader, StartDirectory},
@@ -111,7 +111,7 @@ LoadMB2MPL[] := Module[{Loader, StartDirectory},
 
 
 LoadMethod[Method1_String] := Switch[Method1,
-  "Resum", LoadResum[],
+  "SymbolicSum", LoadSymbolicSum[],
   "HyperLog" | "Subtraction", LoadMB2MPL[],
   _, False];
 
@@ -184,11 +184,11 @@ LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
 (*The methods*)
 
 
-(* MBResum: the coefficients from the leading pole through Eps^Ord; a coefficient it cannot close is MBFailed[...] *)
-RunResum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, Expanded, Orders},
-  If[! LoadResum[], Return[FailAll[Lo, Hi, "Resum", "the method could not be loaded"]]];
-  Series1 = Block[{$ContextPath = ResumContextPath},
-    MBAnalytica`Resum`MBCH2MPL[MBInt, MBVar, {Eps, Hi},
+(* MBSymbolicSum: the coefficients from the leading pole through Eps^Ord; a coefficient it cannot close is MBFailed[...] *)
+RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, Expanded, Orders},
+  If[! LoadSymbolicSum[], Return[FailAll[Lo, Hi, "SymbolicSum", "the method could not be loaded"]]];
+  Series1 = Block[{$ContextPath = SymbolicSumContextPath},
+    MBAnalytica`SymbolicSum`MBCH2MPL[MBInt, MBVar, {Eps, Hi},
       Verbose -> Opts["Verbose"], BarnesReduce -> Opts["BarnesReduce"], Complex -> Opts["Complex"]]];
   Expanded = Expand[Series1];
   Orders = Range[Lo, Hi];
@@ -276,7 +276,7 @@ FailAll[Lo_, Hi_, Method1_, Reason_] := Association[Map[# -> MBFailed[{Method1, 
 
 
 RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_Association] := Switch[Method1,
-  "Resum", RunResum[MBInt, MBVar, Eps, Lo, Hi, Opts],
+  "SymbolicSum", RunSymbolicSum[MBInt, MBVar, Eps, Lo, Hi, Opts],
   "HyperLog", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "HyperLog", Opts],
   "Subtraction", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "Subtraction", Opts]];
 
@@ -288,7 +288,7 @@ RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_
 Options[MBEvaluate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False};
 
 
-MBEvaluate::method = "Method -> `1` is not Automatic, \"Resum\", \"HyperLog\" or \"Subtraction\".";
+MBEvaluate::method = "Method -> `1` is not Automatic, \"SymbolicSum\", \"HyperLog\" or \"Subtraction\".";
 MBEvaluate::unavailable = "The method `1` cannot run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::none = "No method can run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::pole = "The leading pole of the integral could not be determined (MBresolve or MBexpand failed).";
@@ -305,9 +305,10 @@ MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
 MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
   {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders},
   Method1 = OptionValue[Method];
-  (* "Standard", the earlier name of the HyperLog method, is accepted as an alias *)
+  (* "Standard" and "Resum", the earlier names of the HyperLog and SymbolicSum methods, are accepted as aliases *)
   If[Method1 === "Standard", Method1 = "HyperLog"];
-  If[! MemberQ[{Automatic, "Resum", "HyperLog", "Subtraction"}, Method1],
+  If[Method1 === "Resum", Method1 = "SymbolicSum"];
+  If[! MemberQ[{Automatic, "SymbolicSum", "HyperLog", "Subtraction"}, Method1],
     Message[MBEvaluate::method, Method1];
     Return[$Failed]];
   Settings = <|"Verbose" -> TrueQ[OptionValue[Verbose]], "BarnesReduce" -> TrueQ[OptionValue[BarnesReduce]],
