@@ -91,6 +91,8 @@ LoadSymbolicSum[] := Module[{SymbolicSumFile, Folder},
   Block[{$ContextPath = Join[{"MBAnalytica`", "BarnesRoutines`", "MB`"}, FreshContextPath], $Output = {}},
     Get[SymbolicSumFile];
     SymbolicSumContextPath = $ContextPath];
+  (* the one-fold series of hypergeometric type, summed directly (OneFoldHyp.wl) *)
+  Get[FileNameJoin[{PackageRoot, "src", "SymbolicSum", "OneFoldHyp.wl"}]];
   SymbolicSumLoaded = DownValues[MBAnalytica`SymbolicSum`MBCH2MPL] =!= {};
   Return[SymbolicSumLoaded]];
 
@@ -185,8 +187,15 @@ LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
 
 
 (* MBSymbolicSum: the coefficients from the leading pole through Eps^Ord; a coefficient it cannot close is MBFailed[...] *)
-RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, Expanded, Orders},
+RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, Expanded, Orders, OneFold},
   If[! LoadSymbolicSum[], Return[FailAll[Lo, Hi, "SymbolicSum", "the method could not be loaded"]]];
+  (* a one-fold integral Gamma(-z) Prod Gamma(m_i + c_i eps + z)^k_i X^z of the pFp-1 class whose contour separates the
+     poles of Gamma(-z): its residue series is expanded in harmonic sums and summed with their generating functions,
+     and the result is kept only if its Taylor coefficients in X agree exactly with those of the series *)
+  OneFold = Quiet[TimeConstrained[MBAnalytica`OneFoldHyp`OneFoldHypExpand[MBInt, Eps, {Lo, Hi}], 900, $Failed]];
+  If[AssociationQ[OneFold],
+    If[TrueQ[Opts["Verbose"]], Print["  MBEvaluate: SymbolicSum: one-fold series of hypergeometric type, summed in harmonic sums"]];
+    Return[OneFold]];
   Series1 = Block[{$ContextPath = SymbolicSumContextPath},
     MBAnalytica`SymbolicSum`MBCH2MPL[MBInt, MBVar, {Eps, Hi},
       Verbose -> Opts["Verbose"], BarnesReduce -> Opts["BarnesReduce"], Complex -> Opts["Complex"]]];
