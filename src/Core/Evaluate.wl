@@ -190,6 +190,10 @@ RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Seri
   Series1 = Block[{$ContextPath = SymbolicSumContextPath},
     MBAnalytica`SymbolicSum`MBCH2MPL[MBInt, MBVar, {Eps, Hi},
       Verbose -> Opts["Verbose"], BarnesReduce -> Opts["BarnesReduce"], Complex -> Opts["Complex"]]];
+  (* a resummation that is not a finite expression (Indeterminate from a zero times an infinity, ComplexInfinity, a
+     failure) closes no order: the next method is tried instead, and the result is never returned as it stands *)
+  If[FailureQ[Series1] || ! FreeQ[Series1, Indeterminate | DirectedInfinity | $Failed | $Aborted],
+    Return[FailAll[Lo, Hi, "SymbolicSum", "the resummed series is not finite"]]];
   Expanded = Expand[Series1];
   Orders = Range[Lo, Hi];
   Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Orders]]]];
