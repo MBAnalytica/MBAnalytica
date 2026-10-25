@@ -10,7 +10,7 @@
 
 (* ::Text:: *)
 (*Authors: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias.*)
-(*Three methods: SymbolicSum (series solutions summed by EvaluateMultiSums), HyperLog and Subtraction (the MB2MPL*)
+(*Three methods: SymbolicSum (series solutions summed by EvaluateMultiSums), ExpandInt and Subtraction (the MB2MPL*)
 (*engine: exact Euler integrals and boundary subtraction).  This file is the only one a user loads; it loads the*)
 (*methods themselves the first time they are used.  See README.md for installation and Examples.nb for examples.*)
 
@@ -41,15 +41,15 @@ are whatever is left, so neither has to be given. MBEvaluate[MBInt, MBVar, {Eps,
 variables explicitly; they are taken in 0 < x < 1.\n\n\
 A coefficient that could not be brought to a closed form is returned as MBFailed[reasons].\n\n\
 Options:\n  \
-Method -> Automatic       tries the methods available on this machine in the order \"SymbolicSum\", \"HyperLog\", \
-\"Subtraction\", each one only on the orders the earlier ones left open; \"SymbolicSum\", \"HyperLog\" or \"Subtraction\" uses \
-that method alone (\"Standard\" and \"Resum\" are accepted as aliases of \"HyperLog\" and \"SymbolicSum\")\n  \
+Method -> Automatic       tries the methods available on this machine in the order \"SymbolicSum\", \"ExpandInt\", \
+\"Subtraction\", each one only on the orders the earlier ones left open; \"SymbolicSum\", \"ExpandInt\" or \"Subtraction\" uses \
+that method alone (\"HyperLog\" and \"Standard\" are accepted as aliases of \"ExpandInt\", and \"Resum\" of \"SymbolicSum\")\n  \
 Verbose -> False          prints one line per stage\n  \
 BarnesReduce -> True      applies the Barnes lemmas before the SymbolicSum method solves the integral\n  \
 Complex -> False          returns the real part; True returns the full complex value\n\n\
 Examples:\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}]\n  \
-MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"HyperLog\"]\n  \
+MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  \
 MBEvaluate[MB1u, {\[Epsilon], -1}, Complex -> True]";
 
 
@@ -109,7 +109,7 @@ $MBAnalyticaDirectory::usage = "$MBAnalyticaDirectory is the folder MBAnalytica 
 
 
 $MBAnalyticaMethods::usage =
-"$MBAnalyticaMethods lists the methods that can run on this machine (\"SymbolicSum\", \"HyperLog\", \"Subtraction\").";
+"$MBAnalyticaMethods lists the methods that can run on this machine (\"SymbolicSum\", \"ExpandInt\", \"Subtraction\").";
 
 
 (* ::Section::Closed:: *)

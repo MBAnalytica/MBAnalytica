@@ -6,7 +6,7 @@
 
 (* ::Text:: *)
 (*Read inside MBAnalytica`Private` by MBAnalytica.wl.  Each method is loaded the first time it is used.  With*)
-(*Method -> Automatic the methods available on this machine are tried in the order SymbolicSum, HyperLog, Subtraction,*)
+(*Method -> Automatic the methods available on this machine are tried in the order SymbolicSum, ExpandInt, Subtraction,*)
 (*and every later method only receives the orders the earlier ones could not close.*)
 
 
@@ -114,7 +114,7 @@ LoadMB2MPL[] := Module[{Loader, StartDirectory},
 
 LoadMethod[Method1_String] := Switch[Method1,
   "SymbolicSum", LoadSymbolicSum[],
-  "HyperLog" | "Subtraction", LoadMB2MPL[],
+  "ExpandInt" | "Subtraction", LoadMB2MPL[],
   _, False];
 
 
@@ -169,7 +169,7 @@ ResolvedQ[Resolved_] := ListQ[Resolved] && Resolved =!= {};
 LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
   LoadMBTools[];
   Resolved = ResolveIntegral[MBInt, Eps];
-  If[! ResolvedQ[Resolved] && IntersectingQ[$MBAnalyticaMethods, {"HyperLog", "Subtraction"}] && LoadMB2MPL[],
+  If[! ResolvedQ[Resolved] && IntersectingQ[$MBAnalyticaMethods, {"ExpandInt", "Subtraction"}] && LoadMB2MPL[],
     Resolved = ResolveIntegral[MBInt, Eps]];
   If[! ResolvedQ[Resolved], Return[$Failed]];
   Block[{$Output = {}},
@@ -267,8 +267,8 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   Return[<|"Exact" -> Exact, "Result" -> (Result /. Reg -> Eps)|>]];
 
 
-(* the engine route of a method: the HyperLog method is the Standard route of the MB2MPL engine *)
-EngineRoute["HyperLog"] = "Standard";
+(* the engine route of a method: the ExpandInt method is the Standard route of the MB2MPL engine *)
+EngineRoute["ExpandInt"] = "Standard";
 EngineRoute["Subtraction"] = "Subtraction";
 
 
@@ -293,7 +293,7 @@ FailAll[Lo_, Hi_, Method1_, Reason_] := Association[Map[# -> MBFailed[{Method1, 
 
 RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_Association] := Switch[Method1,
   "SymbolicSum", RunSymbolicSum[MBInt, MBVar, Eps, Lo, Hi, Opts],
-  "HyperLog", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "HyperLog", Opts],
+  "ExpandInt", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "ExpandInt", Opts],
   "Subtraction", RunEngine[MBInt, Kinematics, Eps, Lo, Hi, "Subtraction", Opts]];
 
 
@@ -304,7 +304,7 @@ RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_
 Options[MBEvaluate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False};
 
 
-MBEvaluate::method = "Method -> `1` is not Automatic, \"SymbolicSum\", \"HyperLog\" or \"Subtraction\".";
+MBEvaluate::method = "Method -> `1` is not Automatic, \"SymbolicSum\", \"ExpandInt\" or \"Subtraction\".";
 MBEvaluate::unavailable = "The method `1` cannot run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::none = "No method can run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::pole = "The leading pole of the integral could not be determined (MBresolve or MBexpand failed).";
@@ -321,10 +321,10 @@ MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
 MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
   {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders},
   Method1 = OptionValue[Method];
-  (* "Standard" and "Resum", the earlier names of the HyperLog and SymbolicSum methods, are accepted as aliases *)
-  If[Method1 === "Standard", Method1 = "HyperLog"];
+  (* "HyperLog" and "Standard", the earlier names of the ExpandInt method, and "Resum", that of SymbolicSum, are accepted as aliases *)
+  If[Method1 === "HyperLog" || Method1 === "Standard", Method1 = "ExpandInt"];
   If[Method1 === "Resum", Method1 = "SymbolicSum"];
-  If[! MemberQ[{Automatic, "SymbolicSum", "HyperLog", "Subtraction"}, Method1],
+  If[! MemberQ[{Automatic, "SymbolicSum", "ExpandInt", "Subtraction"}, Method1],
     Message[MBEvaluate::method, Method1];
     Return[$Failed]];
   Settings = <|"Verbose" -> TrueQ[OptionValue[Verbose]], "BarnesReduce" -> TrueQ[OptionValue[BarnesReduce]],

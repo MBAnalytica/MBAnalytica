@@ -11,7 +11,7 @@ three complementary methods:
 | Method | Idea |
 |---|---|
 | `"SymbolicSum"` | expand in ε first; close the contours of every coefficient integral, build its hypergeometric series with `MBConicHulls.wl`, and resum them with `EvaluateMultiSums`, `Sigma` and `HarmonicSums` |
-| `"HyperLog"` | expand in ε first; convert every coefficient integral into an Euler integral on the unit cube and integrate it by the method of hyperlogarithms |
+| `"ExpandInt"` | expand in ε first; convert every coefficient integral into an Euler integral on the unit cube and integrate it by the method of hyperlogarithms |
 | `"Subtraction"` | keep ε symbolic: convert the integral into an Euler integral, subtract its boundary singularities, then expand and integrate by the method of hyperlogarithms; usually reaches deeper orders |
 
 A coefficient is either closed exactly or returned as open (`MBFailed[...]`); it is never approximated.  The
@@ -31,7 +31,7 @@ and the algorithms of the integration methods in the companion paper *The anatom
 
 * **Mathematica 14.0 or later.**  The package is validated with Mathematica 15.0 on Linux (Ubuntu and RHEL).  The
   `Makefile` also has a macOS branch (Homebrew); it has not been validated yet.
-* **System packages** for the `HyperLog` and `Subtraction` methods: a C++ compiler, `cmake`, `pkg-config`, `patch`,
+* **System packages** for the `ExpandInt` and `Subtraction` methods: a C++ compiler, `cmake`, `pkg-config`, `patch`,
   `GMP`, `MPFR`, `FLINT` (version 3.4 or later; an older system FLINT is replaced by a private build), the GiNaC
   shell `ginsh`, and `Python 3` (with `numpy`, `scipy` and `sympy`, which `make` installs into a private `.venv`).
 * **The RISC packages** for the `SymbolicSum` method: `HarmonicSums`, `Sigma` and `EvaluateMultiSums`, from
@@ -140,7 +140,7 @@ Out[]=  13600/27 - (647 Pi^2)/18 + 1/\[Epsilon]^3 + 25/(3 \[Epsilon]^2)
 
 | Option | Default | Meaning |
 |---|---|---|
-| `Method` | `Automatic` | `"SymbolicSum"`, `"HyperLog"` or `"Subtraction"` uses that method alone (`"Standard"` and `"Resum"` are accepted as aliases of `"HyperLog"` and `"SymbolicSum"`); `Automatic` tries the available methods in this order, each one only on the orders the earlier ones left open |
+| `Method` | `Automatic` | `"SymbolicSum"`, `"ExpandInt"` or `"Subtraction"` uses that method alone (`"HyperLog"` and `"Standard"` are accepted as aliases of `"ExpandInt"`, and `"Resum"` of `"SymbolicSum"`); `Automatic` tries the available methods in this order, each one only on the orders the earlier ones left open |
 | `Complex` | `False` | `False` returns the real part (checked numerically against the full value when some function is not real on 0 < x < 1); `True` returns the full complex value |
 | `BarnesReduce` | `True` | apply the first and second Barnes lemmas before the `SymbolicSum` method solves the integral |
 | `Verbose` | `False` | print one line per stage of the calculation |
@@ -178,7 +178,7 @@ reference value (this takes hours).
 | `MBAnalytica.wl`, `PacletInfo.wl` | the package entry point and the public symbols |
 | `src/Core` | `MBEvaluate`, the dependency check, the output basis and the portability layer |
 | `src/SymbolicSum` | the `SymbolicSum` method |
-| `src/MB2MPL` | the `HyperLog` and `Subtraction` methods (MB2MPL engine) |
+| `src/MB2MPL` | the `ExpandInt` and `Subtraction` methods (MB2MPL engine) |
 | `dep` | bundled and downloaded third-party packages (see below) and the build of the hyperlogarithm integrator |
 | `tests` | the installation test and the benchmark suite |
 
