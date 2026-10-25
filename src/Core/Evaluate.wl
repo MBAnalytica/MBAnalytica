@@ -45,15 +45,21 @@ MBToolsDirectory = FileNameJoin[{PackageRoot, "src", "MB2MPL", "mbtools"}];
 
 (* Every method loads with the user's $ContextPath kept as it was: a package that exports a common name (PolyLogTools
    exports \[Epsilon]) would otherwise shadow the symbols of integrals the user typed before.  Each method then runs with
-   the context path it had right after it loaded, the setting it was validated in.  PolyLogTools` and HPL` are only
-   appended at the end of the user's path, so that results print as G[...] without shadowing anything. *)
-OutputContexts = {"PolyLogTools`", "HPL`"};
+   the context path it had right after it loaded, the setting it was validated in; the user's path never gains the
+   contexts of the methods (ShowOutputContexts). *)
 
 
-ShowOutputContexts[] := Module[{Present},
-  (* PolyLogTools` always: every method returns G, which should print as G even when PolyLogTools is not loaded *)
-  Present = Join[{"PolyLogTools`"}, Select[Rest[OutputContexts], MemberQ[$Packages, #] &]];
-  $ContextPath = DeleteDuplicates[Join[$ContextPath, Present]];
+(* the results print as G[...]: PolyLogTools`G is displayed without its context, as an InterpretationBox, so that a
+   copied output is PolyLogTools`G again.  PolyLogTools` itself is NOT put on the user's context path: it exports about
+   240 short names (a, ..., z, e, u1, ..., u12, x1, ...), and every symbol the user types afterwards under one of these
+   names would become a symbol of PolyLogTools (u2 and u3 of an integrand typed after the first ExpandInt or Subtraction
+   call became PolyLogTools`u2 and PolyLogTools`u3, and SymbolicSum then solved none of its sums) *)
+ShowOutputContexts[] := Module[{},
+  (* defined again on every call: loading PolyLogTools clears the rules of G that were made before it; the boxes are
+     built before they enter the InterpretationBox, which holds its arguments *)
+  PolyLogTools`G /: MakeBoxes[PolyLogTools`G[Args___], StandardForm] :=
+    With[{Boxes = RowBox[{"G", "[", RowBox[Riffle[Map[MakeBoxes[#, StandardForm] &, {Args}], ","]], "]"}]},
+      InterpretationBox[Boxes, PolyLogTools`G[Args]]];
   Return[Null]];
 
 
@@ -91,14 +97,20 @@ LoadSymbolicSum[] := Module[{SymbolicSumFile, Folder},
   Block[{$ContextPath = Join[{"MBAnalytica`", "BarnesRoutines`", "MB`"}, FreshContextPath], $Output = {}},
     Get[SymbolicSumFile];
     SymbolicSumContextPath = $ContextPath];
-  (* the one-fold series of hypergeometric type, summed directly (OneFoldHyp.wl) *)
-  Get[FileNameJoin[{PackageRoot, "src", "SymbolicSum", "OneFoldHyp.wl"}]];
+  (* the one-fold series of hypergeometric type, summed directly (OneFoldHyp.wl); its context stays off the user's path *)
+  Block[{$ContextPath = $ContextPath},
+    Get[FileNameJoin[{PackageRoot, "src", "SymbolicSum", "OneFoldHyp.wl"}]]];
   SymbolicSumLoaded = DownValues[MBAnalytica`SymbolicSum`MBCH2MPL] =!= {};
   Return[SymbolicSumLoaded]];
 
 
 LoadMB2MPL[] := Module[{Loader, StartDirectory},
   If[TrueQ[MB2MPLLoaded], Return[True]];
+  (* the RISC packages of SymbolicSum load before the engine: the engine leaves symbols such as S, L$ and F$ in Global`,
+     and HarmonicSums, Sigma and EvaluateMultiSums loaded after it share these names with them (L$::shdw, F$::shdw),
+     after which EvaluateMultiSums solved none of the nested sums of a later SymbolicSum call (and on 16 GB the kernel
+     crashed) *)
+  If[MemberQ[$MBAnalyticaMethods, "SymbolicSum"], LoadSymbolicSum[]];
   LoadMBTools[];
   CacheDirectory[];
   StartDirectory = Directory[];
