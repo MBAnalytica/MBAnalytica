@@ -119,10 +119,14 @@ HoldsOnDomain[Cond_, Vars_List] := Module[{CacheKey, Res},
 
 
 (* G(a1, ..., an; x) and H(a1, ..., an; x) integrate along [0, x] with poles at their letters, so they are real when
-   x > 0 and no nonzero letter lies on the path: a/x < 0 or a/x >= 1, and a1/x != 1 for the outermost letter *)
-OffPathQ[Letters_List, Argument_, Vars_List] := Module[{Positions, Conditions},
+   no nonzero letter lies on the path, a/x < 0 or a/x >= 1 (a1/x != 1 for the outermost letter), and either x > 0, or
+   x < 0 with a nonzero last letter: a trailing zero brings Log[x], which is complex for x < 0 *)
+OffPathQ[Letters_List, Argument_, Vars_List] := Module[{Positions, Conditions, PositiveQ, NegativeQ},
   If[AnyTrue[Letters, ListQ], Return[False]];
-  If[! HoldsOnDomain[Argument > 0, Vars], Return[False]];
+  If[Letters === {}, Return[True]];
+  PositiveQ = HoldsOnDomain[Argument > 0, Vars];
+  NegativeQ = ! PositiveQ && Last[Letters] =!= 0 && HoldsOnDomain[Argument < 0, Vars];
+  If[! PositiveQ && ! NegativeQ, Return[False]];
   Positions = Select[Range[Length[Letters]], Letters[[#]] =!= 0 &];
   Conditions = Map[If[# === 1, Letters[[#]]/Argument < 0 || Letters[[#]]/Argument > 1,
     Letters[[#]]/Argument < 0 || Letters[[#]]/Argument >= 1] &, Positions];

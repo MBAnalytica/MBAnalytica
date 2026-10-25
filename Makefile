@@ -65,15 +65,23 @@ PYTHON3 ?= $(shell command -v python3 2>/dev/null)
 
 ifeq ($(OS),Darwin)
   BREW := $(shell command -v brew 2>/dev/null)
+  BREW_PREFIX := $(if $(BREW),$(shell brew --prefix 2>/dev/null),/opt/homebrew)
+  # a conda environment or a private prefix early on PATH (Anaconda's gmp and libc++, an old FLINT in ~/.local) breaks
+  # the link of HyperFLINT on macOS (the binary is killed at start): FLINT and HyperFLINT are configured and built with
+  # the tools and libraries of Homebrew only
+  BUILD_ENV := env -u CONDA_PREFIX PATH=$(BREW_PREFIX)/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+    PKG_CONFIG_PATH=$(ROOT)/dep/IntVolFLINT/flint/lib/pkgconfig:$(BREW_PREFIX)/lib/pkgconfig
   OMP_ROOT := $(if $(BREW),$(shell brew --prefix libomp 2>/dev/null),)
   CMAKE_PLATFORM := -DCMAKE_CXX_COMPILER=/usr/bin/clang++ $(if $(OMP_ROOT),-DOpenMP_ROOT=$(OMP_ROOT),)
   MIMALLOC := $(if $(BREW),$(if $(shell brew --prefix mimalloc 2>/dev/null),ON,OFF),OFF)
   DEPS_COMMAND := brew install cmake flint gmp mpfr libomp mimalloc ginac python
 else ifneq ($(shell command -v dnf 2>/dev/null),)
+  BUILD_ENV :=
   CMAKE_PLATFORM :=
   MIMALLOC := OFF
   DEPS_COMMAND := sudo dnf install cmake gcc-c++ pkgconf-pkg-config patch gmp-devel mpfr-devel flint-devel ginac-utils python3
 else
+  BUILD_ENV :=
   CMAKE_PLATFORM :=
   MIMALLOC := OFF
   DEPS_COMMAND := sudo apt install cmake g++ pkg-config patch libflint-dev libgmp-dev libmpfr-dev ginac-tools python3-venv
@@ -87,7 +95,7 @@ SHA256 := $(if $(shell command -v shasum 2>/dev/null),shasum -a 256,sha256sum)
 FLINT_MIN := 3.4
 FLINT_LOCAL_VERSION := 3.6.0
 FLINT_PREFIX := $(ROOT)/dep/IntVolFLINT/flint
-SYSTEM_FLINT_OK := $(shell pkg-config --atleast-version=$(FLINT_MIN) flint 2>/dev/null && echo yes)
+SYSTEM_FLINT_OK := $(shell $(BUILD_ENV) pkg-config --atleast-version=$(FLINT_MIN) flint 2>/dev/null && echo yes)
 ifeq ($(SYSTEM_FLINT_OK),yes)
   FLINT_DEP :=
 else
@@ -116,7 +124,7 @@ check:
 	  if pkg-config --exists $$lib 2>/dev/null || [ -n "$$(ls /usr/include/$$lib.h /opt/homebrew/include/$$lib.h /usr/local/include/$$lib.h 2>/dev/null)" ]; \
 	  then echo "  found    $$lib"; else echo "  MISSING  $$lib (development files)"; missing=1; fi; \
 	done; \
-	if [ "$(SYSTEM_FLINT_OK)" = "yes" ]; then echo "  found    flint $$(pkg-config --modversion flint)"; \
+	if [ "$(SYSTEM_FLINT_OK)" = "yes" ]; then echo "  found    flint $$($(BUILD_ENV) pkg-config --modversion flint)"; \
 	elif [ -f "$(FLINT_PREFIX)/lib/pkgconfig/flint.pc" ]; then echo "  found    flint $(FLINT_LOCAL_VERSION) (private build in dep/IntVolFLINT/flint; the system FLINT is older than $(FLINT_MIN))"; \
 	else echo "  note     the system FLINT is absent or older than $(FLINT_MIN): make builds FLINT $(FLINT_LOCAL_VERSION) in dep/IntVolFLINT/flint"; fi; \
 	if [ -n "$(GINSH)" ]; then echo "  found    ginsh ($(GINSH))"; else echo "  MISSING  ginsh (GiNaC)"; missing=1; fi; \
@@ -168,17 +176,17 @@ $(FLINT_PREFIX)/lib/pkgconfig/flint.pc:
 	curl -fsSL --retry 3 -o "$(FLINT_PREFIX)/src/flint.tar.gz" \
 	  "https://github.com/flintlib/flint/releases/download/v$(FLINT_LOCAL_VERSION)/flint-$(FLINT_LOCAL_VERSION).tar.gz"
 	tar xzf "$(FLINT_PREFIX)/src/flint.tar.gz" -C "$(FLINT_PREFIX)/src"
-	cd "$(FLINT_PREFIX)/src/flint-$(FLINT_LOCAL_VERSION)" && ./configure --prefix="$(FLINT_PREFIX)" > "$(FLINT_PREFIX)/build.log" 2>&1 && \
-	  $(MAKE) -j $(JOBS) >> "$(FLINT_PREFIX)/build.log" 2>&1 && $(MAKE) install >> "$(FLINT_PREFIX)/build.log" 2>&1 || \
+	cd "$(FLINT_PREFIX)/src/flint-$(FLINT_LOCAL_VERSION)" && $(BUILD_ENV) ./configure --prefix="$(FLINT_PREFIX)" > "$(FLINT_PREFIX)/build.log" 2>&1 && \
+	  $(BUILD_ENV) $(MAKE) -j $(JOBS) >> "$(FLINT_PREFIX)/build.log" 2>&1 && $(BUILD_ENV) $(MAKE) install >> "$(FLINT_PREFIX)/build.log" 2>&1 || \
 	  { tail -20 "$(FLINT_PREFIX)/build.log"; exit 1; }
 	rm -rf "$(FLINT_PREFIX)/src"
 	@echo "  FLINT $(FLINT_LOCAL_VERSION) built"
 
 $(HF_BIN)/hyperflint: $(FLINT_DEP)
 	@echo "Building HyperFLINT $(HF_VERSION) (IntVolFLINT fork) ..."
-	"$(CMAKE)" -S "$(HF_SRC)" -B "$(HF_SRC)/build" $(CMAKE_FLAGS) -DHF_BUILD_VARIANT=mbanalytica > "$(HF_SRC)/build.log" 2>&1 || \
+	$(BUILD_ENV) "$(CMAKE)" -S "$(HF_SRC)" -B "$(HF_SRC)/build" $(CMAKE_FLAGS) -DHF_BUILD_VARIANT=mbanalytica > "$(HF_SRC)/build.log" 2>&1 || \
 	  { tail -20 "$(HF_SRC)/build.log"; exit 1; }
-	"$(CMAKE)" --build "$(HF_SRC)/build" --target hyperflint-cli -j $(JOBS) >> "$(HF_SRC)/build.log" 2>&1 || \
+	$(BUILD_ENV) "$(CMAKE)" --build "$(HF_SRC)/build" --target hyperflint-cli -j $(JOBS) >> "$(HF_SRC)/build.log" 2>&1 || \
 	  { tail -20 "$(HF_SRC)/build.log"; exit 1; }
 	mkdir -p "$(HF_BIN)"
 	cp "$(HF_SRC)/build/hyperflint" "$(HF_BIN)/hyperflint"
@@ -189,9 +197,9 @@ $(HF_BIN)/hyperflint_guarded: $(FLINT_DEP)
 	rm -rf "$(HF_SRC)/build-guarded-src" && mkdir -p "$(HF_SRC)/build-guarded-src"
 	cd "$(HF_SRC)" && tar cf - --exclude './build*' . | (cd build-guarded-src && tar xf -)
 	cd "$(HF_SRC)/build-guarded-src" && patch -p1 -s < "$(ROOT)/dep/IntVolFLINT/patches/transform_nonlinear_guard.patch"
-	"$(CMAKE)" -S "$(HF_SRC)/build-guarded-src" -B "$(HF_SRC)/build-guarded" $(CMAKE_FLAGS) -DHF_BUILD_VARIANT=mbanalytica-guarded \
+	$(BUILD_ENV) "$(CMAKE)" -S "$(HF_SRC)/build-guarded-src" -B "$(HF_SRC)/build-guarded" $(CMAKE_FLAGS) -DHF_BUILD_VARIANT=mbanalytica-guarded \
 	  > "$(HF_SRC)/build-guarded.log" 2>&1 || { tail -20 "$(HF_SRC)/build-guarded.log"; exit 1; }
-	"$(CMAKE)" --build "$(HF_SRC)/build-guarded" --target hyperflint-cli -j $(JOBS) >> "$(HF_SRC)/build-guarded.log" 2>&1 || \
+	$(BUILD_ENV) "$(CMAKE)" --build "$(HF_SRC)/build-guarded" --target hyperflint-cli -j $(JOBS) >> "$(HF_SRC)/build-guarded.log" 2>&1 || \
 	  { tail -20 "$(HF_SRC)/build-guarded.log"; exit 1; }
 	mkdir -p "$(HF_BIN)"
 	cp "$(HF_SRC)/build-guarded/hyperflint" "$(HF_BIN)/hyperflint_guarded"
