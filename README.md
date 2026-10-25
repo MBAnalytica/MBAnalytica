@@ -70,6 +70,8 @@ make install
 | `src/` | The three methods, the top-level command `MBEvaluate` and the command `CosmoTreeMB` |
 | `dep/` | Bundled packages, and the folders into which the downloaded packages and tables are installed |
 | `tests/` | Installation test and benchmark integrals |
+| `examples/` | Closed forms of the expansions of the double-exchange bispectrum |
+| `Examples_MBAnalytica.nb` | Example evaluations |
 | `Makefile` | Installation |
 
 ## Authors

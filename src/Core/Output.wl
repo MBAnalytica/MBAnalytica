@@ -220,8 +220,9 @@ RealPart[Expr_, Vars_List] := Module[{Functions, Deadline, RealQ, Holders, RealH
   If[Functions === {}, Return[Candidate]];
   Points = If[Vars === {}, {{}}, Map[Function[Point1, Thread[Vars -> Point1]], {1/3, 5/7}]];
   Probes = Map[Function[Rules1, Module[{Whole, Part1},
-    Whole = TimeConstrained[NumericValue[Expr /. Rules1], RealPartBudget, $Failed];
-    Part1 = TimeConstrained[NumericValue[Candidate /. Rules1], RealPartBudget, $Failed];
+    (* Quiet: a probe point on which a letter vanishes (u1 = u2) gives Power::infy, and such a probe is just not evaluated *)
+    Whole = TimeConstrained[Quiet[NumericValue[Expr /. Rules1]], RealPartBudget, $Failed];
+    Part1 = TimeConstrained[Quiet[NumericValue[Candidate /. Rules1]], RealPartBudget, $Failed];
     Which[
       ! NumberQ[Whole] || ! NumberQ[Part1], Missing[],
       Abs[Re[Whole] - Part1] <= 10^-8 Max[1, Abs[Whole]], True,

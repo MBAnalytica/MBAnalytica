@@ -71,9 +71,10 @@ LoadMBTools[] := Module[{},
   If[TrueQ[MBToolsLoaded], Return[True]];
   If[! MemberQ[$Path, MBToolsDirectory], PrependTo[$Path, MBToolsDirectory]];
   Block[{$Output = {}, $ContextPath = FreshContextPath},
+    (* MB.m defines its own option Verbose: the warning Verbose::shdw on loading it is expected *)
     If[DownValues[MB`MBresolve] === {},
-      Get[FileNameJoin[{MBToolsDirectory, "MB.m"}]];
-      Get[FileNameJoin[{MBToolsDirectory, "MBresolve.m"}]]];
+      Quiet[Get[FileNameJoin[{MBToolsDirectory, "MB.m"}]], General::shdw];
+      Quiet[Get[FileNameJoin[{MBToolsDirectory, "MBresolve.m"}]], General::shdw]];
     If[DownValues[BarnesRoutines`DoAllBarnes] === {},
       Get[FileNameJoin[{MBToolsDirectory, "barnesroutines.m"}]]]];
   MBToolsLoaded = DownValues[MB`MBresolve] =!= {} && DownValues[BarnesRoutines`DoAllBarnes] =!= {};
