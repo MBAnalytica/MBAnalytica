@@ -1,6 +1,7 @@
 # MBAnalytica: build and check everything inside this folder.
 #
-#   make            check the tools, download MB.m, MBresolve.m, the Barnes routines, PolyLogTools, HPL and HypExp from their
+#   make            check the tools, download MB.m, MBresolve.m, the Barnes routines, MBConicHulls, PolyLogTools, HPL and
+#                   HypExp from their
 #                   authors' pages, build HyperFLINT, create the Python environment, fetch the large HPL tables,
 #                   write config.m
 #   make test       run the installation test (a few minutes)
@@ -12,7 +13,7 @@
 # Variables:  RISC=/folder/with/HarmonicSums-Sigma-EvaluateMultiSums
 #             TABLES=/folder/with/the/HPL/tables (optional: otherwise they are downloaded from TABLES_URL)
 #             UPSTREAM=/folder with HPL-2.0.tar.gz, HypExp-2.0.tar.gz, MB/{MB.m,MBresolve.m,barnesroutines.m,README.md}
-#               and PolyLogTools/ (the files of PLT_FILES)
+#               MBConicHulls/ (the files of MBCH_FILES) and PolyLogTools/ (the files of PLT_FILES)
 #               (optional, for machines without internet access: otherwise they are downloaded)
 #             WOLFRAMSCRIPT=/path/to/wolframscript   GINSH=/path/to/ginsh   CMAKE=/path/to/cmake   JOBS=8
 
@@ -44,6 +45,9 @@ HPL_FILES := HPL.m HPL_README HPLnolicense nmzv.m h6table.mat HPLatI1.m HPLatI2.
 HYPEXP_FILES := HypExp.m README collectedfunctions.out listintegralsminimal.m rrarg.m rrlpnHPL_private.out2 rulesalgorithm.m \
   PZRule2.m PZRule3.m PZRule4.m PZRule5.m PZRule6.m PZRule7.m PZRule8.m PZRule9.m PZRule10.m
 MB_FILES := MB.m MBresolve.m barnesroutines.m README.md
+MBCH_COMMIT := 7d75915ba3c2e5f92f89b1cfa2ee4db5fcf1cee8
+MBCH_URL ?= https://raw.githubusercontent.com/SumitBanikGit/MBConicHulls/$(MBCH_COMMIT)
+MBCH_FILES := LICENSE MBConicHulls.wl MultivariateResidues.m README.md
 PLT_COMMIT := e0284d0cba0299f6d584094a053d3e890d13aebe
 PLT_URL ?= https://gitlab.com/pltteam/plt/-/raw/$(PLT_COMMIT)
 PLT_FILES := PolyLogTools.m README.md Usage.m core/CanonicalIntegrator.m core/Coproduct.m core/DenominatorReduction.m \
@@ -140,17 +144,19 @@ deps:
 	@echo "  $(DEPS_COMMAND)"
 	@if [ "$(CONFIRM)" = "yes" ]; then $(DEPS_COMMAND); else echo "Run  make deps CONFIRM=yes  to run it."; fi
 
-# ---- MB.m, MBresolve.m, the Barnes routines, PolyLogTools, HPL 2.0 and HypExp 2.0 (downloaded, not redistributed) -
+# ---- MB.m, MBresolve.m, the Barnes routines, MBConicHulls, PolyLogTools, HPL 2.0 and HypExp 2.0 (downloaded) -------
 
 upstream:
 	@if cd "$(ROOT)/dep" && $(SHA256) -c UPSTREAM_FILES.sha256 > /dev/null 2>&1; then \
-	  echo "  MB.m, MBresolve.m, Barnes routines, PolyLogTools, HPL 2.0 and HypExp 2.0 present and verified"; exit 0; fi; \
-	mkdir -p "$(DL)/MB" "$(DL)/PolyLogTools/core" "$(DL)/PolyLogTools/lib" "$(HPL)" "$(ROOT)/dep/HypExp" "$(ROOT)/dep/MB" \
+	  echo "  MB.m, MBresolve.m, Barnes routines, MBConicHulls, PolyLogTools, HPL 2.0 and HypExp 2.0 present and verified"; exit 0; fi; \
+	mkdir -p "$(DL)/MB" "$(DL)/MBConicHulls" "$(DL)/PolyLogTools/core" "$(DL)/PolyLogTools/lib" "$(HPL)" "$(ROOT)/dep/HypExp" \
+	  "$(ROOT)/dep/MB" "$(ROOT)/dep/MBConicHulls" \
 	  "$(ROOT)/dep/PolyLogTools/core" "$(ROOT)/dep/PolyLogTools/lib"; \
 	fetch() { if [ -n "$(UPSTREAM)" ] && [ -f "$(UPSTREAM)/$$1" ]; then cp "$(UPSTREAM)/$$1" "$(DL)/$$1"; \
 	  else echo "  downloading $$2"; curl -fsSL --retry 3 -o "$(DL)/$$1" "$$2"; fi; }; \
 	fetch HPL-2.0.tar.gz "$(HPL_URL)" && fetch HypExp-2.0.tar.gz "$(HYPEXP_URL)" || exit 1; \
 	for f in $(MB_FILES); do fetch "MB/$$f" "$(MB_URL)/$$f" || exit 1; done; \
+	for f in $(MBCH_FILES); do fetch "MBConicHulls/$$f" "$(MBCH_URL)/$$f" || exit 1; done; \
 	for f in $(PLT_FILES); do fetch "PolyLogTools/$$f" "$(PLT_URL)/$$f" || exit 1; done; \
 	cd "$(DL)" && $(SHA256) -c "$(ROOT)/dep/UPSTREAM.sha256" > /dev/null || \
 	  { echo "A download does not match dep/UPSTREAM.sha256; give local copies with UPSTREAM=/path"; exit 1; }; \
@@ -158,13 +164,14 @@ upstream:
 	for f in $(HPL_FILES); do cp "$(DL)/x/HPL-2.0/$$f" "$(HPL)/$$f" || exit 1; done; \
 	for f in $(HYPEXP_FILES); do cp "$(DL)/x/HypExp-2.0/$$f" "$(ROOT)/dep/HypExp/$$f" || exit 1; done; \
 	for f in $(MB_FILES); do cp "$(DL)/MB/$$f" "$(ROOT)/dep/MB/$$f" || exit 1; done; \
+	for f in $(MBCH_FILES); do cp "$(DL)/MBConicHulls/$$f" "$(ROOT)/dep/MBConicHulls/$$f" || exit 1; done; \
 	for f in $(PLT_FILES); do cp "$(DL)/PolyLogTools/$$f" "$(ROOT)/dep/PolyLogTools/$$f" || exit 1; done; \
 	patch -s "$(HPL)/HPL.m" < "$(HPL)/HPL.m.patch" || exit 1; \
 	patch -s -p1 -d "$(ROOT)/dep/PolyLogTools" < "$(ROOT)/dep/PolyLogTools.patch" || exit 1; \
 	rm -rf "$(DL)/x"; \
 	cd "$(ROOT)/dep" && $(SHA256) -c UPSTREAM_FILES.sha256 > /dev/null || \
 	  { echo "The installed third-party files do not match dep/UPSTREAM_FILES.sha256"; exit 1; }; \
-	echo "  MB.m, MBresolve.m, Barnes routines, PolyLogTools, HPL 2.0 and HypExp 2.0 downloaded and verified (HPL.m and PolyLogTools patched)"
+	echo "  MB.m, MBresolve.m, Barnes routines, MBConicHulls, PolyLogTools, HPL 2.0 and HypExp 2.0 downloaded and verified (HPL.m and PolyLogTools patched)"
 
 # ---- HyperFLINT: the plain build, and the guarded build with dep/IntVolFLINT/patches applied -----------------------
 
@@ -290,4 +297,5 @@ clean:
 	cd "$(ROOT)/dep/HypExp" && rm -f $(HYPEXP_FILES)
 	cd "$(ROOT)/dep/MB" && rm -f $(MB_FILES)
 	cd "$(ROOT)/dep/PolyLogTools" && rm -f $(PLT_FILES)
+	cd "$(ROOT)/dep/MBConicHulls" && rm -f $(MBCH_FILES)
 	rm -rf "$(DL)"

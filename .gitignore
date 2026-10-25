@@ -103,6 +103,10 @@ dep/PolyLogTools/lib/Weight5.m
 dep/PolyLogTools/lib/Weight6.m
 dep/PolyLogTools/lib/cLL.m
 dep/PolyLogTools/lib/cLi.m
+dep/MBConicHulls/LICENSE
+dep/MBConicHulls/MBConicHulls.wl
+dep/MBConicHulls/MultivariateResidues.m
+dep/MBConicHulls/README.md
 # run-time folders
 .cache/
 src/MB2MPL/.cache/

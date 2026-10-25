@@ -21,13 +21,16 @@ The following packages are downloaded by the installation from the pages of thei
 - [MB.m, MBresolve.m and barnesroutines.m](https://gitlab.com/feynmanintegrals/MB)  
   M. Czakon, [arXiv:hep-ph/0511200](https://arxiv.org/abs/hep-ph/0511200); A. V. Smirnov and V. A. Smirnov, [arXiv:0901.0386](https://arxiv.org/abs/0901.0386); D. A. Kosower
 
+- [MBConicHulls.wl](https://github.com/SumitBanikGit/MBConicHulls)  
+  S. Banik and S. Friot, [arXiv:2212.11839](https://arxiv.org/abs/2212.11839)
+
 - [PolyLogTools](https://gitlab.com/pltteam/plt)  
   C. Duhr and F. Dulat, [arXiv:1904.07279](https://arxiv.org/abs/1904.07279)
 
 - [HPL](https://www.physik.uzh.ch/data/HPL/) and [HypExp](https://www.physik.uzh.ch/data/HypExp/)  
   D. Maître, [arXiv:hep-ph/0507152](https://arxiv.org/abs/hep-ph/0507152); T. Huber and D. Maître, [arXiv:hep-ph/0507094](https://arxiv.org/abs/hep-ph/0507094), [arXiv:0708.2443](https://arxiv.org/abs/0708.2443)
 
-The repository includes [MBConicHulls.wl](https://github.com/SumitBanikGit/MBConicHulls) (S. Banik and S. Friot, [arXiv:2212.11839](https://arxiv.org/abs/2212.11839)), and `HyperIntica` and an extension of the integrator `HyperFLINT` of [SubTropica](https://github.com/SubTropica/SubTropica) (M. Giroux, S. Mizera and G. Salvatori, [arXiv:2604.20954](https://arxiv.org/abs/2604.20954)). The small changes applied to HPL and PolyLogTools after the download, and the tables of harmonic polylogarithms of weight seven to ten, generated from the bases of the MZV data mine ([arXiv:0907.2557](https://arxiv.org/abs/0907.2557)), are described in `dep/THIRD_PARTY_NOTICES.md`.
+The repository includes `HyperIntica` and an extension of the integrator `HyperFLINT` of [SubTropica](https://github.com/SubTropica/SubTropica) (M. Giroux, S. Mizera and G. Salvatori, [arXiv:2604.20954](https://arxiv.org/abs/2604.20954)), in versions modified for `MBAnalytica`. The changes applied to the downloaded HPL and PolyLogTools are described in `dep/THIRD_PARTY_NOTICES.md`.
 
 ## Installation
 

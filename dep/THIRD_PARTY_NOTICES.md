@@ -31,8 +31,10 @@ redistribution are not part of the repository: `make` downloads them from their 
   source in `dep/IntVolFLINT/src`, build notes in `dep/IntVolFLINT/BUILD.md`.
 - Henn--Smirnov--Smirnov tables of multiple polylogarithm values at sixth roots of unity (arXiv:1512.08389),
   weights 1--4 only: `dep/level6_tables/PROVENANCE.md`.
-- MBConicHulls 1.3 (arXiv:2012.15108, 2212.11839, 2309.00409,
-  2512.19803); GPL-3.0, see `dep/MBConicHulls/LICENSE`.  Used by the SymbolicSum method for the series representations.
+- MBConicHulls 1.3 (arXiv:2012.15108, 2212.11839, 2309.00409, 2512.19803; GPL-3.0): downloaded, unchanged, by `make`
+  from https://github.com/SumitBanikGit/MBConicHulls at commit 7d75915ba3c2e5f92f89b1cfa2ee4db5fcf1cee8 into
+  `dep/MBConicHulls/` and checked against `dep/UPSTREAM.sha256`.  Used by the SymbolicSum method for the series
+  representations.
 - MB.m 1.4 (M. Czakon; hep-ph/0511200, updated by A. V. Belitsky, A. V. Smirnov, V. A. Smirnov), MBresolve.m
   (A. V. Smirnov, V. A. Smirnov; arXiv:0901.0386) and barnesroutines.m (D. A. Kosower): NOT redistributed. `make`
   downloads them, unchanged, from https://gitlab.com/feynmanintegrals/MB at commit
