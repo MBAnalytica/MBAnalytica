@@ -1,0 +1,24 @@
+--- HPL.m
++++ HPL.m
+@@ -1797,7 +1797,7 @@
+ Get[ToFileName[{$HPLPath},"h7table.mat"]]
+ Get[ToFileName[{$HPLPath},"h8table.mat"]]*)
+ 
+-MaxMZVTables:=Module[{ii},For[ii=6,ii<=10,ii++,If[FileType[ToFileName[{$HPLPath},"h"<>ToString[ii]<>"table.mat"]]==None,Return[ii-1]]]]
++MaxMZVTables:=Module[{ii},For[ii=6,ii<=25,ii++,If[FileType[ToFileName[{$HPLPath},"h"<>ToString[ii]<>"table.mat"]]==None,Return[ii-1]]]]
+ 
+ $MaxMZVTables=MaxMZVTables
+ Print["Table of MZVs loaded up to weight "<>ToString[$MaxMZVTables]];
+@@ -2045,6 +2045,12 @@
+ (* Loads precalculated values of the constants *)
+ 
+ Get[ToFileName[{$HPLPath},"nmzv.m"]];
++
++(* weight-9/10 extension (2026-07-03): new irreducible alternating-MZV
++   constants HPLs9a..g, HPLs10a..k with 200-digit numerics; see
++   datamine/W9W10_EXTENSION_LOG.md *)
++If[FileExistsQ[ToFileName[{$HPLPath},"hpl910_constants.m"]],
++  Get[ToFileName[{$HPLPath},"hpl910_constants.m"]]];
+ 
+ HPLs6/:N[HPLs6,p_:$MachinePrecision]:=N[appHPLs6,p]/;p<=1000
+ HPLs7a/:N[HPLs7a,p_:$MachinePrecision]:=N[appHPLs7a,p]/;p<=1000

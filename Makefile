@@ -1,15 +1,18 @@
 # MBAnalytica: build and check everything inside this folder.
 #
-#   make            check the tools, build HyperFLINT, create the Python environment, fetch the large HPL tables,
+#   make            check the tools, download MB.m, MBresolve.m, the Barnes routines, HPL and HypExp from their
+#                   authors' pages, build HyperFLINT, create the Python environment, fetch the large HPL tables,
 #                   write config.m
 #   make test       run the installation test (a few minutes)
 #   make deps       show the commands that install the missing system packages; CONFIRM=yes runs them
 #   make install    put this folder on Mathematica's $Path (one line in init.m); make uninstall removes it
 #   make benchmark  the MB1-MB14 benchmarks of the paper (hours)
-#   make clean      remove the build, the Python environment and the downloaded tables
+#   make clean      remove the build, the Python environment, the downloaded packages and the downloaded tables
 #
 # Variables:  RISC=/folder/with/HarmonicSums-Sigma-EvaluateMultiSums
 #             TABLES=/folder/with/the/HPL/tables (optional: otherwise they are downloaded from TABLES_URL)
+#             UPSTREAM=/folder with HPL-2.0.tar.gz, HypExp-2.0.tar.gz and MB/{MB.m,MBresolve.m,barnesroutines.m,README.md}
+#               (optional, for machines without internet access: otherwise they are downloaded)
 #             WOLFRAMSCRIPT=/path/to/wolframscript   GINSH=/path/to/ginsh   CMAKE=/path/to/cmake   JOBS=8
 
 SHELL := /bin/bash
@@ -24,6 +27,21 @@ HPL := $(ROOT)/dep/HPL
 TABLE_FILES := h9table.mat h10table.mat ms9_rules.mx mspm9_rules.mx ms10_rules_v2.mx mspm10_rules.mx
 # the weight-9 and weight-10 HPL tables, gzipped, as assets of the GitHub release hpl-tables-v1
 TABLES_URL ?= https://github.com/MBAnalytica/MBAnalytica/releases/download/hpl-tables-v1
+
+# third-party packages that are not redistributed with MBAnalytica: make downloads them from their authors' pages,
+# checks them against dep/UPSTREAM.sha256, unpacks the files below, applies dep/HPL/HPL.m.patch and checks the
+# result against dep/UPSTREAM_FILES.sha256
+DL := $(ROOT)/dep/.downloads
+HPL_URL ?= https://www.physik.uzh.ch/data/HPL/HPL-2.0.tar.gz
+HYPEXP_URL ?= https://www.physik.uzh.ch/data/HypExp/HypExp-2.0.tar.gz
+MB_COMMIT := 5ddd820144c1e50c3e1d35f21ad6f0d167dbff20
+MB_URL ?= https://gitlab.com/feynmanintegrals/MB/-/raw/$(MB_COMMIT)
+HPL_FILES := HPL.m HPL_README HPLnolicense nmzv.m h6table.mat HPLatI1.m HPLatI2.m HPLatI3.m HPLatI4.m HPLatI5.m HPLatI6.m \
+  numHPLatI4.m numHPLatI5.m numHPLatI6.m MinimalSet2.m MinimalSet3.m MinimalSet4.m MinimalSet5.m MinimalSet6.m \
+  MinimalSetpm2.m MinimalSetpm3.m MinimalSetpm4.m MinimalSetpm5.m MinimalSetpm6.m
+HYPEXP_FILES := HypExp.m README collectedfunctions.out listintegralsminimal.m rrarg.m rrlpnHPL_private.out2 rulesalgorithm.m \
+  PZRule2.m PZRule3.m PZRule4.m PZRule5.m PZRule6.m PZRule7.m PZRule8.m PZRule9.m PZRule10.m
+MB_FILES := MB.m MBresolve.m barnesroutines.m README.md
 
 WOLFRAMSCRIPT ?= $(firstword $(shell command -v wolframscript 2>/dev/null) \
   $(wildcard /Applications/Wolfram.app/Contents/MacOS/wolframscript) \
@@ -67,9 +85,9 @@ endif
 CMAKE_FLAGS := -DCMAKE_BUILD_TYPE=Release -DHF_VERSION=$(HF_VERSION) -DHF_LIBRARYLINK=OFF -DHF_OPENMP=ON \
   -DHF_MIMALLOC=$(MIMALLOC) $(CMAKE_PLATFORM)
 
-.PHONY: all check deps hyperflint python tables config test install uninstall benchmark clean
+.PHONY: all check deps upstream hyperflint python tables config test install uninstall benchmark clean
 
-all: check hyperflint python tables config
+all: check upstream hyperflint python tables config
 	@echo ""
 	@echo "MBAnalytica is ready. Load it with  << \"$(ROOT)/MBAnalytica.wl\"  and run  make test  to check it."
 
@@ -100,6 +118,28 @@ deps:
 	@echo "The system packages MBAnalytica needs are installed with:"
 	@echo "  $(DEPS_COMMAND)"
 	@if [ "$(CONFIRM)" = "yes" ]; then $(DEPS_COMMAND); else echo "Run  make deps CONFIRM=yes  to run it."; fi
+
+# ---- MB.m, MBresolve.m, the Barnes routines, HPL 2.0 and HypExp 2.0 (downloaded, not redistributed) --------------
+
+upstream:
+	@if cd "$(ROOT)/dep" && $(SHA256) -c UPSTREAM_FILES.sha256 > /dev/null 2>&1; then \
+	  echo "  MB.m, MBresolve.m, Barnes routines, HPL 2.0 and HypExp 2.0 present and verified"; exit 0; fi; \
+	mkdir -p "$(DL)/MB" "$(HPL)" "$(ROOT)/dep/HypExp" "$(ROOT)/dep/MB"; \
+	fetch() { if [ -n "$(UPSTREAM)" ] && [ -f "$(UPSTREAM)/$$1" ]; then cp "$(UPSTREAM)/$$1" "$(DL)/$$1"; \
+	  else echo "  downloading $$2"; curl -fsSL --retry 3 -o "$(DL)/$$1" "$$2"; fi; }; \
+	fetch HPL-2.0.tar.gz "$(HPL_URL)" && fetch HypExp-2.0.tar.gz "$(HYPEXP_URL)" || exit 1; \
+	for f in $(MB_FILES); do fetch "MB/$$f" "$(MB_URL)/$$f" || exit 1; done; \
+	cd "$(DL)" && $(SHA256) -c "$(ROOT)/dep/UPSTREAM.sha256" > /dev/null || \
+	  { echo "A download does not match dep/UPSTREAM.sha256; give local copies with UPSTREAM=/path"; exit 1; }; \
+	rm -rf "$(DL)/x" && mkdir -p "$(DL)/x" && tar xzf HPL-2.0.tar.gz -C x && tar xzf HypExp-2.0.tar.gz -C x || exit 1; \
+	for f in $(HPL_FILES); do cp "$(DL)/x/HPL-2.0/$$f" "$(HPL)/$$f" || exit 1; done; \
+	for f in $(HYPEXP_FILES); do cp "$(DL)/x/HypExp-2.0/$$f" "$(ROOT)/dep/HypExp/$$f" || exit 1; done; \
+	for f in $(MB_FILES); do cp "$(DL)/MB/$$f" "$(ROOT)/dep/MB/$$f" || exit 1; done; \
+	patch -s "$(HPL)/HPL.m" < "$(HPL)/HPL.m.patch" || exit 1; \
+	rm -rf "$(DL)/x"; \
+	cd "$(ROOT)/dep" && $(SHA256) -c UPSTREAM_FILES.sha256 > /dev/null || \
+	  { echo "The installed third-party files do not match dep/UPSTREAM_FILES.sha256"; exit 1; }; \
+	echo "  MB.m, MBresolve.m, Barnes routines, HPL 2.0 and HypExp 2.0 downloaded and verified (HPL.m patched)"
 
 # ---- HyperFLINT: the plain build, and the guarded build with dep/IntVolFLINT/patches applied -----------------------
 
@@ -221,4 +261,7 @@ uninstall:
 clean:
 	rm -rf "$(HF_SRC)/build" "$(HF_SRC)/build-guarded" "$(HF_SRC)/build-guarded-src" "$(HF_SRC)"/build*.log "$(FLINT_PREFIX)" \
 	  "$(HF_BIN)" "$(ROOT)/.venv" "$(ROOT)/.python" "$(ROOT)/config.m"
-	cd "$(HPL)" && rm -f $(TABLE_FILES)
+	cd "$(HPL)" && rm -f $(TABLE_FILES) $(HPL_FILES)
+	cd "$(ROOT)/dep/HypExp" && rm -f $(HYPEXP_FILES)
+	cd "$(ROOT)/dep/MB" && rm -f $(MB_FILES)
+	rm -rf "$(DL)"
