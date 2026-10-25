@@ -4,10 +4,14 @@ This release vendors only the files in the runtime closure of the Standard route
 license files retained in the bundle are authoritative. Packages published without a licence that permits
 redistribution are not part of the repository: `make` downloads them from their authors' pages (below).
 
-- PolyLogTools 1.4: Claude Duhr and Falko Dulat. See `dep/PolyLogTools/README.md` and the package banner.
-  The bundled copy carries the weight-7/8 multiple-zeta-value tables (`core/MZVw78.m`) and the sixth-root-of-unity
-  module; its weight 7--10 boundary-value branch `core/ReduceCG78.m` depended on DIOGENES tables that are not
-  shipped, is reached by no route, and is a fail-closed identity.
+- PolyLogTools 1.4 (Claude Duhr, Falko Dulat; arXiv:1904.07279): NOT redistributed. `make` downloads its files,
+  listed in the `Makefile`, from https://gitlab.com/pltteam/plt at commit e0284d0cba0299f6d584094a053d3e890d13aebe
+  into `dep/PolyLogTools/`, checks them against `dep/UPSTREAM.sha256` and applies `dep/PolyLogTools.patch`, which
+  loads the project's two files `core/MZVw78.m` (the weight-7/8 multiple-zeta values) and `core/ReduceCG78.m` (the
+  weight 7--10 branch of `ReduceCG`, a fail-closed identity reached by no route), adds the same fail-closed identity
+  for weight 6, makes the `GiNaC` interface accept words given as lists, lets the numerical check of `Fiber` tolerate
+  rounding (and skip when `ginsh` is unavailable), and renames the internal `HermiteReduce` of `core/PSLQ.m`, which
+  Mathematica 15 makes a protected System symbol.
 - HPL 2.0 (Daniel Maitre; hep-ph/0507152, hep-ph/0703052) and HypExp 2.0 (Tobias Huber, Daniel Maitre;
   hep-ph/0507094, arXiv:0708.2443): NOT redistributed. `make` downloads `HPL-2.0.tar.gz` and `HypExp-2.0.tar.gz`
   from https://www.physik.uzh.ch/data/HPL/ and https://www.physik.uzh.ch/data/HypExp/, checks them against

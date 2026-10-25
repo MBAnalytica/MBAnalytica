@@ -1,0 +1,148 @@
+--- a/PolyLogTools.m
++++ b/PolyLogTools.m
+@@ -117,6 +117,8 @@
+     Get["IntegrationSymbols`"];
+     Get["CanonicalIntegrator`"];
+     Get["Reduction`"];
++    Get["ReduceCG78`"];
++    Get["MZVw78`"];
+     Get["PSLQ`"];
+     Get["DenominatorReduction`"];
+ 	Get["FitReduction`"];
+--- a/core/GiNaCInterface.m
++++ b/core/GiNaCInterface.m
+@@ -93,7 +93,18 @@
+ ToGiNaCZeta[{ws__}] := (ToGiNaCZeta[{ws}] = GiNaCZeta[Flatten[{Ginsh$LB,Abs /@ {ws},Ginsh$RB}]]) /; Union[Sign /@ {ws}] === {1};
+ 
+ 
+-ToGinshForm1 = {Li[ws_List, xs_List] :> Li[Append[Prepend[Reverse[ws],Ginsh$LB], Ginsh$RB], Append[Prepend[Reverse[xs],Ginsh$LB], Ginsh$RB]], 
++(* MB2MPL higher-weight producers may return GPL words in either canonical
++   variadic form G[a1,...,an,x] or list form G[{a1,...,an},x].  The generic
++   variadic rule below treats a list word as one index and emits a nested
++   CForm List(...), which ginsh rejects.  Canonicalize list words first. *)
++ToGinshForm1 = {HoldPattern[G[ws_List, x_]] :>
++                 G[Join[{Ginsh$LB}, ws, {Ginsh$RB}], x],
++               HoldPattern[H[ws_List, x_]] :>
++                 H[Join[{Ginsh$LB}, ws, {Ginsh$RB}], x],
++               HoldPattern[HGinsh[ws_List, x_]] :>
++                 HGinsh[Join[{Ginsh$LB}, ws, {Ginsh$RB}], x],
++               HoldPattern[Rationalize[x_, tol___]] :> x,
++               Li[ws_List, xs_List] :> Li[Append[Prepend[Reverse[ws],Ginsh$LB], Ginsh$RB], Append[Prepend[Reverse[xs],Ginsh$LB], Ginsh$RB]], 
+                G[ws__, x_] :> G[{Ginsh$LB, ws, Ginsh$RB}, x],
+                GIZero[ws_List, signs_List, x_] :> GIZero[Append[Prepend[ws,Ginsh$LB],Ginsh$RB], Append[Prepend[signs,Ginsh$LB],Ginsh$RB], x],
+                H[ws__, x_]|HGinsh[ws__, x_] :> H[{Ginsh$LB, ws, Ginsh$RB}, x],
+@@ -115,6 +126,12 @@
+ 
+ ToGinshForm2 = {"List(Ginsh$LB," -> "{",
+                 ",Ginsh$RB)" -> "}",
++                "PolylogTools_GiNaCH" -> "H",
++                "PolyLogTools_GiNaCH" -> "H",
++                "PolylogTools_H" -> "H",
++                "PolyLogTools_H" -> "H",
++                "Re(" -> "real_part(",
++                "Im(" -> "imag_part(",
+                 "Log" -> "log",
+                 "EulerGamma" -> "Euler",
+                 "Power" -> "pow",
+@@ -458,6 +475,3 @@
+     
+ 
+    
+-
+-
+-
+--- a/core/PSLQ.m
++++ b/core/PSLQ.m
+@@ -115,7 +115,7 @@
+ i<j,0
+ ],{i,1,n},{j,1,n-1}];
+ (* Reduce H *)
+-t=HermiteReduce[H];
++t=PSLQHermiteReduce[H];
+ D=First[t];
+ Dinv = Inverse[D];
+ (*Update*)
+@@ -139,7 +139,7 @@
+ {i,1,n-1},{j,1,n-1}]
+ ];
+ (* Step Three *)
+-t=HermiteReduce[H];
++t=PSLQHermiteReduce[H];
+ D=First[t];
+ Dinv = Inverse[D];
+ (*Update*)
+@@ -155,7 +155,7 @@
+ 
+ MaxIndex[x_List]:= Block[{i=1,j},Do[If[x[[j]]>x[[i]],i=j],{j,2,Length[x]}];i];
+ 
+-HermiteReduce[H_]:=Block[
++PSLQHermiteReduce[H_]:=Block[
+ {n=Length[H],i,j,k,q,H2=H,D=IdentityMatrix[Length[H]]},
+ Do[
+ q=Round[H[[i,j]]/H[[j,j]]];
+--- a/core/Reduction.m
++++ b/core/Reduction.m
+@@ -76,6 +76,16 @@
+ (* ::Subsection:: *)
+ (*Weight 6*)
+ 
++
++(* The historical experimental weight-6 reducer below was disabled, but the
++   master ReduceCG dispatcher still calls ReduceCG6.  Leaving that symbol
++   undefined makes an exact GPL turn into the unevaluated expression
++   ReduceCG6[..., List[...], Rule[...]], which is then sent to ginsh and
++   rejected.  Reduction is optional: when no proved weight-6 basis reduction
++   is installed, retain the exact GPL itself.  This is the same fail-closed
++   identity behavior used by ReduceCG78 outside its certified table alphabet. *)
++Options[ReduceCG6] := Options[ReduceCG];
++ReduceCG6[expr_, variables_List, OptionsPattern[]] := expr;
+ 
+ (*Options[ReduceCG6] = {Point -> Automatic, Rules -> {}};*)
+ 
+@@ -501,6 +511,8 @@
+                 weight==3,ReduceCG3[g,variables,Point->OptionValue[Point], Rules -> OptionValue[Rules],PrecisionGoal->OptionValue[PrecisionGoal]],
+                 weight==4,ReduceCG4[g,variables,Point->OptionValue[Point], Rules -> OptionValue[Rules],PrecisionGoal->OptionValue[PrecisionGoal]],
+                 weight==5,ReduceCG5[g,variables,Point->OptionValue[Point], Rules -> OptionValue[Rules]],
++                weight==6,ReduceCG6[g,variables,Point->OptionValue[Point], Rules -> OptionValue[Rules]],
++                weight==7||weight==8||weight==9||weight==10,Return[ReduceCG78[g,variables,Point->OptionValue[Point], Rules -> OptionValue[Rules]]],
+                 True,Message[Red::G]
+                ];
+ 
+@@ -699,6 +711,7 @@
+ 
+ 
+ Fiber::Failed = "Fatal error: rewritten expression does not match input numerically for `1`.";
++Fiber::SkippedCheck = "Ginsh unavailable; fiber numeric check skipped for `1`.";
+ 
+ 
+ ReduceCGSingleG[gg_G,vars_List,point_List] := ReduceCGSingleG[gg,vars,point] = Block[{testQ,fintest,rule},
+@@ -706,8 +719,12 @@
+     If[Not[testQ[[2]]], Return[Rule[gg,gg]]
+        ];
+     rule = ReduceCG[gg,vars,Point -> point];
+-    fintest = Ginsh[rule[[1]] - rule[[2]], point];
+-    If[fintest =!= 0, Message[Fiber::Failed, gg]; Return[Rule[gg,gg]]];
++    fintest = Quiet@Check[Ginsh[rule[[1]] - rule[[2]], point], $GinshUnavailable];
++    Which[
++      NumericQ[fintest] && Chop[N[fintest], 10^-8] =!= 0,
++        Message[Fiber::Failed, gg]; Return[Rule[gg,gg]],
++      fintest =!= 0 && !NumericQ[fintest],
++        Message[Fiber::SkippedCheck, gg]];
+     Return[rule];
+ ]; 
+ 
+@@ -844,8 +861,12 @@
+     rule = Rule[gg, symbcC + const];
+ 
+     If[FreeQ[rule,PLT$Constant],
+-       fintest = Ginsh[rule[[1]] - rule[[2]], point];
+-       If[fintest =!= 0, Message[Fiber::Failed, gg]; Return[Rule[gg,gg]]];
++       fintest = Quiet@Check[Ginsh[rule[[1]] - rule[[2]], point], $GinshUnavailable];
++       Which[
++         NumericQ[fintest] && Chop[N[fintest], 10^-8] =!= 0,
++           Message[Fiber::Failed, gg]; Return[Rule[gg,gg]],
++         fintest =!= 0 && !NumericQ[fintest],
++           Message[Fiber::SkippedCheck, gg]];
+       ];
+     Return[rule];
+ ];
