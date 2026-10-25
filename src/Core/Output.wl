@@ -8,23 +8,24 @@
 (*Read inside MBAnalytica`Private` by MBAnalytica.wl.  Every method returns its Laurent coefficients in multiple*)
 (*polylogarithms G (PolyLogTools`G), Log, Zeta, Pi and EulerGamma: harmonic polylogarithms of HarmonicSums (MBSymbolicSum)*)
 (*and of HPL (the MB2MPL engine) and classical polylogarithms of the kinematic variables are rewritten as G.*)
-(*With Complex -> False the real part is taken; with Complex -> True the full complex value is kept.*)
+(*With Complex -> False the exact real part is taken (functions not proved real keep explicit Re and Im); with*)
+(*Complex -> True the full complex value is kept.*)
 
 
 (* ::Section:: *)
 (*Harmonic polylogarithms to G*)
 
 
-(* the sign of a letter on the kinematic domain 0 < x < 1: proved by Refine, else the same sign at five points *)
-LetterSign[Letter_, Vars_List] := Module[{Assumption, Refined, Points, Signs},
+(* the sign of a letter on the kinematic domain 0 < x < 1, proved by Refine or by Resolve (HoldsOnDomain); $Failed when
+   neither proves it, and the function then stays in its original form.  Points sampled on the diagonal prove nothing:
+   1 - 2 x + y is positive at every diagonal point x = y but negative at (9/10, 1/10) *)
+LetterSign[Letter_, Vars_List] := Module[{Assumption, Refined},
   If[Letter === 0, Return[0]];
   Assumption = And @@ Map[(0 < # < 1) &, Vars];
   Refined = Quiet[Refine[Sign[Letter], Assumption]];
   If[MemberQ[{1, -1}, Refined], Return[Refined]];
-  If[Vars === {}, Return[$Failed]];
-  Points = {1/7, 1/3, 1/2, 2/3, 6/7};
-  Signs = Map[Function[Point1, Quiet[Sign[N[Letter /. Thread[Vars -> Point1]]]]], Points];
-  If[Length[DeleteDuplicates[Signs]] === 1 && MemberQ[{1, -1}, First[Signs]], Return[First[Signs]]];
+  If[HoldsOnDomain[Letter > 0, Vars], Return[1]];
+  If[HoldsOnDomain[Letter < 0, Vars], Return[-1]];
   Return[$Failed]];
 
 
@@ -107,12 +108,13 @@ DecideOnDomain[Cond_, Vars_List] := Module[{Assumption, Refined, Resolved},
 (* the decided conditions, keyed by {Cond, Vars}: the same letters recur across thousands of G functions, and each
    undecided Resolve costs its ten seconds again *)
 HoldsOnDomainCache = <||>;
-HoldsOnDomain[Cond_, Vars_List] := Module[{Key, Res},
-  Key = {Cond, Vars};
-  Res = Lookup[HoldsOnDomainCache, Key, Missing[]];
-  If[! MissingQ[Res], Return[Res]];
+HoldsOnDomain[Cond_, Vars_List] := Module[{CacheKey, Res},
+  CacheKey = {Cond, Vars};
+  (* KeyExistsQ, not Lookup: Lookup reads a list as a list of keys, so the cache never answered and no condition was
+     ever decided *)
+  If[KeyExistsQ[HoldsOnDomainCache, CacheKey], Return[HoldsOnDomainCache[CacheKey]]];
   Res = DecideOnDomain[Cond, Vars];
-  HoldsOnDomainCache[Key] = Res;
+  HoldsOnDomainCache[CacheKey] = Res;
   Return[Res]];
 
 
@@ -146,41 +148,70 @@ RealMonomialQ[Factor1_, RealPattern_] := Module[{Fs},
 (* ComplexExpand[Re[Held]] term by term: for a term c m with m a product of the real symbols to integer powers the
    real part is Re[c] m, with ComplexExpand[Re[c]] taken once per distinct constant c; any other term goes through
    ComplexExpand as before.  The same result as ComplexExpand of the whole sum, which on a three-site cosmological
-   coefficient (13802 terms) took longer than four minutes *)
-RealPartByTerms[Held_, RealSymbols_List] := Module[{Expanded, Terms, RealPattern, ConstantRe, TermRe},
+   coefficient (13802 terms) took longer than four minutes.  The complex symbols, those of the functions not proved
+   real, are passed to ComplexExpand, so that their real and imaginary parts stay explicit *)
+ComplexSymbolsIn[Expr_, ComplexSet_Association] := DeleteDuplicates[Cases[Expr, S1_Symbol /; KeyExistsQ[ComplexSet, S1],
+  {0, Infinity}, Heads -> True]];
+RealPartByTerms[Held_, RealSymbols_List, ComplexSymbols_List] := Module[{Expanded, Terms, RealPattern, ComplexSet,
+    ConstantRe, TermRe},
   Expanded = Expand[Held];
   Terms = If[Head[Expanded] === Plus, List @@ Expanded, {Expanded}];
   RealPattern = Alternatives @@ RealSymbols;
+  ComplexSet = AssociationThread[ComplexSymbols, True];
   ConstantRe = <||>;
   TermRe[Term_] := Module[{Fs, Constant1, Rest},
     Fs = If[Head[Term] === Times, List @@ Term, {Term}];
     Constant1 = Times @@ Select[Fs, FreeQ[#, RealPattern] &];
     Rest = Times @@ Select[Fs, ! FreeQ[#, RealPattern] &];
-    If[! RealMonomialQ[Rest, RealPattern], Return[ComplexExpand[Re[Term]], Module]];
-    If[! KeyExistsQ[ConstantRe, Constant1], ConstantRe[Constant1] = ComplexExpand[Re[Constant1]]];
+    If[! RealMonomialQ[Rest, RealPattern], Return[ComplexExpand[Re[Term], ComplexSymbolsIn[Term, ComplexSet]], Module]];
+    If[! KeyExistsQ[ConstantRe, Constant1],
+      ConstantRe[Constant1] = ComplexExpand[Re[Constant1], ComplexSymbolsIn[Constant1, ComplexSet]]];
     Return[ConstantRe[Constant1] Rest, Module]];
   Return[Total[Map[TermRe, Terms]]]];
 
 
-(* seconds for the reality proof of all functions together, and for each numeric probe: past them the proof counts as
-   not given and the probe as failed, so a large coefficient falls back to its full complex value instead of stalling
-   (a three-site cosmological sector with tens of thousands of G functions sat here for hours) *)
+(* seconds for the reality proofs of all functions together, and for each numeric probe: a function whose proof has
+   not finished by then counts as not proved real, and a probe that has not finished as not evaluated, so a large
+   coefficient keeps explicit real and imaginary parts instead of stalling (a three-site cosmological sector with
+   tens of thousands of G functions sat here for hours) *)
 RealPartBudget = 300;
 
 
-(* the real part with every function held as a real symbol: accepted when it agrees with the real part of the full
-   value at the probe points (or, without kinematic variables, at the single point), or when every function is
-   proved real on the domain.  The probes come first: they are cheap, and when they are numbers they decide (if
-   every function is real the candidate is the exact real part, so a disagreement means some function is not); the
-   proof runs only when a probe could not be evaluated. *)
-RealPart[Expr_, Vars_List] := Module[{Functions, Holders, ToHolders, FromHolders, Held, Candidate, Points, Probes, Proved},
+(* whether a function is proved real on the domain before the deadline *)
+ProvedRealQ[Function1_, Vars_List, Deadline_] := Module[{Left},
+  Left = Deadline - AbsoluteTime[];
+  If[Left <= 0, Return[False]];
+  Return[TrueQ[TimeConstrained[RealFunctionQ[Function1, Vars], Left, False]]]];
+
+
+(* Re and Im of a logarithm: Log of the modulus and the argument, refined on the domain *)
+LogParts[Expr_, Vars_List] := Module[{Assumption, Res},
+  Assumption = And @@ Map[(0 < # < 1) &, Vars];
+  Res = Expr /. {Re[Log[A1_]] :> Log[Abs[A1]], Im[Log[A1_]] :> Arg[A1]};
+  Res = Res /. {Abs[A1_] :> Quiet[Refine[Abs[A1], Assumption]], Arg[A1_] :> Quiet[Refine[Arg[A1], Assumption]]};
+  Return[Res]];
+
+
+(* the exact real part on the whole domain 0 < x < 1: every function proved real there (RealFunctionQ) is held as a
+   real symbol, every other one as a complex symbol, whose real and imaginary parts stay explicit, Re[G[...]] and
+   Im[G[...]] (for a logarithm, Log of the modulus and the argument).  No sampled point decides: I Log[1 - 2 x + y]
+   is real at every diagonal point but has the real part -Pi at (9/10, 1/10), and its result is -Arg[1 - 2 x + y].
+   The two numeric probes only check the construction; a disagreement returns $Failed, and the full complex value
+   is kept *)
+RealPart[Expr_, Vars_List] := Module[{Functions, Deadline, RealQ, Holders, RealHolders, ComplexHolders, ToHolders,
+    FromHolders, Held, Candidate, Points, Probes},
   Functions = DeleteDuplicates[Cases[Expr, FunctionPattern, {0, Infinity}]];
+  Deadline = AbsoluteTime[] + RealPartBudget;
+  RealQ = Map[ProvedRealQ[#, Vars, Deadline] &, Functions];
   Holders = Table[Symbol["MBAnalytica`Private`RealHolder" <> ToString[K]], {K, Length[Functions]}];
+  RealHolders = Pick[Holders, RealQ];
+  ComplexHolders = Pick[Holders, RealQ, False];
   ToHolders = Dispatch[Thread[Functions -> Holders]];
   FromHolders = Dispatch[Thread[Holders -> Functions]];
   Held = Expr /. ToHolders;
-  Candidate = RealPartByTerms[Held, Join[Holders, Vars]];
+  Candidate = RealPartByTerms[Held, Join[RealHolders, Vars], ComplexHolders];
   Candidate = Candidate /. FromHolders;
+  Candidate = LogParts[Candidate, Vars];
   Candidate = Expand[Candidate];
   If[Functions === {}, Return[Candidate]];
   Points = If[Vars === {}, {{}}, Map[Function[Point1, Thread[Vars -> Point1]], {1/3, 5/7}]];
@@ -192,10 +223,7 @@ RealPart[Expr_, Vars_List] := Module[{Functions, Holders, ToHolders, FromHolders
       Abs[Re[Whole] - Part1] <= 10^-8 Max[1, Abs[Whole]], True,
       True, False]]], Points];
   If[MemberQ[Probes, False], Return[$Failed]];
-  If[AllTrue[Probes, TrueQ], Return[Candidate]];
-  Proved = TimeConstrained[AllTrue[Functions, RealFunctionQ[#, Vars] &], RealPartBudget, False];
-  If[Proved, Return[Candidate]];
-  Return[$Failed]];
+  Return[Candidate]];
 
 
 (* ::Section:: *)

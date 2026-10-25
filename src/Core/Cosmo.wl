@@ -204,6 +204,7 @@ Options[CosmoTreeMB] = {"Energies" -> Automatic, "Point" -> Automatic, "KLegs" -
 CosmoTreeMB::point = "A numeric kinematic point {x, y} (or {x, y, K-leg energies}) is needed to choose the positive rewriting of each orientation.";
 CosmoTreeMB::nopush = "Orientation `1` has no rewriting with positive coefficients at the given point.";
 CosmoTreeMB::tree = "The lines `1` do not form a tree on the vertices 1, ..., `2`.";
+CosmoTreeMB::unit = "At the given point, the kinematic variables `1` of the orientation with later vertices `2` are not all in the unit interval (values `3`); MBEvaluate takes them in 0 < x < 1.";
 
 
 CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, Energies, XX, YY, KLegs, Point1, XP, YP,
@@ -247,4 +248,16 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
         Terms1 = Select[Terms1, MemberQ[OptionValue["Terms"], Map[If[# === None, None, #[[2]]] &, #]] &]];
       Map[CosmoOrientation[Edges, Later, Push, BaseV, RV, NuL, KLegs, XX, YY, OptionValue["VariableName"], #] &, Terms1]]],
     Orients];
-  Return[Flatten[Results]]];
+  Results = Flatten[Results];
+  (* the positive rewriting makes the kinematic variables positive at the point; that they are also below 1, as
+     MBEvaluate assumes, is checked here *)
+  CosmoCheckUnit[Results, Join[Thread[XX -> XP], Thread[YY -> YP], Thread[KLegs[[All, 2]] -> KP[[All, 2]]]]];
+  Return[Results]];
+
+
+(* a message for every orientation whose kinematic variables are not all in (0, 1) at the point *)
+CosmoCheckUnit[Results_List, PointRules_List] := Scan[Function[R1, Module[{Values1},
+    If[! AssociationQ[R1], Return[Null, Module]];
+    Values1 = N[R1["Variables"][[All, 2]] /. PointRules];
+    If[! AllTrue[Values1, NumericQ[#] && 0 < # < 1 &],
+      Message[CosmoTreeMB::unit, R1["Variables"][[All, 1]], R1["Later"], Values1]]]], Results];
