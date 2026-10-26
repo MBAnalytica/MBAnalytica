@@ -37,6 +37,46 @@ Say[Verbose1_, Parts__] := If[TrueQ[Verbose1], Print["  ", Parts]];
 
 
 (* ::Section:: *)
+(*Values of the user*)
+
+
+(* the values that the user gave to Global` symbols must not reach the methods: HypExp is read with Global` on its
+   context path (BeginPackage["HypExp`", {"HPL`", "Global`"}]), so a user's e = eps became the value of its own
+   pattern variable e, and the Subtraction method returned HypExp`Private`DenCoeff[...]; with x, n, k, S, L, ... set,
+   the kernel crashed.  While the methods load and run, every Global` symbol that holds a value of the user is
+   therefore blocked.  Kept are the names with $ (the settings, such as $KernelLaunch), the values that the methods
+   and their packages set themselves, and every symbol with definitions. *)
+EngineGlobals = {};
+
+
+GlobalValueQ[Name_String] := ToExpression["Global`" <> Name, InputForm,
+  Function[Sym, OwnValues[Sym] =!= {} && DownValues[Sym] === {} && SubValues[Sym] === {} && UpValues[Sym] === {} &&
+    FreeQ[Attributes[Sym], Protected | Locked], HoldAll]];
+
+
+GlobalValueNames[] := Module[{Names1},
+  Names1 = StringDelete[Names["Global`*"], StartOfString ~~ "Global`"];
+  Names1 = Select[Names1, ! StringStartsQ[#, "$"] &];
+  Return[Select[Names1, GlobalValueQ]]];
+
+
+SetAttributes[KeepEngineGlobals, HoldAll];
+KeepEngineGlobals[Expr_] := Module[{Result},
+  Result = Expr;
+  EngineGlobals = Union[EngineGlobals, GlobalValueNames[]];
+  Return[Result]];
+
+
+SetAttributes[WithoutUserValues, HoldAll];
+WithoutUserValues[Expr_] := Module[{UserNames, Held, Result},
+  UserNames = Complement[GlobalValueNames[], EngineGlobals];
+  Held = Map[ToExpression["Global`" <> #, InputForm, Hold] &, UserNames];
+  Held = Join[Hold[], Sequence @@ Held];
+  Result = Replace[Held, Hold[Syms___] :> Block[{Syms}, KeepEngineGlobals[Expr]]];
+  Return[Result]];
+
+
+(* ::Section:: *)
 (*Loading the methods*)
 
 
@@ -351,7 +391,7 @@ MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Modul
   Kinematics = KinematicVariables[MBInt, MBVar, Eps];
   Say[Settings["Verbose"], "MBEvaluate: methods ", Methods, ", kinematic variables ",
     If[Kinematics === {}, "none", Kinematics]];
-  Lo = LeadingPole[MBInt, Eps, Ord];
+  Lo = WithoutUserValues[LeadingPole[MBInt, Eps, Ord]];
   If[! IntegerQ[Lo], Message[MBEvaluate::pole]; Return[$Failed]];
   Say[Settings["Verbose"], "MBEvaluate: orders ", Eps, "^", Lo, " through ", Eps, "^", Ord];
   Coefficients = Association[Map[# -> MBFailed[{"not attempted"}] &, Range[Lo, Ord]]];
@@ -359,13 +399,13 @@ MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Modul
     OpenKeys = Select[Keys[Coefficients], Head[Coefficients[#]] === MBFailed &];
     If[OpenKeys === {}, Break[]];
     Say[Settings["Verbose"], "MBEvaluate: ", M1, " on ", Eps, "^", Min[OpenKeys], " .. ", Eps, "^", Max[OpenKeys]];
-    Got = RunMethod[M1, MBInt, MBVar, Kinematics, Eps, Min[OpenKeys], Max[OpenKeys], Settings];
+    Got = WithoutUserValues[RunMethod[M1, MBInt, MBVar, Kinematics, Eps, Min[OpenKeys], Max[OpenKeys], Settings]];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] =!= MBFailed, Coefficients[K1] = Got[K1]]], OpenKeys];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] === MBFailed, Coefficients[K1] = Got[K1]]],
       Select[OpenKeys, Head[Coefficients[#]] === MBFailed &]],
     {M1, Methods}];
   OpenOrders = Select[Keys[Coefficients], Head[Coefficients[#]] === MBFailed &];
   If[OpenOrders =!= {}, Message[MBEvaluate::open, Map[Eps^# &, OpenOrders]]];
-  Finished = Association[KeyValueMap[#1 -> FinishCoefficient[#2, Kinematics, Settings["Complex"]] &, Coefficients]];
+  Finished = WithoutUserValues[Association[KeyValueMap[#1 -> FinishCoefficient[#2, Kinematics, Settings["Complex"]] &, Coefficients]]];
   ShowOutputContexts[];
   Return[AssembleSeries[Finished, Eps]]];
