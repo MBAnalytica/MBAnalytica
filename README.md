@@ -34,46 +34,42 @@ The repository includes `HyperIntica` and an extension of the integrator `HyperF
 
 ## Installation
 
-1. Clone this repository:
+1. Clone this repository.
 
 ```bash
 git clone https://github.com/MBAnalytica/MBAnalytica.git
 cd MBAnalytica
 ```
 
-2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3). To see the command for your system, run
+2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3). The command below prints the installation command for your system, which you then run.
 
 ```bash
 make deps
 ```
 
-   and then run the command it prints.
-
-3. Download the packages [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) of RISC, which are needed by the method `SymbolicSum`. They are not distributed with `MBAnalytica`: obtain them yourself from these pages, following the instructions there, and put them into one folder. Then build the package, giving that folder:
+3. Download [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) from RISC and put them in one folder. These packages are needed by the method `SymbolicSum` and are not distributed with `MBAnalytica`. Then build the package with the path to this folder.
 
 ```bash
 make RISC=/path/to/RISC
 ```
 
-   This downloads the packages listed above and the tables of weight nine and ten (about 130 MB, from the release `hpl-tables-v1`), checks them against their checksums, builds `HyperFLINT` and writes `config.m`. On a machine without internet access, `make UPSTREAM=/path TABLES=/path` uses local copies instead.
+   This also downloads the other packages listed above and the HPL tables of weight nine and ten, and checks them. On a machine without internet access, `make UPSTREAM=/path TABLES=/path` uses local copies instead.
 
-4. Check the installation and add the folder to Mathematica's `$Path`:
+4. Test the installation and add the package to the `$Path` of Mathematica.
 
 ```bash
 make test
 make install
 ```
 
-5. Load the package in Mathematica and check the installation:
+5. Load the package in Mathematica and check which methods are available.
 
 ```mathematica
 << MBAnalytica.wl
 MBAnalyticaCheck[]
 ```
 
-   `MBAnalyticaCheck[]` lists every dependency that was found, says how to obtain a missing one, and reports which of the methods `SymbolicSum`, `ExpandInt` and `Subtraction` can run on the machine.
-
-6. Evaluate an MB integral. For instance, `MBEvaluate[MB1, {ε, 0}]` returns the Laurent expansion of the MB integrand `MB1` through ε<sup>0</sup>. The notebook `Examples_MBAnalytica.nb` shows the examples of the paper.
+6. Evaluate an MB integral, for instance `MBEvaluate[MB1, {ε, 0}]`, which returns the Laurent expansion of the MB integrand `MB1` through ε<sup>0</sup>. The notebook `Examples_MBAnalytica.nb` contains the examples of the paper.
 
 ## Files
 
