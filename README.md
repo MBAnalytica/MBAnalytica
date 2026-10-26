@@ -67,7 +67,7 @@ make install
 MBAnalyticaCheck[]
 ```
 
-6. Evaluate an MB integral, for instance `MBEvaluate[MB1, {ε, 0}]`, which returns the Laurent expansion of the MB integrand `MB1` through ε<sup>0</sup>. The notebook `Examples_MBAnalytica.nb` contains the examples of the paper.
+6. Evaluate an MB integral, for instance `MBEvaluate[MB1, {ε, 0}]`, which returns the Laurent expansion of the MB integrand `MB1` through ε<sup>0</sup>. The notebook `Examples.nb` contains the examples of the paper.
 
 ## Files
 
@@ -77,8 +77,7 @@ MBAnalyticaCheck[]
 | `src/` | The three methods, the top-level command `MBEvaluate` and the command `CosmoTreeMB` |
 | `dep/` | Bundled packages, and the folders into which the downloaded packages and tables are installed |
 | `tests/` | Installation test and benchmark integrals |
-| `examples/` | Closed forms of the expansions of the double-exchange bispectrum |
-| `Examples_MBAnalytica.nb` | Example evaluations |
+| `Examples.nb` | Example evaluations |
 | `Makefile` | Installation |
 
 ## Authors
