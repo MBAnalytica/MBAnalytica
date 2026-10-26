@@ -1,5 +1,5 @@
 #!/usr/bin/env wolframscript
-(* AUTHORSHIP (release R3.1, 2026-10-04): MB2MPL regression helper.  Authors of MB2MPL: Taushif Ahmed, Sumit Banik,
+(* AUTHORSHIP (release R3.1, 2026-10-04): MBSymbolicInt regression helper.  Authors of MBSymbolicInt: Taushif Ahmed, Sumit Banik,
    Syed Mehedi Hasan, Andreas Rapakoulias. *)
 (* run_target.wls -- ONE target of the release on the SUBTRACTION route in this fresh kernel, every piece recomputed
    (disk cache off, no checkpoint resume), through the public calls:
@@ -42,8 +42,8 @@ Module[{here, kind = Environment["KIND"], name = Environment["NAME"], lo = Quiet
   Global`$mbtNestedInWorker = True; Global`$mbtMainKernelBudget = b; Global`$oftResidueHelpers = h;
   Global`$orsVerbose = True;
   MBParameterSubtractionHF`$PSHNativeWorkers = nw;
-  Get[FileNameJoin[{here, "MB2MPL_StandardRoute.wl"}]];
-  MBtoMPL`Private`$mbtUseMB2MPLDiskCache = False;
+  Get[FileNameJoin[{here, "MBSymbolicInt_StandardRoute.wl"}]];
+  MBAnalytica`SymbolicInt`Private`$mbtUseMBSymbolicIntDiskCache = False;
   Print["TARGET ", kind, " ", name, " eps^", lo, "..eps^", hi, "  ", $MBSerialRoute, " route  piece kernels ", pk, "  native workers ", nw,
     "  helpers ", h, "  main-kernel budget ", b, "  ", DateString[]];
   t0 = AbsoluteTime[];
@@ -83,7 +83,7 @@ Module[{here, kind = Environment["KIND"], name = Environment["NAME"], lo = Quiet
       If[ks =!= {},
         ok = With[{d = here, f = fresh}, Quiet@ParallelEvaluate[Off[General::shdw]; SetDirectory[d];
             If[f, Global`$mbtNestedInWorker = True; Global`$oftResidueHelpers = 0;
-              Block[{$Output = {}}, Quiet@Get[FileNameJoin[{d, "MB2MPL_StandardRoute.wl"}]]]];
+              Block[{$Output = {}}, Quiet@Get[FileNameJoin[{d, "MBSymbolicInt_StandardRoute.wl"}]]]];
             Length[DownValues[MBParameter`Private`parameterNumericValue]] > 0, ks, DistributedContexts -> None]];
         If[! (ListQ[ok] && Length[ok] === Length[ks] && AllTrue[ok, TrueQ]), If[own =!= {}, Quiet@CloseKernels[own]]; own = {}; ks = {}]],
       ks = {}];

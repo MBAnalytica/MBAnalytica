@@ -1,5 +1,5 @@
 #!/usr/bin/env wolframscript
-(* AUTHORSHIP (release R2, 2026-09-07): MB2MPL regression script. Authors of MB2MPL: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
+(* AUTHORSHIP (release R2, 2026-09-07): MBSymbolicInt regression script. Authors of MBSymbolicInt: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
 (* Full regression of the MB_standard release with timing: every benchmark target through the Standard route (sealed
    core + rungs, no library), every piece recomputed (disk cache off, no checkpoint resume), per-target wall times.
    Usage:  PK=8 wolframscript -file run_regression.wls          (PK = maximum piece workers per target; default Automatic = the resource policy;
@@ -20,7 +20,7 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
   If[here === "", here = Directory[]];
   SetDirectory[here];
   (* MBAnalytica layout: the run-time stores are in the cache folder (MBANALYTICA_CACHE, else the default of
-     configure_runtime.m), the engine in src/MB2MPL *)
+     configure_runtime.m), the engine in src/SymbolicInt *)
   cacheDir = With[{e = Environment["MBANALYTICA_CACHE"]}, If[StringQ[e] && e =!= "", e,
     FileNameJoin[{$UserBaseDirectory, "ApplicationData", "MBAnalytica"}]]];
   pk = ToExpression[Environment["PK"]]; If[! IntegerQ[pk] || pk < 0, pk = Automatic];   (* Automatic = the resource policy (2026-09-08) *)
@@ -40,10 +40,10 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
     Module[{stamp = DateString[{"Year", "Month", "Day", "_", "Hour", "Minute", "Second"}], moved = {}},
       Do[With[{d = FileNameJoin[{cacheDir, s}]},
           If[DirectoryQ[d] && Quiet@Check[RenameDirectory[d, d <> "_before_" <> stamp], $Failed] =!= $Failed, AppendTo[moved, s]]],
-        {s, {"fcu", "hypergeometric_blocks", "multifold_close", "multifold_family", "mb2mpl", "doab", "shared_affine_gauss", "oft_residues"}}];
+        {s, {"fcu", "hypergeometric_blocks", "multifold_close", "multifold_family", "symbolicint", "doab", "shared_affine_gauss", "oft_residues"}}];
       Print["FRESH  run-time state set aside before the regression: ", If[moved === {}, "none present", moved], "  (FRESH=0 keeps it)"]]];
-  Get[FileNameJoin[{here, "MB2MPL_StandardRoute.wl"}]];
-  MBtoMPL`Private`$mbtUseMB2MPLDiskCache = False;
+  Get[FileNameJoin[{here, "MBSymbolicInt_StandardRoute.wl"}]];
+  MBAnalytica`SymbolicInt`Private`$mbtUseMBSymbolicIntDiskCache = False;
   Print["MB_standard regression: ", DateString[], "  PieceKernels ", pk, "  disk cache off  resume off"];
   t0 = AbsoluteTime[];
   (* ---- release R3.1 (4 October 2026): on the Subtraction route every inclusive target of the ledger (to its

@@ -1,5 +1,5 @@
-(* AUTHORSHIP (release R2, 2026-09-07): MB2MPL Standard-route cluster script. Authors of MB2MPL: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
-(* run_standard.m -- the MB2MPL Standard route from the command line, for a cluster (no front end).
+(* AUTHORSHIP (release R2, 2026-09-07): MBSymbolicInt Standard-route cluster script. Authors of MBSymbolicInt: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
+(* run_standard.m -- the MBSymbolicInt Standard route from the command line, for a cluster (no front end).
    Run from anywhere:   math -script /path/to/MB_standard/run_standard.m        (or: wolframscript -file ...)
    Everything is set through environment variables (all optional):
      TARGETS        comma-separated benchmark targets, or "all" (default): MB1 ... MB14 (MB8 = MB8a + MB8b, MB14 = MB14a + MB14b),
@@ -36,8 +36,8 @@ Module[{here, env, orders, workers, mode, cacheQ, resumeQ, intFile, reportFile, 
   $MBSerialOrderMode = "SealedStandard";
   (* ROUTE: "Standard" (default) or "Subtraction" (the one-fold tower-closure and faithful-cube rungs) *)
   $MBSerialRoute = If[ToLowerCase[env["ROUTE", "Standard"]] === "subtraction", "Subtraction", "Standard"];
-  Get[FileNameJoin[{here, "MB2MPL_StandardRoute.wl"}]];
-  MBtoMPL`Private`$mbtUseMB2MPLDiskCache = cacheQ;
+  Get[FileNameJoin[{here, "MBSymbolicInt_StandardRoute.wl"}]];
+  MBAnalytica`SymbolicInt`Private`$mbtUseMBSymbolicIntDiskCache = cacheQ;
   Print["run_standard: ", DateString[], "  route ", $MBSerialRoute, "  workers (maximum) ", workers, "  mode ", mode, "  cache ", cacheQ, "  resume ", resumeQ,
     "  licence: ", $MaxLicenseSubprocesses, " subkernels / ", $MaxLicenseProcesses, " main kernels; cores ", $ProcessorCount];
   t0 = AbsoluteTime[];

@@ -10,7 +10,7 @@
 
 (* ::Text:: *)
 (*Authors: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias.*)
-(*Three methods: SymbolicSum (series solutions summed by EvaluateMultiSums), ExpandInt and Subtraction (the MB2MPL*)
+(*Three methods: SymbolicSum (series solutions summed by EvaluateMultiSums), ExpandInt and Subtraction (the MBSymbolicInt*)
 (*engine: exact Euler integrals and boundary subtraction).  This file is the only one a user loads; it loads the*)
 (*methods themselves the first time they are used.  See README.md for installation and Examples.nb for examples.*)
 

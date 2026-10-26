@@ -40,7 +40,7 @@ Say[Verbose1_, Parts__] := If[TrueQ[Verbose1], Print["  ", Parts]];
 (*Loading the methods*)
 
 
-MBToolsDirectory = FileNameJoin[{PackageRoot, "src", "MB2MPL", "mbtools"}];
+MBToolsDirectory = FileNameJoin[{PackageRoot, "src", "SymbolicInt", "mbtools"}];
 
 
 (* Every method loads with the user's $ContextPath kept as it was: a package that exports a common name (PolyLogTools
@@ -105,8 +105,8 @@ LoadSymbolicSum[] := Module[{SymbolicSumFile, Folder},
   Return[SymbolicSumLoaded]];
 
 
-LoadMB2MPL[] := Module[{Loader, StartDirectory},
-  If[TrueQ[MB2MPLLoaded], Return[True]];
+LoadSymbolicInt[] := Module[{Loader, StartDirectory},
+  If[TrueQ[SymbolicIntLoaded], Return[True]];
   (* the RISC packages of SymbolicSum load before the engine: the engine leaves symbols such as S, L$ and F$ in Global`,
      and HarmonicSums, Sigma and EvaluateMultiSums loaded after it share these names with them (L$::shdw, F$::shdw),
      after which EvaluateMultiSums solved none of the nested sums of a later SymbolicSum call (and on 16 GB the kernel
@@ -115,19 +115,19 @@ LoadMB2MPL[] := Module[{Loader, StartDirectory},
   LoadMBTools[];
   CacheDirectory[];
   StartDirectory = Directory[];
-  Loader = FileNameJoin[{PackageRoot, "src", "MB2MPL", "load_standard.m"}];
+  Loader = FileNameJoin[{PackageRoot, "src", "SymbolicInt", "load_standard.m"}];
   Block[{$Output = {}, $ContextPath = FreshContextPath},
     CheckAbort[Get[Loader], Null];
     EngineContextPath = $ContextPath];
   SetDirectory[StartDirectory];
-  MB2MPLLoaded = TrueQ[Global`$MBStandardLoaded];
+  SymbolicIntLoaded = TrueQ[Global`$MBStandardLoaded];
   ShowOutputContexts[];
-  Return[MB2MPLLoaded]];
+  Return[SymbolicIntLoaded]];
 
 
 LoadMethod[Method1_String] := Switch[Method1,
   "SymbolicSum", LoadSymbolicSum[],
-  "ExpandInt" | "Subtraction", LoadMB2MPL[],
+  "ExpandInt" | "Subtraction", LoadSymbolicInt[],
   _, False];
 
 
@@ -182,7 +182,7 @@ ResolvedQ[Resolved_] := ListQ[Resolved] && Resolved =!= {};
 LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
   LoadMBTools[];
   Resolved = ResolveIntegral[MBInt, Eps];
-  If[! ResolvedQ[Resolved] && IntersectingQ[$MBAnalyticaMethods, {"ExpandInt", "Subtraction"}] && LoadMB2MPL[],
+  If[! ResolvedQ[Resolved] && IntersectingQ[$MBAnalyticaMethods, {"ExpandInt", "Subtraction"}] && LoadSymbolicInt[],
     Resolved = ResolveIntegral[MBInt, Eps]];
   If[! ResolvedQ[Resolved], Return[$Failed]];
   Block[{$Output = {}},
@@ -242,7 +242,7 @@ EngineRegulator[MBInt_, Eps_] := Module[{PltEps},
   Return[If[Eps === PltEps || FreeQ[MBInt, PltEps], PltEps, MBAnalytica`Private`\[Epsilon]]]];
 
 
-(* the MB2MPL engine: one call for the whole range; when a piece was ledgered, the orders are re-run one by one so
+(* the MBSymbolicInt engine: one call for the whole range; when a piece was ledgered, the orders are re-run one by one so
    that exactly the open orders are reported *)
 EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Association] := Module[
   {Reg, Integrand, Options1, Result, Ledger, Exact, Census, Budget},
@@ -267,20 +267,20 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   Census = If[DownValues[Global`mbtMySubkernelCount] =!= {}, Global`mbtMySubkernelCount[], 0];
   Budget = Max[1, KernelCount[]] + If[IntegerQ[Census], Census, 0];
   SetEnvironment["MBT_SUBKERNEL_BUDGET" -> ToString[Budget]];
-  Result = Block[{$ContextPath = EngineContextPath, MBtoMPL`Private`$mbtGlobalBarnesBudget = EngineSeconds,
+  Result = Block[{$ContextPath = EngineContextPath, MBAnalytica`SymbolicInt`Private`$mbtGlobalBarnesBudget = EngineSeconds,
       Global`$oftResidueHelpers = Max[0, KernelCount[] - 1], MBParameterSubtractionHF`$PSHNativeWorkers = Max[1, KernelCount[]],
       Global`$fcuMaxWorkers = Max[1, KernelCount[]], Global`$fcuLaneBudget = 3 Max[1, KernelCount[]],
       Global`$mbtSubkernelBudget = Budget},
-    CheckAbort[MBtoMPL`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]];
+    CheckAbort[MBAnalytica`SymbolicInt`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]];
   SetEnvironment["MBT_SUBKERNEL_BUDGET" -> None];
-  Ledger = If[Kinematics === {} && ListQ[MBtoMPL`Private`$mbtFailedPieces], MBtoMPL`Private`$mbtFailedPieces, {}];
+  Ledger = If[Kinematics === {} && ListQ[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], MBAnalytica`SymbolicInt`Private`$mbtFailedPieces, {}];
   Exact = Result =!= $Failed && Result =!= $Aborted && ! FailureQ[Result] && Ledger === {} &&
-    FreeQ[Result, $Failed | $Aborted | Indeterminate | ComplexInfinity | MBtoMPL`Private`mbeUnsubtractedPole] &&
+    FreeQ[Result, $Failed | $Aborted | Indeterminate | ComplexInfinity | MBAnalytica`SymbolicInt`Private`mbeUnsubtractedPole] &&
     Cases[Result, N1_?NumberQ /; Precision[N1] =!= Infinity, {0, Infinity}] === {};
   Return[<|"Exact" -> Exact, "Result" -> (Result /. Reg -> Eps)|>]];
 
 
-(* the engine route of a method: the ExpandInt method is the Standard route of the MB2MPL engine *)
+(* the engine route of a method: the ExpandInt method is the Standard route of the MBSymbolicInt engine *)
 EngineRoute["ExpandInt"] = "Standard";
 EngineRoute["Subtraction"] = "Subtraction";
 
@@ -288,7 +288,7 @@ EngineRoute["Subtraction"] = "Subtraction";
 RunEngine[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Method1_String, Opts_Association] := Module[
   {Route, Call, Expanded, Coefs, Single},
   Route = EngineRoute[Method1];
-  If[! LoadMB2MPL[], Return[FailAll[Lo, Hi, Method1, "the method could not be loaded"]]];
+  If[! LoadSymbolicInt[], Return[FailAll[Lo, Hi, Method1, "the method could not be loaded"]]];
   Call = EngineCall[MBInt, Kinematics, Eps, Lo, Hi, Route, Opts];
   If[TrueQ[Call["Exact"]],
     Expanded = Expand[Call["Result"]];

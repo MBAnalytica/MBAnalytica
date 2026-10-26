@@ -1,6 +1,6 @@
 #!/usr/bin/env wolframscript
-(* AUTHORSHIP (release R3, 2026-09-29): MB2MPL, the general multifold handler on a differential family.
-   Authors of MB2MPL: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
+(* AUTHORSHIP (release R3, 2026-09-29): MBSymbolicInt, the general multifold handler on a differential family.
+   Authors of MBSymbolicInt: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
 (* The general multifold handler of the Subtraction route (mbeMultifoldHandler.m) on the differential families of an
    inclusive target: every family of mb_u_targets.m is resolved (mbeParameterResidueRung.m), its residues are u-integrated
    at the MB level, closed by the stabilized finite-eps Barnes chains, the gated pair census and the closing chain, the eta
@@ -25,8 +25,8 @@ Quiet@SetSystemOptions["ParallelOptions" -> {"ParallelThreadNumber" -> 1, "MKLTh
 here = DirectoryName[ExpandFileName[If[StringQ[$InputFileName] && $InputFileName =!= "", $InputFileName, First[$ScriptCommandLine]]]];
 If[here === "", here = Directory[]];
 SetDirectory[here];
-(* the release loader in the MBAnalytica layout (src/MB2MPL): core, rungs, the handler installed in the multi-fold slot *)
-Get[FileNameJoin[{ParentDirectory[ParentDirectory[here]], "src", "MB2MPL", "load_standard.m"}]];
+(* the release loader in the MBAnalytica layout (src/SymbolicInt): core, rungs, the handler installed in the multi-fold slot *)
+Get[FileNameJoin[{ParentDirectory[ParentDirectory[here]], "src", "SymbolicInt", "load_standard.m"}]];
 args = Join[$ScriptCommandLine, $CommandLine];
 opt[k_, d_] := Module[{a = SelectFirst[args, StringStartsQ[#, k <> "="] &]}, If[StringQ[a], StringDrop[a, StringLength[k] + 1], d]];
 famArgs = Select[args, StringMatchQ[#, "MB" ~~ __ ~~ "u"] && !StringContainsQ[#, "/"] && !StringContainsQ[#, "="] &];

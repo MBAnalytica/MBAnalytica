@@ -226,7 +226,7 @@ python:
 	elif [ -x "$(ROOT)/.venv/bin/python3" ] && "$(ROOT)/.venv/bin/python3" -c "$(PY_PACKAGES)" 2>/dev/null; then \
 	  echo "$(ROOT)/.venv/bin/python3" > "$(ROOT)/.python"; echo "  Python environment present: $(ROOT)/.venv"; \
 	elif "$(PYTHON3)" -m venv "$(ROOT)/.venv" >/dev/null 2>&1 && \
-	     "$(ROOT)/.venv/bin/pip" install --quiet -r "$(ROOT)/src/MB2MPL/parameter_support/requirements.txt"; then \
+	     "$(ROOT)/.venv/bin/pip" install --quiet -r "$(ROOT)/src/SymbolicInt/parameter_support/requirements.txt"; then \
 	  echo "$(ROOT)/.venv/bin/python3" > "$(ROOT)/.python"; echo "  Python environment ready: $(ROOT)/.venv"; \
 	elif [ -n "$(PYTHON3)" ] && "$(PYTHON3)" -c "$(PY_PACKAGES)" 2>/dev/null; then \
 	  rm -rf "$(ROOT)/.venv"; echo "$(PYTHON3)" > "$(ROOT)/.python"; \

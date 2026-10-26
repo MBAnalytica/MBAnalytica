@@ -1,4 +1,4 @@
-(* AUTHORSHIP (release R2, 2026-09-07): MB2MPL benchmark targets (comparison data only). Authors of MB2MPL: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
+(* AUTHORSHIP (release R2, 2026-09-07): MBSymbolicInt benchmark targets (comparison data only). Authors of MBSymbolicInt: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias. *)
 (* CONVENTION WARNING (2026-07-04): Zeta[5,3] in the MBiVal expressions means
    the MZV zeta(5,3) = Sum_{m>n} m^-5 n^-3 = 0.0377076729848..., NOT
    Mathematica's Hurwitz Zeta[5,3] = 0.005677755... Plain N[] on these

@@ -23,7 +23,7 @@ redistribution are not part of the repository: `make` downloads them from their 
   the large ones are attached to the release hpl-tables-v1 and downloaded by `make`.
 - HyperIntica (SubTropica): M. Giroux, S. Mizera and G. Salvatori, *SubTropica*, arXiv:2604.20954; a native
   Mathematica reimplementation of E. Panzer's HyperInt (arXiv:1403.3385).  See `dep/HyperIntica/LICENSE`,
-  `dep/HyperIntica/LICENSE-DATA` and `dep/HyperIntica/README.md`.  Used by MB2MPL's IntVolFLINT strategy as
+  `dep/HyperIntica/LICENSE-DATA` and `dep/HyperIntica/README.md`.  Used by MBSymbolicInt's IntVolFLINT strategy as
   the exact evaluator of hyperlogarithm words.
 - IntVolFLINT, a fork of HyperFLINT 1.2.13 (SubTropica; M. Giroux, S. Mizera, G. Salvatori; MIT license): the fork's
   additions (marked `// IVF:` in the source) are by Syed Mehedi Hasan; the upstream code and its licence are retained:
