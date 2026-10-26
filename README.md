@@ -64,13 +64,16 @@ make test
 make install
 ```
 
-5. Load the package in Mathematica:
+5. Load the package in Mathematica and check the installation:
 
 ```mathematica
-   << MBAnalytica.wl
+<< MBAnalytica.wl
+MBAnalyticaCheck[]
 ```
 
-   For instance, `MBEvaluate[MB1, {ε, 0}]` returns the Laurent expansion of the MB integrand `MB1` through ε<sup>0</sup>, and `MBAnalyticaCheck[]` reports which methods can run on the machine.
+   `MBAnalyticaCheck[]` lists every dependency that was found, says how to obtain a missing one, and reports which of the methods `SymbolicSum`, `ExpandInt` and `Subtraction` can run on the machine.
+
+6. Evaluate an MB integral. For instance, `MBEvaluate[MB1, {ε, 0}]` returns the Laurent expansion of the MB integrand `MB1` through ε<sup>0</sup>. The notebook `Examples_MBAnalytica.nb` shows the examples of the paper.
 
 ## Files
 
