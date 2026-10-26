@@ -29,8 +29,8 @@ Global`$IV$NoLibrary = True;   (* no IntVol knowledge library in this release *)
 Get[meta["pltPath"]];
 If[Environment["IVLIB_OFF"] === "1", Global`$IV$NoLibrary = True];   (* 2026-08-31: pilot library not attached in production *)
 Get[meta["pkgPath"]];
-Get[FileNameJoin[{Global`$MBStandardMBDir, "MB.m"}]];
-Get[FileNameJoin[{Global`$MBStandardMBDir, "MBresolve.m"}]];
+Quiet[Get[FileNameJoin[{Global`$MBStandardMBDir, "MB.m"}]], General::shdw];
+Quiet[Get[FileNameJoin[{Global`$MBStandardMBDir, "MBresolve.m"}]], General::shdw];
 Get[FileNameJoin[{Global`$MBStandardMBDir, "barnesroutines.m"}]];
 (* 2026-07-24: load the sidecars in workers too (they were master-only, so
    attempt 0.75 / the pinch closer silently skipped inside workers and every

@@ -51,8 +51,8 @@ Module[{here, configure, polyLogTools, mathCandidates, mathExecutable, hplPlain,
   Quiet@Get[FileNameJoin[{here, "mbePinchClose.m"}]];
   (* the MB tools live in dep/MB (configure_runtime.m); MBAnalytica.wl may already have loaded them *)
   If[Names["MB`MBresolve"] === {} || DownValues[MB`MBresolve] === {},
-    Get[FileNameJoin[{Global`$MBStandardMBDir, "MB.m"}]];
-    Get[FileNameJoin[{Global`$MBStandardMBDir, "MBresolve.m"}]]];
+    Quiet[Get[FileNameJoin[{Global`$MBStandardMBDir, "MB.m"}]], General::shdw];
+    Quiet[Get[FileNameJoin[{Global`$MBStandardMBDir, "MBresolve.m"}]], General::shdw]];
   If[Names["BarnesRoutines`DoAllBarnes"] === {} || DownValues[BarnesRoutines`DoAllBarnes] === {},
     Get[FileNameJoin[{Global`$MBStandardMBDir, "barnesroutines.m"}]]];
   (* when the tools were loaded earlier, put their contexts where loading them here would have put them *)
