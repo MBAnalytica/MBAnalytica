@@ -41,13 +41,13 @@ git clone https://github.com/MBAnalytica/MBAnalytica.git
 cd MBAnalytica
 ```
 
-2. Install the system packages. The command for your system is printed by
+2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3). To see the command for your system, run
 
 ```bash
 make deps
 ```
 
-   and `make deps CONFIRM=yes` runs it.
+   and then run the command it prints.
 
 3. Build the package, giving the folder that contains `HarmonicSums`, `Sigma` and `EvaluateMultiSums`:
 
