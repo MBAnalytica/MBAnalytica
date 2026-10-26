@@ -49,7 +49,7 @@ make deps
 
    and then run the command it prints.
 
-3. Build the package, giving the folder that contains `HarmonicSums`, `Sigma` and `EvaluateMultiSums`:
+3. Download the packages [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) of RISC, which are needed by the method `SymbolicSum`. They are not distributed with `MBAnalytica`: obtain them yourself from these pages, following the instructions there, and put them into one folder. Then build the package, giving that folder:
 
 ```bash
 make RISC=/path/to/RISC
