@@ -34,30 +34,37 @@ The repository includes `HyperIntica` and an extension of the integrator `HyperF
 
 ## Installation
 
-1. Install the system packages. The command for your system is printed by
+1. Clone this repository:
+
+```bash
+git clone https://github.com/MBAnalytica/MBAnalytica.git
+cd MBAnalytica
+```
+
+2. Install the system packages. The command for your system is printed by
 
 ```bash
 make deps
 ```
 
-2. Clone this repository and build the package, giving the folder that contains `HarmonicSums`, `Sigma` and `EvaluateMultiSums`:
+   and `make deps CONFIRM=yes` runs it.
+
+3. Build the package, giving the folder that contains `HarmonicSums`, `Sigma` and `EvaluateMultiSums`:
 
 ```bash
-git clone https://github.com/MBAnalytica/MBAnalytica.git
-cd MBAnalytica
 make RISC=/path/to/RISC
 ```
 
    This downloads the packages listed above and the tables of weight nine and ten (about 130 MB, from the release `hpl-tables-v1`), checks them against their checksums, builds `HyperFLINT` and writes `config.m`. On a machine without internet access, `make UPSTREAM=/path TABLES=/path` uses local copies instead.
 
-3. Check the installation and add the folder to Mathematica's `$Path`:
+4. Check the installation and add the folder to Mathematica's `$Path`:
 
 ```bash
 make test
 make install
 ```
 
-4. Load the package in Mathematica:
+5. Load the package in Mathematica:
 
 ```mathematica
    << MBAnalytica.wl
