@@ -71,7 +71,9 @@ result is an association: \"Integrand\" (the MB, for MBEvaluate), \"Variables\" 
 \"Prefactor\", \"Later\" (the later vertex of each line), \"Push\" and \"Base\"; the integral is the sum over the \
 orientations of Prefactor times the integrand's value. Options: \"Energies\" -> {{x1, ...}, {y1, ...}}, \"Point\" -> \
 numeric energies (needed to choose positive rewritings), \"KLegs\" -> {{v, energy, nu}, ...} (factors BesselK[nu, \
-energy t_v] of an in-in block), \"Orientations\" and \"VariableName\".";
+energy t_v] of an in-in block), \"Orientations\", \"VariableName\", and \"LightSplit\" -> True (for light fields, \
+the powers (2 + v)^(nu - 1/2) are split by the binomial theorem and every term is returned as a separate integral, \
+selected by \"Terms\").";
 
 
 (* ::Subsection::Closed:: *)
