@@ -53,8 +53,6 @@ make deps
 make RISC=/path/to/RISC
 ```
 
-   This also downloads the other packages listed above and the HPL tables of weight nine and ten, and checks them. On a machine without internet access, `make UPSTREAM=/path TABLES=/path` uses local copies instead.
-
 4. Test the installation and add the package to the `$Path` of Mathematica.
 
 ```bash
