@@ -7208,6 +7208,24 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                   WriteString["stdout", "    [LSR] recovery value REFUSED by the contour quadrature: ",
                     ToString[N[rL, 12]], " vs ", ToString[If[NumericQ[q], N[q, 12], q]], "\n"];
                   rL = $Failed]]];
+            (* A MULTI-fold value of the recovery ladder needs the same confirmation: on the inclusive N4LO MB13 at
+               eps^-3, GreedySearch closed a 2-fold piece whose integration had reported a divergence with
+               -6 + Pi^2 + 73 Pi^4/30 - 12 Zeta[3] in place of 2 Pi^4/45, and the ExpandInt method returned a wrong
+               coefficient.  The quadrature runs over the straight contours of the piece (relative 1e-5); a value it
+               cannot confirm within its budget is not accepted, so that the piece is ledgered and its order reported
+               as MBFailed *)
+            If[MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[rL, vrs] && Length[vrs] >= 2,
+              Module[{tqs, centres, onContour, q},
+                tqs = Table[Unique["tq"], {Length[vrs]}];
+                centres = vrs /. ctr;
+                onContour = (normalised /. Thread[vrs -> centres + I tqs])/(2 Pi)^Length[vrs];
+                q = Quiet @ TimeConstrained[
+                  NIntegrate @@ Join[{onContour}, Map[{#, -40, 40} &, tqs],
+                    {WorkingPrecision -> 20, PrecisionGoal -> 6, MaxRecursion -> 20}], 900, $TimedOut];
+                If[! TrueQ[NumericQ[q] && Abs[N[rL, 30] - q] < 10^-5 Max[1, Abs[q]]],
+                  WriteString["stdout", "    [LSR] multi-fold recovery value REFUSED by the contour quadrature: ",
+                    ToString[N[rL, 12]], " vs ", ToString[If[NumericQ[q], N[q, 12], q]], "\n"];
+                  rL = $Failed]]];
             If[MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[rL, vrs],
               r = rL;
               MBAnalytica`SymbolicInt`Private`$mbtLongCloseCount++;
