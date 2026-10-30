@@ -16,7 +16,7 @@
    config.m, else $UserBaseDirectory/ApplicationData/MBAnalytica. *)
 
 Module[{here, root, dep, config, configFile, setting, systemPath, ginshExecutable, binary, binaryOK, required, missing,
-    cache, envCache, riscPath},
+    cache, envCache, riscPath, isolate, isolated},
   here = DirectoryName[ExpandFileName[$InputFileName]];
   If[here === "" || here === ".", here = Directory[]];
   root = ParentDirectory[ParentDirectory[here]];
@@ -90,6 +90,41 @@ Module[{here, root, dep, config, configFile, setting, systemPath, ginshExecutabl
 
   (* HPL and HypExp must be on $Path before PolyLogTools is loaded (it Needs["HPL`"]) *)
   Scan[If[! MemberQ[$Path, #], PrependTo[$Path, #]] &, Reverse[{Global`$HPLPath, Global`$HypExpPath}]];
+
+  (* HPL and HypExp are read with Global` on their context path (BeginPackage["HPL`", {"Global`"}] and
+     BeginPackage["HypExp`", {"HPL`", "Global`"}]), so each of their private symbols whose name already exists in Global`
+     becomes that Global` symbol.  A session of the engine, which defines Global`ff[x_] and has Global` symbols with the
+     names of their variables (x, t, c, h, ...), made HPL's own ff, x, ... Global` symbols, and the expansions of HypExp
+     at unit argument came out wrong: the eps^-4 coefficient of the inclusive N4LO integral kept HPL[{1},1] and
+     HypExp`Private`HPL1, and -20 Zeta[3] stood for -24 Zeta[3].  Read alone, they take nothing from Global` but $HPLPath
+     and $HypExpPath (the weight 9 and 10 tables of HPL name their Global` symbols in full).  Both are therefore read from
+     copies whose BeginPackage names a context of their own in place of Global`, which holds these two settings.  The
+     copies go in front of dep/HPL and dep/HypExp on $Path, so that every Needs["HPL`"] and Needs["HypExp`"] reads them,
+     the one in the BeginPackage of PolyLogTools and those of the worker kernels included *)
+  MBAnalyticaHPL`$HPLPath = Global`$HPLPath;
+  MBAnalyticaHypExp`$HypExpPath = Global`$HypExpPath;
+  isolate = {
+    {FileNameJoin[{Global`$HPLPath, "HPL.m"}], "BeginPackage[\"HPL`\",{\"Global`\"}]",
+      "BeginPackage[\"HPL`\",{\"MBAnalyticaHPL`\"}]"},
+    {FileNameJoin[{Global`$HypExpPath, "HypExp.m"}], "BeginPackage[\"HypExp`\",{\"HPL`\",\"Global`\"}]",
+      "BeginPackage[\"HypExp`\",{\"HPL`\",\"MBAnalyticaHypExp`\"}]"}};
+  isolated = Quiet@Check[Module[{sources, folder},
+      sources = Map[If[FileExistsQ[#[[1]]], ReadString[#[[1]]], $Failed] &, isolate];
+      Which[
+        MemberQ[sources, $Failed], $Failed,
+        ! And @@ MapThread[StringContainsQ[#1, #2[[2]]] &, {sources, isolate}], $Failed,
+        True,
+          folder = FileNameJoin[{cache, "isolated_packages", IntegerString[Hash[sources, "SHA256"], 16, 16]}];
+          Quiet@CreateDirectory[folder, CreateIntermediateDirectories -> True];
+          MapThread[Function[{source, spec}, Module[{target, temporary},
+            target = FileNameJoin[{folder, FileNameTake[spec[[1]]]}];
+            If[! FileExistsQ[target],
+              temporary = target <> "." <> CreateUUID[] <> ".tmp";
+              WriteString[temporary, StringReplace[source, spec[[2]] -> spec[[3]], 1]];
+              Close[temporary];
+              If[FileExistsQ[target], DeleteFile[temporary], RenameFile[temporary, target]]]]], {sources, isolate}];
+          folder]], $Failed];
+  If[StringQ[isolated] && ! MemberQ[$Path, isolated], PrependTo[$Path, isolated]];
 
   required = {
     FileNameJoin[{Global`$PolyLogPath, "PolyLogTools.m"}],

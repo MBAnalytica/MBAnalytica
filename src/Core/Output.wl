@@ -235,6 +235,29 @@ RealPart[Expr_, Vars_List] := Module[{Functions, Deadline, RealQ, Holders, RealH
 (*Assembly*)
 
 
+(* the output class of a coefficient: G, Log, Zeta, Pi, EulerGamma, the constants MZV of HPL, Re and Im, and rational
+   functions of the kinematic variables.  What remains after the rewriting as G outside this class means that a step did
+   not finish: an HPL that has no G form (HPL[{1}, 1] diverges), a symbol of a private context (HypExp`Private`HPL1, the
+   leftover of an expansion at unit argument), an unevaluated hypergeometric function or summation *)
+OutsideOutputClass[Coef_] := Module[{Atoms},
+  Atoms = Cases[{Coef}, S1_Symbol :> S1, {0, Infinity}, Heads -> True];
+  Return[DeleteDuplicates[Select[Atoms, Function[S1, With[{Ctx = Context[S1], Name1 = SymbolName[S1]},
+    StringEndsQ[Ctx, "Private`"] ||
+      (Ctx === "HPL`" && Name1 =!= "MZV") ||
+      MemberQ[{"HypExp`", "Sigma`", "EvaluateMultiSums`"}, Ctx] ||
+      (Ctx === "System`" && MemberQ[{"Hypergeometric0F1", "Hypergeometric1F1", "Hypergeometric2F1", "HypergeometricPFQ",
+        "AppellF1", "AppellF2", "AppellF3", "AppellF4", "Sum", "Indeterminate", "ComplexInfinity", "DirectedInfinity"}, Name1])]]]]]];
+
+
+(* a coefficient of one method that is not in the output class is not exact: it is reported as MBFailed, so that the
+   next method of Method -> Automatic is tried for this order *)
+CheckOutputClass[Coef_, Method1_String, Vars_List] := Module[{Outside},
+  If[Head[Coef] === MBFailed, Return[Coef]];
+  Outside = OutsideOutputClass[ToGBasis[Coef, Vars]];
+  If[Outside === {}, Return[Coef]];
+  Return[MBFailed[{Method1, "functions outside the output class: " <> ToString[Take[Outside, UpTo[3]], InputForm]}]]];
+
+
 (* coefficients: an association order -> coefficient (or MBFailed[...]) *)
 FinishCoefficient[Coef_, Vars_List, ComplexQ_] := Module[{Res, Real1},
   If[Head[Coef] === MBFailed, Return[Coef]];

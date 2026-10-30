@@ -400,6 +400,7 @@ MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Modul
     If[OpenKeys === {}, Break[]];
     Say[Settings["Verbose"], "MBEvaluate: ", M1, " on ", Eps, "^", Min[OpenKeys], " .. ", Eps, "^", Max[OpenKeys]];
     Got = WithoutUserValues[RunMethod[M1, MBInt, MBVar, Kinematics, Eps, Min[OpenKeys], Max[OpenKeys], Settings]];
+    Got = WithoutUserValues[Association[KeyValueMap[#1 -> CheckOutputClass[#2, M1, Kinematics] &, Got]]];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] =!= MBFailed, Coefficients[K1] = Got[K1]]], OpenKeys];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] === MBFailed, Coefficients[K1] = Got[K1]]],
       Select[OpenKeys, Head[Coefficients[#]] === MBFailed &]],
