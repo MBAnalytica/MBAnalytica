@@ -77,6 +77,87 @@ WithoutUserValues[Expr_] := Module[{UserNames, Held, Result},
 
 
 (* ::Section:: *)
+(*Rules of the SymbolicSum packages*)
+
+
+(* HarmonicSums, Sigma and EvaluateMultiSums, which load with the SymbolicSum method before the engine (LoadSymbolicInt),
+   give rules to System symbols: 95 to D, 17 to Derivative, 12 to Series, 10 to Less, 8 to Unequal and one each to Limit,
+   Abs and Conjugate.  The engine never uses these packages (load_standard.m switches its HarmonicSums closer off) and was
+   validated without their rules, which change it: MBresolve evaluates the residues about seventy times slower (the rules
+   of D and Derivative: 260 s instead of 4 s for the inclusive N4LO integral), and MBexpand cancels shifted Gamma ratios
+   into rational denominators (the rules of Series: Gamma(1 + z)/Gamma(2 + z) becomes 1/(1 + z)), after which DoAllBarnes
+   reduces the integrals differently (that integral split into 49 pieces instead of 60, one of which no closer evaluates,
+   and the ExpandInt method lost its coefficient of eps^-3).  The engine and the leading pole therefore run without the
+   rules of these packages, as the multifold closer of the engine already did for Series (withPlainSeries); the
+   SymbolicSum method keeps them.  A rule of these packages is told apart from the definitions that Mathematica loads on
+   demand by the contexts of its symbols (its pattern variables and functions), and the rules are looked up at every
+   call, so that rules a package gives later, or a package the user loaded first, are found as well *)
+SymbolicSumContexts = {"HarmonicSums`", "Sigma`", "EvaluateMultiSums`", "RISC`", "MBConicHulls`",
+  "MultivariateResidues`", "MBAnalytica`SymbolicSum`", "MBAnalytica`OneFoldHyp`"};
+
+
+RuleLists[Name_String] := Module[{Lists1},
+  Lists1 = Quiet[ToExpression["System`" <> Name, InputForm,
+    Function[Sym, {DownValues[Sym], UpValues[Sym], SubValues[Sym], NValues[Sym]}, HoldAll]]];
+  If[! MatchQ[Lists1, {_List, _List, _List, _List}], Lists1 = {{}, {}, {}, {}}];
+  Return[Lists1]];
+
+
+(* the atoms only: _Symbol also matches an unevaluated call Symbol["name"] *)
+SymbolicSumRuleQ[Rule1_] := Module[{Contexts1},
+  Contexts1 = Cases[Rule1, S1_Symbol /; AtomQ[Unevaluated[S1]] :> Context[S1], {0, Infinity}, Heads -> True];
+  Return[AnyTrue[Contexts1, StringStartsQ[#, SymbolicSumContexts] &]]];
+
+
+NameSymbolicSumRules[Name_String] := Module[{Lists1},
+  Lists1 = RuleLists[Name];
+  Return[Map[Select[#, SymbolicSumRuleQ] &, Lists1]]];
+
+
+(* the rules of these packages in System symbols, by name of the symbol; none while no package of theirs is loaded *)
+SymbolicSumRules[] := Module[{Loaded, Names1, Rules1},
+  Loaded = Select[$Packages, StringStartsQ[#, SymbolicSumContexts] &];
+  If[Loaded === {}, Return[<||>]];
+  Names1 = Select[Names["System`*"], ! StringStartsQ[#, "$"] &];
+  Rules1 = Association[Map[# -> NameSymbolicSumRules[#] &, Names1]];
+  Rules1 = Select[Rules1, Total[Map[Length, #]] > 0 &];
+  Return[Rules1]];
+
+
+SetAttributes[RemoveSymbolRules, HoldFirst];
+RemoveSymbolRules[Sym_Symbol, Rules1_List] := Module[{ProtectedQ, Hashes},
+  ProtectedQ = MemberQ[Attributes[Sym], Protected];
+  Unprotect[Sym];
+  Hashes = Map[Hash, Rules1[[1]]];
+  DownValues[Sym] = Select[DownValues[Sym], ! MemberQ[Hashes, Hash[#]] &];
+  Hashes = Map[Hash, Rules1[[2]]];
+  UpValues[Sym] = Select[UpValues[Sym], ! MemberQ[Hashes, Hash[#]] &];
+  Hashes = Map[Hash, Rules1[[3]]];
+  SubValues[Sym] = Select[SubValues[Sym], ! MemberQ[Hashes, Hash[#]] &];
+  Hashes = Map[Hash, Rules1[[4]]];
+  NValues[Sym] = Select[NValues[Sym], ! MemberQ[Hashes, Hash[#]] &];
+  If[ProtectedQ, Protect[Sym]];
+  Return[Null]];
+
+
+RemoveNameRules[Name_String, Rules1_List] := ToExpression["System`" <> Name, InputForm,
+  Function[Sym, RemoveSymbolRules[Sym, Rules1], HoldAll]];
+
+
+(* the rules are set aside inside Internal`InheritedBlock, which gives every symbol its full definition back afterwards *)
+SetAttributes[WithoutSymbolicSumRules, HoldAll];
+WithoutSymbolicSumRules[Expr_] := Module[{Rules1, Held, Result},
+  Rules1 = SymbolicSumRules[];
+  If[Rules1 === <||>, Return[Expr]];
+  Held = Map[ToExpression["System`" <> #, InputForm, Hold] &, Keys[Rules1]];
+  Held = Join[Hold[], Sequence @@ Held];
+  Result = Replace[Held, Hold[Syms___] :> Internal`InheritedBlock[{Syms},
+    KeyValueMap[RemoveNameRules, Rules1];
+    Expr]];
+  Return[Result]];
+
+
+(* ::Section:: *)
 (*Loading the methods*)
 
 
@@ -150,7 +231,7 @@ LoadSymbolicInt[] := Module[{Loader, StartDirectory},
   (* the RISC packages of SymbolicSum load before the engine: the engine leaves symbols such as S, L$ and F$ in Global`,
      and HarmonicSums, Sigma and EvaluateMultiSums loaded after it share these names with them (L$::shdw, F$::shdw),
      after which EvaluateMultiSums solved none of the nested sums of a later SymbolicSum call (and on 16 GB the kernel
-     crashed) *)
+     crashed); the engine then runs without the rules these packages give to System symbols (WithoutSymbolicSumRules) *)
   If[MemberQ[$MBAnalyticaMethods, "SymbolicSum"], LoadSymbolicSum[]];
   LoadMBTools[];
   CacheDirectory[];
@@ -209,7 +290,7 @@ LowestPower[Integrand_, Reg_] := Module[{Terms, Powers},
 (* the residue list of MBresolve, or False when MBresolve finds no straight contour *)
 ResolveIntegral[MBInt_, Eps_] := Module[{Resolved},
   Block[{$Output = {}},
-    Resolved = Quiet[MB`MBresolve[MBInt /. Eps -> MB`ep, MB`ep]]];
+    Resolved = WithoutSymbolicSumRules[Quiet[MB`MBresolve[MBInt /. Eps -> MB`ep, MB`ep]]]];
   Return[Resolved]];
 
 
@@ -226,7 +307,7 @@ LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
     Resolved = ResolveIntegral[MBInt, Eps]];
   If[! ResolvedQ[Resolved], Return[$Failed]];
   Block[{$Output = {}},
-    Expanded = Quiet[MB`MBexpand[Resolved, 1, {MB`ep, 0, Ord}]]];
+    Expanded = WithoutSymbolicSumRules[Quiet[MB`MBexpand[Resolved, 1, {MB`ep, 0, Ord}]]]];
   If[! ListQ[Expanded], Return[$Failed]];
   Powers = Map[LowestPower[First[#], MB`ep] &, Expanded];
   Powers = Select[Powers, IntegerQ];
@@ -311,7 +392,7 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
       Global`$oftResidueHelpers = Max[0, KernelCount[] - 1], MBParameterSubtractionHF`$PSHNativeWorkers = Max[1, KernelCount[]],
       Global`$fcuMaxWorkers = Max[1, KernelCount[]], Global`$fcuLaneBudget = 3 Max[1, KernelCount[]],
       Global`$mbtSubkernelBudget = Budget},
-    CheckAbort[MBAnalytica`SymbolicInt`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]];
+    WithoutSymbolicSumRules[CheckAbort[MBAnalytica`SymbolicInt`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]]];
   SetEnvironment["MBT_SUBKERNEL_BUDGET" -> None];
   Ledger = If[Kinematics === {} && ListQ[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], MBAnalytica`SymbolicInt`Private`$mbtFailedPieces, {}];
   Exact = Result =!= $Failed && Result =!= $Aborted && ! FailureQ[Result] && Ledger === {} &&
