@@ -235,15 +235,16 @@ RealPart[Expr_, Vars_List] := Module[{Functions, Deadline, RealQ, Holders, RealH
 (*Assembly*)
 
 
-(* the output class of a coefficient: G, Log, Zeta, Pi, EulerGamma, the constants MZV of HPL, Re and Im, and rational
-   functions of the kinematic variables.  What remains after the rewriting as G outside this class means that a step did
-   not finish: an HPL that has no G form (HPL[{1}, 1] diverges), a symbol of a private context (HypExp`Private`HPL1, the
-   leftover of an expansion at unit argument), an unevaluated hypergeometric function or summation *)
+(* the output class of a coefficient: G, Log, Zeta, Pi, EulerGamma, the constants of HPL (MZV and the irreducible
+   constants HPLs6, HPLs7a, ..., HPLs8a = zeta(5,3) of weight 8, ...), Re and Im, and rational functions of the kinematic
+   variables.  What remains after the rewriting as G outside this class means that a step did not finish: an HPL that
+   has no G form (HPL[{1}, 1] diverges), a symbol of a private context (HypExp`Private`HPL1, the leftover of an expansion
+   at unit argument), an unevaluated hypergeometric function or summation *)
 OutsideOutputClass[Coef_] := Module[{Atoms},
   Atoms = Cases[{Coef}, S1_Symbol :> S1, {0, Infinity}, Heads -> True];
   Return[DeleteDuplicates[Select[Atoms, Function[S1, With[{Ctx = Context[S1], Name1 = SymbolName[S1]},
     StringEndsQ[Ctx, "Private`"] ||
-      (Ctx === "HPL`" && Name1 =!= "MZV") ||
+      (Ctx === "HPL`" && ! (Name1 === "MZV" || StringStartsQ[Name1, "HPLs"])) ||
       MemberQ[{"HypExp`", "Sigma`", "EvaluateMultiSums`"}, Ctx] ||
       (Ctx === "System`" && MemberQ[{"Hypergeometric0F1", "Hypergeometric1F1", "Hypergeometric2F1", "HypergeometricPFQ",
         "AppellF1", "AppellF2", "AppellF3", "AppellF4", "Sum", "Indeterminate", "ComplexInfinity", "DirectedInfinity"}, Name1])]]]]]];
