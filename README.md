@@ -53,6 +53,8 @@ make deps
 make RISC=/path/to/RISC
 ```
 
+The above command also downloads [MB.m, MBresolve.m and barnesroutines.m](https://gitlab.com/feynmanintegrals/MB), [MBConicHulls.wl](https://github.com/SumitBanikGit/MBConicHulls), [PolyLogTools](https://gitlab.com/pltteam/plt), [HPL](https://www.physik.uzh.ch/data/HPL/) and [HypExp](https://www.physik.uzh.ch/data/HypExp/), so these do not have to be downloaded separately.
+
 4. Test the installation and add the package to the `$Path` of Mathematica.
 
 ```bash
