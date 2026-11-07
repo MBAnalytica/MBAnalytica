@@ -39,10 +39,10 @@ git clone https://github.com/MBAnalytica/MBAnalytica.git
 cd MBAnalytica
 ```
 
-2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3) by running 
+2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3) by running the command below and answering `y`.
 
 ```bash
-make deps CONFIRM=yes
+make deps
 ```
 
 3. Download [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) from RISC and put them in one folder. These packages are required by the `SymbolicSum` method and are not distributed with `MBAnalytica`. Then build the package with the full path to this folder.
