@@ -94,6 +94,10 @@ endif
 # the SHA-256 check of the HPL tables: shasum (macOS, Debian) or sha256sum (coreutils: RHEL, Fedora)
 SHA256 := $(if $(shell command -v shasum 2>/dev/null),shasum -a 256,sha256sum)
 
+# downloads are retried five times; a connection reset by the server is retried only with --retry-all-errors (curl
+# 7.71 and later), with an older curl only timeouts and the HTTP codes 408, 429 and 5xx are
+CURL_RETRY := --retry 5 --retry-delay 3 $(shell curl --retry-all-errors --version >/dev/null 2>&1 && echo --retry-all-errors)
+
 # HyperFLINT needs FLINT >= 3.4; an older system FLINT (Ubuntu 24.04 ships 3.0) is replaced by a private build of
 # FLINT $(FLINT_LOCAL_VERSION) inside the package folder
 FLINT_MIN := 3.4
@@ -152,8 +156,11 @@ upstream:
 	mkdir -p "$(DL)/MB" "$(DL)/MBConicHulls" "$(DL)/PolyLogTools/core" "$(DL)/PolyLogTools/lib" "$(HPL)" "$(ROOT)/dep/HypExp" \
 	  "$(ROOT)/dep/MB" "$(ROOT)/dep/MBConicHulls" \
 	  "$(ROOT)/dep/PolyLogTools/core" "$(ROOT)/dep/PolyLogTools/lib"; \
-	fetch() { if [ -n "$(UPSTREAM)" ] && [ -f "$(UPSTREAM)/$$1" ]; then cp "$(UPSTREAM)/$$1" "$(DL)/$$1"; \
-	  else echo "  downloading $$2"; curl -fsSL --retry 3 -o "$(DL)/$$1" "$$2"; fi; }; \
+	verified() { want=$$(awk -v f="$$1" '$$2 == f {print $$1}' "$(ROOT)/dep/UPSTREAM.sha256"); \
+	  [ -n "$$want" ] && [ -f "$(DL)/$$1" ] && [ "$$($(SHA256) "$(DL)/$$1" | cut -d' ' -f1)" = "$$want" ]; }; \
+	fetch() { if verified "$$1"; then return 0; fi; \
+	  if [ -n "$(UPSTREAM)" ] && [ -f "$(UPSTREAM)/$$1" ]; then cp "$(UPSTREAM)/$$1" "$(DL)/$$1"; \
+	  else echo "  downloading $$2"; curl -fsSL $(CURL_RETRY) -o "$(DL)/$$1" "$$2"; fi; }; \
 	fetch HPL-2.0.tar.gz "$(HPL_URL)" && fetch HypExp-2.0.tar.gz "$(HYPEXP_URL)" || exit 1; \
 	for f in $(MB_FILES); do fetch "MB/$$f" "$(MB_URL)/$$f" || exit 1; done; \
 	for f in $(MBCH_FILES); do fetch "MBConicHulls/$$f" "$(MBCH_URL)/$$f" || exit 1; done; \
@@ -180,7 +187,7 @@ hyperflint: $(HF_BIN)/hyperflint $(HF_BIN)/hyperflint_guarded
 $(FLINT_PREFIX)/lib/pkgconfig/flint.pc:
 	@echo "Building FLINT $(FLINT_LOCAL_VERSION) in $(FLINT_PREFIX) (the system FLINT is older than $(FLINT_MIN)) ..."
 	mkdir -p "$(FLINT_PREFIX)/src"
-	curl -fsSL --retry 3 -o "$(FLINT_PREFIX)/src/flint.tar.gz" \
+	curl -fsSL $(CURL_RETRY) -o "$(FLINT_PREFIX)/src/flint.tar.gz" \
 	  "https://github.com/flintlib/flint/releases/download/v$(FLINT_LOCAL_VERSION)/flint-$(FLINT_LOCAL_VERSION).tar.gz"
 	tar xzf "$(FLINT_PREFIX)/src/flint.tar.gz" -C "$(FLINT_PREFIX)/src"
 	cd "$(FLINT_PREFIX)/src/flint-$(FLINT_LOCAL_VERSION)" && $(BUILD_ENV) ./configure --prefix="$(FLINT_PREFIX)" > "$(FLINT_PREFIX)/build.log" 2>&1 && \
@@ -245,7 +252,7 @@ tables:
 	  if [ -n "$(TABLES)" ] && [ -f "$(TABLES)/$$f" ]; then cp "$(TABLES)/$$f" "$(HPL)/$$f"; \
 	  elif [ -n "$(TABLES)" ] && [ -f "$(TABLES)/$$f.gz" ]; then gunzip -c "$(TABLES)/$$f.gz" > "$(HPL)/$$f" || exit 1; \
 	  elif [ -n "$(TABLES_URL)" ]; then echo "  downloading $$f.gz"; \
-	    curl -fL --retry 3 -o "$(HPL)/$$f.gz" "$(TABLES_URL)/$$f.gz" && gunzip -f "$(HPL)/$$f.gz" || exit 1; \
+	    curl -fL $(CURL_RETRY) -o "$(HPL)/$$f.gz" "$(TABLES_URL)/$$f.gz" && gunzip -f "$(HPL)/$$f.gz" || exit 1; \
 	  else echo "The HPL table $$f is missing. Give the folder that holds it: make TABLES=/path"; exit 1; fi; \
 	done
 	@cd "$(HPL)" && $(SHA256) -c "$(ROOT)/dep/HPL_TABLES.sha256" > /dev/null && echo "  HPL weight 9 and 10 tables present and verified"
