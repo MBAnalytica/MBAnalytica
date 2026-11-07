@@ -5,7 +5,8 @@
 #                   authors' pages, build HyperFLINT, create the Python environment, fetch the large HPL tables,
 #                   write config.m
 #   make test       run the installation test (a few minutes)
-#   make deps       show the commands that install the missing system packages; CONFIRM=yes runs them
+#   make deps       show the command that installs the system packages and run it after you answer y (CONFIRM=yes:
+#                   without asking)
 #   make install    put this folder on Mathematica's $Path (one line in init.m); make uninstall removes it
 #   make benchmark  the MB1-MB14 benchmarks of the paper (hours)
 #   make clean      remove the build, the Python environment, the downloaded packages and the downloaded tables
@@ -83,12 +84,12 @@ else ifneq ($(shell command -v dnf 2>/dev/null),)
   BUILD_ENV :=
   CMAKE_PLATFORM :=
   MIMALLOC := OFF
-  DEPS_COMMAND := sudo dnf install cmake gcc-c++ pkgconf-pkg-config patch gmp-devel mpfr-devel flint-devel ginac-utils python3
+  DEPS_COMMAND := sudo dnf install -y cmake gcc-c++ pkgconf-pkg-config patch gmp-devel mpfr-devel flint-devel ginac-utils python3
 else
   BUILD_ENV :=
   CMAKE_PLATFORM :=
   MIMALLOC := OFF
-  DEPS_COMMAND := sudo apt install cmake g++ pkg-config patch libflint-dev libgmp-dev libmpfr-dev ginac-tools python3-venv
+  DEPS_COMMAND := sudo apt install -y cmake g++ pkg-config patch libflint-dev libgmp-dev libmpfr-dev ginac-tools python3-venv
 endif
 
 # the SHA-256 check of the HPL tables: shasum (macOS, Debian) or sha256sum (coreutils: RHEL, Fedora)
@@ -141,12 +142,21 @@ check:
 	else echo "  MISSING  wolframscript (it comes with Mathematica; set WOLFRAMSCRIPT=/path if it is not on PATH)"; missing=1; fi; \
 	if [ $$missing = 1 ]; then \
 	  echo ""; echo "Install the missing system packages with:"; echo "  $(DEPS_COMMAND)"; \
-	  echo "(or run  make deps CONFIRM=yes  to have make run that command)"; exit 1; fi
+	  echo "(or run  make deps , which runs that command after you answer y)"; exit 1; fi
 
 deps:
 	@echo "The system packages MBAnalytica needs are installed with:"
 	@echo "  $(DEPS_COMMAND)"
-	@if [ "$(CONFIRM)" = "yes" ]; then $(DEPS_COMMAND); else echo "Run  make deps CONFIRM=yes  to run it."; fi
+	@if [ "$(CONFIRM)" = "yes" ]; then $(DEPS_COMMAND); \
+	elif [ -t 0 ]; then \
+	  while read -r -p "Run this command now? [y/n] " answer; do \
+	    case "$$answer" in \
+	      [yY]|[yY][eE][sS]) $(DEPS_COMMAND); exit $$? ;; \
+	      [nN]|[nN][oO]) echo "Not run."; exit 0 ;; \
+	      *) echo "Please answer y (yes) or n (no)." ;; \
+	    esac; \
+	  done; echo ""; echo "Not run."; \
+	else echo "Run  make deps  in a terminal to be asked, or  make deps CONFIRM=yes  to run it without asking."; fi
 
 # ---- MB.m, MBresolve.m, the Barnes routines, MBConicHulls, PolyLogTools, HPL 2.0 and HypExp 2.0 (downloaded) -------
 
