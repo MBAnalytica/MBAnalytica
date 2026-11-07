@@ -14,7 +14,7 @@ More details can be found in T. Ahmed, S. Banik, S. M. Hasan and A. Rapakoulias,
 - [GiNaC](https://www.ginac.de/) (the shell `ginsh`), [FLINT](https://flintlib.org/), GMP, MPFR, `cmake`, a C++ compiler and Python 3 with numpy, scipy and sympy, used by the methods `ExpandInt` and `Subtraction`  
   C. Bauer, A. Frink and R. Kreckel, [arXiv:cs/0004015](https://arxiv.org/abs/cs/0004015)
 
-The following packages are downloaded by the installation from the pages of their authors, since they are not distributed with this repository:
+The following dependencies are automatically downloaded during installation as they are not distributed with this repository:
 
 - [MB.m, MBresolve.m and barnesroutines.m](https://gitlab.com/feynmanintegrals/MB)  
   M. Czakon, [arXiv:hep-ph/0511200](https://arxiv.org/abs/hep-ph/0511200); A. V. Smirnov and V. A. Smirnov, [arXiv:0901.0386](https://arxiv.org/abs/0901.0386); D. A. Kosower
@@ -28,7 +28,7 @@ The following packages are downloaded by the installation from the pages of thei
 - [HPL](https://www.physik.uzh.ch/data/HPL/) and [HypExp](https://www.physik.uzh.ch/data/HypExp/)  
   D. Maître, [arXiv:hep-ph/0507152](https://arxiv.org/abs/hep-ph/0507152); T. Huber and D. Maître, [arXiv:hep-ph/0507094](https://arxiv.org/abs/hep-ph/0507094), [arXiv:0708.2443](https://arxiv.org/abs/0708.2443)
 
-The repository includes `HyperIntica` and an extension of the integrator `HyperFLINT` of [SubTropica](https://github.com/SubTropica/SubTropica) (M. Giroux, S. Mizera and G. Salvatori, [arXiv:2604.20954](https://arxiv.org/abs/2604.20954)), in versions modified for `MBAnalytica`. The changes applied to the downloaded HPL and PolyLogTools are described in `dep/THIRD_PARTY_NOTICES.md`.
+The repository includes `HyperIntica` and an extension of the integrator `HyperFLINT` of [SubTropica](https://github.com/SubTropica/SubTropica) (M. Giroux, S. Mizera and G. Salvatori, [arXiv:2604.20954](https://arxiv.org/abs/2604.20954)), both modified for `MBAnalytica`. The changes applied to the downloaded HPL and PolyLogTools are described in `dep/THIRD_PARTY_NOTICES.md`.
 
 ## Installation
 
@@ -39,13 +39,13 @@ git clone https://github.com/MBAnalytica/MBAnalytica.git
 cd MBAnalytica
 ```
 
-2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3). The command below prints the installation command for your system, which you then run.
+2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3) by running 
 
 ```bash
-make deps
+make deps CONFIRM=yes
 ```
 
-3. Download [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) from RISC and put them in one folder. These packages are needed by the method `SymbolicSum` and are not distributed with `MBAnalytica`. Then build the package with the path to this folder.
+3. Download [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) from RISC and put them in one folder. These packages are required by the `SymbolicSum` method and are not distributed with `MBAnalytica`. Then build the package with the full path to this folder.
 
 ```bash
 make RISC=/path/to/RISC
@@ -67,7 +67,6 @@ make install
 MBAnalyticaCheck[]
 ```
 
-6. Evaluate an MB integral, for instance `MBEvaluate[MB1, {ε, 0}]`, which returns the Laurent expansion of the MB integrand `MB1` through ε<sup>0</sup>. The notebook `Examples.nb` contains the examples of the paper.
 
 ## Files
 
