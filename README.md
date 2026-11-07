@@ -1,6 +1,6 @@
 # MBAnalytica
 
-`MBAnalytica` is a Mathematica package for the analytic evaluation of Mellin–Barnes (MB) integrals, as Laurent expansions in the dimensional regulator ε whose coefficients are given in terms of multiple polylogarithms.
+`MBAnalytica` is a Mathematica package for the analytic evaluation of Mellin–Barnes (MB) integrals in terms of multiple polylogarithms, as Laurent expansions in a small parameter ε.
 
 The package first resolves the ε-singularities of the input with [MB.m](https://gitlab.com/feynmanintegrals/MB) and MBresolve.m. The resulting integrals are then evaluated with three complementary methods. The methods `ExpandInt` and `Subtraction` convert them into Euler integrals over the unit cube and integrate these by the method of hyperlogarithms, either after the expansion in ε or after the boundary singularities have been subtracted with ε kept symbolic. The method `SymbolicSum` closes the integration contours and sums the resulting series symbolically. A coefficient that none of the methods can close is returned as open, and never as an approximation.
 
