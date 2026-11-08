@@ -4,10 +4,11 @@
 #                   HypExp from their
 #                   authors' pages, build HyperFLINT, create the Python environment, fetch the large HPL tables,
 #                   write config.m
-#   make test       run the installation test (a few minutes)
-#   make deps       show the command that installs the system packages and run it after you answer y (CONFIRM=yes:
-#                   without asking)
-#   make install    put this folder on Mathematica's $Path (one line in init.m); make uninstall removes it
+#   make deps       check the system packages and install the missing ones after you answer y (CONFIRM=yes: without
+#                   asking)
+#   make install    build everything (as make) and put this folder on Mathematica's $Path (one line in init.m);
+#                   make uninstall removes that line
+#   make test       run the installation test (a few minutes): the package loaded by name, two examples with every method
 #   make benchmark  the MB1-MB14 benchmarks of the paper (hours)
 #   make clean      remove the build, the Python environment, the downloaded packages and the downloaded tables
 #
@@ -20,6 +21,8 @@
 
 SHELL := /bin/bash
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+# the folder of HarmonicSums, Sigma and EvaluateMultiSums: RISC=/path, otherwise the one an earlier make wrote into config.m
+RISC ?= $(shell sed -n 's/^  "RISCPath" -> "\(.*\)",$$/\1/p' "$(ROOT)/config.m" 2>/dev/null)
 OS := $(shell uname -s)
 JOBS ?= 4
 
@@ -119,7 +122,7 @@ CMAKE_FLAGS := -DCMAKE_BUILD_TYPE=Release -DHF_VERSION=$(HF_VERSION) -DHF_LIBRAR
 
 all: check upstream hyperflint python tables config
 	@echo ""
-	@echo "MBAnalytica is ready. Load it with  << \"$(ROOT)/MBAnalytica.wl\"  and run  make test  to check it."
+	@echo "MBAnalytica is built.$(if $(filter install,$(MAKECMDGOALS)),, Run  make install  to put it on the \$$Path of Mathematica, then  make test .)"
 
 # ---- tools -------------------------------------------------------------------------------------------------------
 
@@ -141,17 +144,18 @@ check:
 	if [ -n "$(WOLFRAMSCRIPT)" ]; then echo "  found    wolframscript ($(WOLFRAMSCRIPT))"; \
 	else echo "  MISSING  wolframscript (it comes with Mathematica; set WOLFRAMSCRIPT=/path if it is not on PATH)"; missing=1; fi; \
 	if [ $$missing = 1 ]; then \
-	  echo ""; echo "Install the missing system packages with:"; echo "  $(DEPS_COMMAND)"; \
-	  echo "(or run  make deps , which runs that command after you answer y)"; exit 1; fi
+	  if [ "$(FROM_DEPS)" != yes ]; then echo ""; echo "Install the missing system packages with:"; echo "  $(DEPS_COMMAND)"; \
+	  echo "(or run  make deps , which runs that command after you answer y)"; fi; exit 1; fi
 
+# the system packages are checked first; only when one is missing is the command shown and, after a y, run
 deps:
-	@echo "The system packages MBAnalytica needs are installed with:"
-	@echo "  $(DEPS_COMMAND)"
-	@if [ "$(CONFIRM)" = "yes" ]; then $(DEPS_COMMAND); \
+	@if $(MAKE) --no-print-directory check FROM_DEPS=yes; then echo ""; echo "All the system packages MBAnalytica needs are present."; exit 0; fi; \
+	echo ""; echo "The missing system packages are installed with:"; echo "  $(DEPS_COMMAND)"; \
+	if [ "$(CONFIRM)" = "yes" ]; then $(DEPS_COMMAND) && $(MAKE) --no-print-directory check FROM_DEPS=yes; exit $$?; \
 	elif [ -t 0 ]; then \
 	  while read -r -p "Run this command now? [y/n] " answer; do \
 	    case "$$answer" in \
-	      [yY]|[yY][eE][sS]) $(DEPS_COMMAND); exit $$? ;; \
+	      [yY]|[yY][eE][sS]) $(DEPS_COMMAND) && $(MAKE) --no-print-directory check FROM_DEPS=yes; exit $$? ;; \
 	      [nN]|[nN][oO]) echo "Not run."; exit 0 ;; \
 	      *) echo "Please answer y (yes) or n (no)." ;; \
 	    esac; \
@@ -293,19 +297,28 @@ benchmark:
 
 # ---- $Path entry in Mathematica's init.m -------------------------------------------------------------------------
 
-install:
+# the build (as make), then the $Path line of this folder in init.m; a line of another folder (an earlier clone) is
+# replaced, and a fresh kernel checks that << MBAnalytica.wl then loads this folder (without ".", the current
+# directory on $Path, which is this folder while make runs)
+install: all
 	@"$(WOLFRAMSCRIPT)" -code 'f = FileNameJoin[{$$UserBaseDirectory, "Kernel", "init.m"}]; \
 	  line = "If[!MemberQ[$$Path, \"$(ROOT)\"], AppendTo[$$Path, \"$(ROOT)\"]] (* MBAnalytica *)"; \
-	  old = If[FileExistsQ[f], Import[f, "Text"], ""]; \
-	  If[StringContainsQ[old, "(* MBAnalytica *)"], Print["already installed"], \
-	    Quiet[CreateDirectory[DirectoryName[f]]]; Export[f, old <> "\n" <> line <> "\n", "Text"]; \
-	    Print["added $(ROOT) to $$Path in ", f]]'
+	  lines = If[FileExistsQ[f], StringSplit[Import[f, "Text"], "\n"], {}]; \
+	  ours = Select[lines, StringContainsQ[#, "(* MBAnalytica *)"] &]; \
+	  If[ours === {line}, Print["  this folder is on the $$Path of Mathematica already (", f, ")"], \
+	    Quiet[CreateDirectory[DirectoryName[f]]]; \
+	    Export[f, StringRiffle[Append[Select[lines, ! MemberQ[ours, #] &], line], "\n"] <> "\n", "Text"]; \
+	    Print[If[ours === {}, "  added this folder to the $$Path of Mathematica in ", "  replaced the MBAnalytica line of an earlier folder in "], f]]; Exit[0]'
+	@found=$$("$(WOLFRAMSCRIPT)" -code 'f = Block[{$$Path = DeleteCases[$$Path, "."]}, FindFile["MBAnalytica.wl"]]; If[StringQ[f], ExpandFileName[f], "nothing"]' 2>/dev/null | tail -1); \
+	if [ "$$found" = "$(ROOT)/MBAnalytica.wl" ]; then echo "  << MBAnalytica.wl loads $$found"; echo ""; \
+	  echo "MBAnalytica is installed. Run  make test  to check it."; \
+	else echo "  << MBAnalytica.wl loads $$found instead of $(ROOT)/MBAnalytica.wl: another copy comes earlier on the \$$Path of Mathematica"; exit 1; fi
 
 uninstall:
 	@"$(WOLFRAMSCRIPT)" -code 'f = FileNameJoin[{$$UserBaseDirectory, "Kernel", "init.m"}]; \
 	  If[FileExistsQ[f], lines = StringSplit[Import[f, "Text"], "\n"]; \
 	    Export[f, StringRiffle[Select[lines, ! StringContainsQ[#, "(* MBAnalytica *)"] &], "\n"] <> "\n", "Text"]]; \
-	  Print["removed the MBAnalytica line from ", f]'
+	  Print["removed the MBAnalytica line from ", f]; Exit[0]'
 
 clean:
 	rm -rf "$(HF_SRC)/build" "$(HF_SRC)/build-guarded" "$(HF_SRC)/build-guarded-src" "$(HF_SRC)"/build*.log "$(FLINT_PREFIX)" \
