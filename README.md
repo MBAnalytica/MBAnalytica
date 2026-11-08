@@ -39,32 +39,24 @@ git clone https://github.com/MBAnalytica/MBAnalytica.git
 cd MBAnalytica
 ```
 
-2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3) by running the command below and answering `y`.
+2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3) by running the command below, which checks them and installs the missing ones after you answer `y`.
 
 ```bash
 make deps
 ```
 
-3. Download [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) from RISC and put them in one folder. These packages are required by the `SymbolicSum` method and are not distributed with `MBAnalytica`. Then build the package with the full path to this folder.
+3. Download [HarmonicSums](https://risc.jku.at/sw/harmonicsums/), [Sigma](https://risc.jku.at/sw/sigma/) and [EvaluateMultiSums](https://risc.jku.at/sw/evaluatemultisums/) from RISC and put them in one folder. These packages are required by the `SymbolicSum` method and are not distributed with `MBAnalytica`. Then build and install the package with the full path to this folder.
 
 ```bash
-make RISC=/path/to/RISC
+make install RISC=/path/to/RISC
 ```
 
-The above command also downloads [MB.m, MBresolve.m and barnesroutines.m](https://gitlab.com/feynmanintegrals/MB), [MBConicHulls.wl](https://github.com/SumitBanikGit/MBConicHulls), [PolyLogTools](https://gitlab.com/pltteam/plt), [HPL](https://www.physik.uzh.ch/data/HPL/) and [HypExp](https://www.physik.uzh.ch/data/HypExp/), so these do not have to be downloaded separately.
+The above command also downloads [MB.m, MBresolve.m and barnesroutines.m](https://gitlab.com/feynmanintegrals/MB), [MBConicHulls.wl](https://github.com/SumitBanikGit/MBConicHulls), [PolyLogTools](https://gitlab.com/pltteam/plt), [HPL](https://www.physik.uzh.ch/data/HPL/) and [HypExp](https://www.physik.uzh.ch/data/HypExp/), so these do not have to be downloaded separately. Finally, it adds the package to the `$Path` of Mathematica, so that `<< MBAnalytica.wl` loads it in every session.
 
-4. Test the installation and add the package to the `$Path` of Mathematica.
+4. Optionally, test the installation, which loads the package with `<< MBAnalytica.wl` and evaluates two examples with each method in a few minutes.
 
 ```bash
 make test
-make install
-```
-
-5. Load the package in Mathematica and check which methods are available.
-
-```mathematica
-<< MBAnalytica.wl
-MBAnalyticaCheck[]
 ```
 
 
