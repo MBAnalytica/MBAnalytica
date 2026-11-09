@@ -106,7 +106,7 @@ DependencyRows[] := {
   <|"Name" -> "Mathematica 14 or later", "Kind" -> "system",
     "Test" -> (TrueQ[$VersionNumber >= 14] &), "Methods" -> {"SymbolicSum", "ExpandInt", "Subtraction"},
     "Hint" -> "MBAnalytica is tested with Mathematica 14.2 and 15.0."|>,
-  <|"Name" -> "MB tools (MB, MBresolve, barnesroutines)", "Kind" -> "downloaded by make",
+  <|"Name" -> "MB tools (MB.m, MBresolve.m, barnesroutines.m)", "Kind" -> "downloaded by make",
     "Test" -> (AllFilesQ[{DepFile["MB", "MB.m"], DepFile["MB", "MBresolve.m"], DepFile["MB", "barnesroutines.m"]}] &),
     "Methods" -> {"SymbolicSum", "ExpandInt", "Subtraction"},
     "Hint" -> "Run make in the MBAnalytica folder; it downloads them from https://gitlab.com/feynmanintegrals/MB (UPSTREAM=/path uses local copies)."|>,

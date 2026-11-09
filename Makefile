@@ -1,6 +1,6 @@
 # MBAnalytica: build and check everything inside this folder.
 #
-#   make            check the tools, download MB.m, MBresolve.m, the Barnes routines, MBConicHulls, PolyLogTools, HPL and
+#   make            check the tools, download MB.m, MBresolve.m, barnesroutines.m, MBConicHulls.wl, PolyLogTools, HPL and
 #                   HypExp from their
 #                   authors' pages, build HyperFLINT, create the Python environment, fetch the large HPL tables,
 #                   write config.m
@@ -162,11 +162,11 @@ deps:
 	  done; echo ""; echo "Not run."; \
 	else echo "Run  make deps  in a terminal to be asked, or  make deps CONFIRM=yes  to run it without asking."; fi
 
-# ---- MB.m, MBresolve.m, the Barnes routines, MBConicHulls, PolyLogTools, HPL 2.0 and HypExp 2.0 (downloaded) -------
+# ---- MB.m, MBresolve.m, barnesroutines.m, MBConicHulls.wl, PolyLogTools, HPL 2.0 and HypExp 2.0 (downloaded) -------
 
 upstream:
 	@if cd "$(ROOT)/dep" && $(SHA256) -c UPSTREAM_FILES.sha256 > /dev/null 2>&1; then \
-	  echo "  MB.m, MBresolve.m, Barnes routines, MBConicHulls, PolyLogTools, HPL 2.0 and HypExp 2.0 present and verified"; exit 0; fi; \
+	  echo "  MB.m, MBresolve.m, barnesroutines.m, MBConicHulls.wl, PolyLogTools, HPL 2.0 and HypExp 2.0 present and verified"; exit 0; fi; \
 	mkdir -p "$(DL)/MB" "$(DL)/MBConicHulls" "$(DL)/PolyLogTools/core" "$(DL)/PolyLogTools/lib" "$(HPL)" "$(ROOT)/dep/HypExp" \
 	  "$(ROOT)/dep/MB" "$(ROOT)/dep/MBConicHulls" \
 	  "$(ROOT)/dep/PolyLogTools/core" "$(ROOT)/dep/PolyLogTools/lib"; \
@@ -192,7 +192,7 @@ upstream:
 	rm -rf "$(DL)/x"; \
 	cd "$(ROOT)/dep" && $(SHA256) -c UPSTREAM_FILES.sha256 > /dev/null || \
 	  { echo "The installed third-party files do not match dep/UPSTREAM_FILES.sha256"; exit 1; }; \
-	echo "  MB.m, MBresolve.m, Barnes routines, MBConicHulls, PolyLogTools, HPL 2.0 and HypExp 2.0 downloaded and verified (HPL.m and PolyLogTools patched)"
+	echo "  MB.m, MBresolve.m, barnesroutines.m, MBConicHulls.wl, PolyLogTools, HPL 2.0 and HypExp 2.0 downloaded and verified (HPL.m and PolyLogTools patched)"
 
 # ---- HyperFLINT: the plain build, and the guarded build with dep/IntVolFLINT/patches applied -----------------------
 

@@ -2,7 +2,7 @@
 
 (* Self-contained Standard-route loader for the MB_standard release (R2, 2026-09-07).
    Loads, in this order: the bundled PolyLogTools / HPL (weight 10) / HypExp stack, the sealed MBSymbolicInt core, the
-   MB / MBresolve / Barnes routines, the strategy engines (HyperIntica + hyperlogarithm integrator bridges), the
+   MB.m / MBresolve.m / barnesroutines.m, the strategy engines (HyperIntica + hyperlogarithm integrator bridges), the
    IntVolFLINT strategy hook, and the class-handler rungs.  No certified piece library, no phase-block record and
    no IntVol knowledge library exist in this release: every Barnes piece is derived by the sealed core and the rungs.
 
