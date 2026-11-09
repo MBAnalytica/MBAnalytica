@@ -39,7 +39,7 @@ Ord    - the deepest order of Eps to be evaluated\n\n\
 The integration variables are the variables inside the Gamma and PolyGamma functions and the kinematic variables \
 are whatever is left, so neither has to be given. MBEvaluate[MBInt, MBVar, {Eps, Ord}] names the kinematic \
 variables explicitly; they are taken in 0 < x < 1.\n\n\
-A coefficient that could not be brought to a closed form is returned as MBFailed[reasons].\n\n\
+A coefficient that no method could evaluate is omitted from the result, and a message names its order.\n\n\
 Options:\n  \
 Method -> Automatic       tries the methods available on this machine in the order \"SymbolicSum\", \"ExpandInt\", \
 \"Subtraction\", each one only on the orders the earlier ones left open; \"SymbolicSum\", \"ExpandInt\" or \"Subtraction\" uses \
@@ -56,11 +56,6 @@ MBEvaluate[MB1u, {\[Epsilon], -1}, Complex -> True]";
 MBAnalyticaCheck::usage =
 "MBAnalyticaCheck[] prints which dependencies of MBAnalytica were found on this machine, what to do about each \
 missing one, and which methods can run. It returns an association with the same information.";
-
-
-MBFailed::usage =
-"MBFailed[reasons] stands for a coefficient that no method could bring to a closed form; reasons names what was \
-left unresolved.";
 
 
 CosmoTreeMB::usage =

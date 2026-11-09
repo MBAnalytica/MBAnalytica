@@ -213,9 +213,10 @@ LoadSymbolicSum[] := Module[{SymbolicSumFile, Folder},
      Global`$KernelLaunch, which keeps the user's value and otherwise gets the default *)
   If[! IntegerQ[Global`$KernelLaunch], Global`$KernelLaunch = KernelCount[]];
   SymbolicSumFile = FileNameJoin[{PackageRoot, "src", "SymbolicSum", "MBSymbolicSum.wl"}];
-  (* MBSymbolicSum reads the option and failure symbols of MBAnalytica`; its own context stays off the user's path *)
+  (* MBSymbolicSum reads the option symbols of MBAnalytica` and marks a coefficient that it cannot evaluate with
+     MBAnalytica`Private`NotEvaluated; its own context stays off the user's path *)
   (* as in a fresh kernel after MB.m, MBresolve.m and barnesroutines.m, with MBAnalytica` first so that MBSymbolicSum's
-     option and failure symbols are those of MBEvaluate *)
+     option symbols are those of MBEvaluate *)
   Block[{$ContextPath = Join[{"MBAnalytica`", "BarnesRoutines`", "MB`"}, FreshContextPath], $Output = {}},
     Get[SymbolicSumFile];
     SymbolicSumContextPath = $ContextPath];
@@ -320,7 +321,7 @@ LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
 (*The methods*)
 
 
-(* MBSymbolicSum: the coefficients from the leading pole through Eps^Ord; a coefficient it cannot close is MBFailed[...] *)
+(* MBSymbolicSum: the coefficients from the leading pole through Eps^Ord; a coefficient it cannot evaluate is NotEvaluated[...] *)
 RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, Expanded, Orders, OneFold},
   If[! LoadSymbolicSum[], Return[FailAll[Lo, Hi, "SymbolicSum", "the method could not be loaded"]]];
   (* a one-fold integral Gamma(-z) Prod Gamma(m_i + c_i eps + z)^k_i X^z of the pFp-1 class whose contour separates the
@@ -414,15 +415,20 @@ RunEngine[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Method1_String, Opts_Associat
   If[TrueQ[Call["Exact"]],
     Expanded = Expand[Call["Result"]];
     Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Range[Lo, Hi]]]]];
-  If[Lo === Hi, Return[FailAll[Lo, Hi, Method1, "a piece could not be closed"]]];
+  If[Lo === Hi, Return[FailAll[Lo, Hi, Method1, "a term could not be evaluated"]]];
   Coefs = Association[Map[Function[K1,
     Single = EngineCall[MBInt, Kinematics, Eps, K1, K1, Route, Opts];
     K1 -> If[TrueQ[Single["Exact"]], Coefficient[Expand[Single["Result"]], Eps, K1],
-      MBFailed[{Method1, "a piece could not be closed"}]]], Range[Lo, Hi]]];
+      NotEvaluated[{Method1, "a term could not be evaluated"}]]], Range[Lo, Hi]]];
   Return[Coefs]];
 
 
-FailAll[Lo_, Hi_, Method1_, Reason_] := Association[Map[# -> MBFailed[{Method1, Reason}] &, Range[Lo, Hi]]];
+FailAll[Lo_, Hi_, Method1_, Reason_] := Association[Map[# -> NotEvaluated[{Method1, Reason}] &, Range[Lo, Hi]]];
+
+
+(* the orders that no method evaluated, each with the reason of the last method tried, for the message of MBEvaluate *)
+OpenReasons[Coefficients_Association, OpenOrders_List, Eps_] := StringRiffle[
+  Map[ToString[Eps^#] <> " " <> ToString[First[Coefficients[#]]] &, OpenOrders], ", "];
 
 
 RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_Association] := Switch[Method1,
@@ -445,7 +451,7 @@ MBEvaluate::pole = "The leading pole of the integral could not be determined (MB
 MBEvaluate::real = "A coefficient contains a function that is not real on the whole domain 0 < x < 1, so its real \
 part cannot be separated symbolically; its full complex value is returned. Complex -> True returns complex values \
 throughout.";
-MBEvaluate::open = "The coefficient(s) of `1` could not be closed by any method and are returned as MBFailed[...].";
+MBEvaluate::open = "No method evaluated the coefficient(s) of `1`, which are omitted from the result (`2`).";
 
 
 MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
@@ -453,7 +459,7 @@ MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
 
 
 MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
-  {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders},
+  {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders, Evaluated},
   Method1 = OptionValue[Method];
   (* "HyperLog" and "Standard", the earlier names of the ExpandInt method, and "Resum", that of SymbolicSum, are accepted as aliases *)
   If[Method1 === "HyperLog" || Method1 === "Standard", Method1 = "ExpandInt"];
@@ -475,19 +481,23 @@ MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Modul
   Lo = WithoutUserValues[LeadingPole[MBInt, Eps, Ord]];
   If[! IntegerQ[Lo], Message[MBEvaluate::pole]; Return[$Failed]];
   Say[Settings["Verbose"], "MBEvaluate: orders ", Eps, "^", Lo, " through ", Eps, "^", Ord];
-  Coefficients = Association[Map[# -> MBFailed[{"not attempted"}] &, Range[Lo, Ord]]];
+  Coefficients = Association[Map[# -> NotEvaluated[{"not attempted"}] &, Range[Lo, Ord]]];
   Do[
-    OpenKeys = Select[Keys[Coefficients], Head[Coefficients[#]] === MBFailed &];
+    OpenKeys = Select[Keys[Coefficients], Head[Coefficients[#]] === NotEvaluated &];
     If[OpenKeys === {}, Break[]];
     Say[Settings["Verbose"], "MBEvaluate: ", M1, " on ", Eps, "^", Min[OpenKeys], " .. ", Eps, "^", Max[OpenKeys]];
     Got = WithoutUserValues[RunMethod[M1, MBInt, MBVar, Kinematics, Eps, Min[OpenKeys], Max[OpenKeys], Settings]];
     Got = WithoutUserValues[Association[KeyValueMap[#1 -> CheckOutputClass[#2, M1, Kinematics] &, Got]]];
-    Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] =!= MBFailed, Coefficients[K1] = Got[K1]]], OpenKeys];
-    Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] === MBFailed, Coefficients[K1] = Got[K1]]],
-      Select[OpenKeys, Head[Coefficients[#]] === MBFailed &]],
+    Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] =!= NotEvaluated, Coefficients[K1] = Got[K1]]], OpenKeys];
+    Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] === NotEvaluated, Coefficients[K1] = Got[K1]]],
+      Select[OpenKeys, Head[Coefficients[#]] === NotEvaluated &]],
     {M1, Methods}];
-  OpenOrders = Select[Keys[Coefficients], Head[Coefficients[#]] === MBFailed &];
-  If[OpenOrders =!= {}, Message[MBEvaluate::open, Map[Eps^# &, OpenOrders]]];
-  Finished = WithoutUserValues[Association[KeyValueMap[#1 -> FinishCoefficient[#2, Kinematics, Settings["Complex"]] &, Coefficients]]];
+  OpenOrders = Select[Keys[Coefficients], Head[Coefficients[#]] === NotEvaluated &];
+  If[OpenOrders =!= {}, Message[MBEvaluate::open, Map[Eps^# &, OpenOrders], OpenReasons[Coefficients, OpenOrders, Eps]]];
+  (* a coefficient that no method evaluated is omitted from the result, as the message says; when no order was
+     evaluated, the result is $Failed *)
+  Evaluated = KeySelect[Coefficients, ! MemberQ[OpenOrders, #] &];
+  If[Evaluated === <||>, Return[$Failed]];
+  Finished = WithoutUserValues[Association[KeyValueMap[#1 -> FinishCoefficient[#2, Kinematics, Settings["Complex"]] &, Evaluated]]];
   ShowOutputContexts[];
   Return[AssembleSeries[Finished, Eps]]];

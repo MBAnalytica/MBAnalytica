@@ -4,7 +4,7 @@
    kernel: every verdict is on the value MBAnalytica returns (G, Log, Zeta, Pi), never on MBSymbolicSum's own output.
    Environment: NAME (MB1, MB2, ..., MB13, or MB1u, ..., MB13u; MB2 = MB21 + MB22 and MB8 = MB81 + MB82),
    ORDER (the deepest order), OUT (record folder), KERNELS ($KernelLaunch, default 4), RESULTS_T (the audited records).
-   Every row: the MBEvaluate value is free of MBFailed and of HarmonicSums H.
+   Every row: every order of the MBEvaluate value is evaluated (no MBEvaluate::open) and free of HarmonicSums H.
    inclusive: the exact difference of the MBEvaluate value with MBnVal vanishes at every order.
    differential: every order of the MBEvaluate value equals the audited record results_t/MBn_diff_<k>.m at u = 31/100
    and 7/100 to 10^-12: each G of MBEvaluate by GiNaC (30 digits), each H of the record on its cut as a G-function ODE
@@ -23,18 +23,20 @@ Parts = Switch[Name, "MB2", {MB21, MB22}, "MB2u", {MB21u, MB22u}, "MB8", {MB81, 
   _, {ToExpression[Name]}];
 DiffQ = StringEndsQ[Name, "u"];
 T0 = AbsoluteTime[];
-GForm = Total[Map[MBEvaluate[#, {Eps, Ord}, Method -> "SymbolicSum"] &, Parts]];
+Runs = Map[EvaluationData[MBEvaluate[#, {Eps, Ord}, Method -> "SymbolicSum"]] &, Parts];
+GForm = Total[Map[#["Result"] &, Runs]];
+OmittedQ = ! FreeQ[Map[#["MessagesExpressions"] &, Runs], HoldPattern[MBEvaluate::open]];
 Seconds = Round[AbsoluteTime[] - T0];
 Lo = Exponent[Expand[GForm], Eps, Min];
-Clean = FreeQ[GForm, MBAnalytica`MBFailed] && FreeQ[GForm, _HarmonicSums`H];
-Print["RESUM_FORM ", Name, " MBEvaluate value free of MBFailed and H: ", Clean, "  G functions: ",
+Clean = ! OmittedQ && FreeQ[GForm, _HarmonicSums`H];
+Print["RESUM_FORM ", Name, " MBEvaluate value with every order evaluated and free of H: ", Clean, "  G functions: ",
   Count[GForm, _PolyLogTools`G, {0, Infinity}]];
 Pass = Clean; Rows = {};
 If[! DiffQ,
   Val = ToExpression[Name <> "Val"];
-  Diff = Quiet[Simplify[Expand[GForm - Normal[Series[Val, {Eps, 0, Ord}]]]]];
-  Pass = Pass && TrueQ[Diff === 0];
-  Print["RESUM_INCL ", Name, " exact difference with ", Name, "Val: ", InputForm[Diff]]];
+  Difference1 = Quiet[Simplify[Expand[GForm - Normal[Series[Val, {Eps, 0, Ord}]]]]];
+  Pass = Pass && TrueQ[Difference1 === 0];
+  Print["RESUM_INCL ", Name, " exact difference with ", Name, "Val: ", InputForm[Difference1]]];
 If[DiffQ,
   Wp = 40;
   GArc[Words_, Sig_] := Module[{Suffixes, GName, Eqs, Ics, Fs, Sol, S0, Zs, Dz},

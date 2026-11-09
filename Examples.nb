@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       154,          7]
-NotebookDataLength[    795570,      15547]
-NotebookOptionsPosition[    772891,      15136]
-NotebookOutlinePosition[    773538,      15158]
-CellTagsIndexPosition[    773495,      15155]
+NotebookDataLength[    789060,      15354]
+NotebookOptionsPosition[    766612,      14947]
+NotebookOutlinePosition[    767259,      14969]
+CellTagsIndexPosition[    767216,      14966]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -22,7 +22,7 @@ Notebook[{
 Cell[CellGroupData[{
 Cell["\<\
 Analytic Evaluation of Mellin\[Dash]Barnes Integrals using MBAnalytica\
-\>", "Title",ExpressionUUID->"700af00f-5d53-4fba-8361-1886ab22b768"],
+\>", "Title",ExpressionUUID->"ea4ae082-91be-407e-a845-593b4c4a6df8"],
 
 Cell[TextData[{
  StyleBox["- Taushif Ahmed",
@@ -36,47 +36,47 @@ Cell[TextData[{
  ", ",
  StyleBox["Andreas Rapakoulias",
   FontWeight->"Bold"]
-}], "Author",ExpressionUUID->"8c25f254-5a15-4317-8f69-d4732b4e327a"],
+}], "Author",ExpressionUUID->"cc731356-5732-4b0e-b108-ef12cb2c43ad"],
 
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Loading Package",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"307687d8-\
-756e-4bf0-a9ae-2a50b8848273"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"d9463c52-\
+a977-44e7-a148-cea41fc21509"],
 
 Cell[CellGroupData[{
 
-Cell[BoxData["$Version"], "Input",ExpressionUUID->"aed6d869-5ec3-4b09-9f22-deeb7980038d"],
+Cell[BoxData["$Version"], "Input",ExpressionUUID->"b403bd64-a84c-4408-8f79-49f2526a3859"],
 
-Cell[BoxData["\<\"15.0.0 for Linux x86 (64-bit) (May 19, 2026)\"\>"], "Output",ExpressionUUID->"a0667002-8df3-4175-aa53-2c7f3b4a26a1"]
+Cell[BoxData["\<\"15.0.0 for Linux x86 (64-bit) (May 19, 2026)\"\>"], "Output",ExpressionUUID->"08b28eba-424a-4e93-be66-c079bf8a3aeb"]
 }, Open  ]],
 
 Cell[BoxData[
  RowBox[{
   RowBox[{"SetDirectory", "[", 
    RowBox[{"NotebookDirectory", "[", "]"}], "]"}], ";"}]], "Input",ExpressionU\
-UID->"6ce1fc1a-4651-43eb-96c1-7e97c5d0db46"],
+UID->"f2962771-147d-484e-9fff-964422604c9d"],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[{
  RowBox[{
   RowBox[{"$KernelLaunch", " ", "=", " ", "2"}], ";"}], "\n", 
- RowBox[{"<<", " ", "MBAnalytica.wl"}]}], "Input",ExpressionUUID->"fa2dff11-\
-c65a-42c3-ab95-845e7dad253a"],
+ RowBox[{"<<", " ", "MBAnalytica.wl"}]}], "Input",ExpressionUUID->"b57f02d5-\
+ecef-46de-93d1-fd132a95d88d"],
 
 Cell[CellGroupData[{
 
 Cell["\<\
 MBAnalytica 1.0.0 - analytic evaluation of Mellin-Barnes integrals in terms \
 of multiple polylogarithms.\
-\>", "Print",ExpressionUUID->"b5bb487c-6ce7-4e78-9e47-0e05303296b8"],
+\>", "Print",ExpressionUUID->"674b4664-c4b8-48c7-80ba-47b2e584450f"],
 
 Cell["\<\
 Authors: Taushif Ahmed, Sumit Banik, Syed Mehedi Hasan, Andreas Rapakoulias\
-\>", "Print",ExpressionUUID->"8b66cb11-f6cb-4667-b1b4-a35ae55aaa6a"],
+\>", "Print",ExpressionUUID->"6b314264-f217-490d-b557-c602cabb8e03"],
 
-Cell["Methods available: SymbolicSum, ExpandInt, Subtraction", "Print",ExpressionUUID->"880426fa-b51d-4498-b140-2b26980191c2"]
+Cell["Methods available: SymbolicSum, ExpandInt, Subtraction", "Print",ExpressionUUID->"251710bc-5780-453a-b7a4-1ce17e84447a"]
 }, Open  ]]
 }, Open  ]],
 
@@ -87,7 +87,7 @@ values. Their numerical values at a kinematic point follow from the interface \
 of PolyLogTools to GiNaC, which MBAnalytica configures once an integration \
 method (ExpandInt or Subtraction) has run. We use it through the following \
 function.\
-\>", "Text",ExpressionUUID->"c176e54f-5d23-4f60-b9b2-717d04f01444"],
+\>", "Text",ExpressionUUID->"a3dff278-767c-40f8-a4cd-ebfd44031ce3"],
 
 Cell[BoxData[
  RowBox[{
@@ -104,23 +104,23 @@ Cell[BoxData[
      RowBox[{
       RowBox[{"expr", " ", "/.", " ", "point"}], ",", " ", 
       RowBox[{"{", "}"}]}], "]"}]}], "]"}]}]], "Input",ExpressionUUID->\
-"cbef5937-e0e9-45a8-9b33-ac3f82914aa2"]
+"9a6752a4-2c12-48cd-aa1d-a73e25ab5802"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Usage Summary",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"c07423b3-\
-4648-4f57-bd20-773d2afb06c3"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"25038882-\
+97b5-4006-bde7-9afe0c8517b4"],
 
 Cell[CellGroupData[{
 
-Cell["Global Variables", "Section",ExpressionUUID->"51dcc0f5-9d45-4748-a407-f5744667ee5a"],
+Cell["Global Variables", "Section",ExpressionUUID->"e4a3ddd6-9d1d-42e8-8378-c21eb0639d1a"],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "$KernelLaunch"}]], "Input",ExpressionUUID->"24eb323b-a5ff-4d56-8285-65657d07c334"],
+ RowBox[{"?", "$KernelLaunch"}]], "Input",ExpressionUUID->"17973a53-f5aa-4b55-9a6c-799cc5c092a1"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -381,14 +381,14 @@ $KernelLaunch = 8.", "Documentation" -> None, "OwnValues" ->
        2}], "UpValues" -> None, "DownValues" -> None, "SubValues" -> None, 
     "DefaultValues" -> None, "NValues" -> None, "FormatValues" -> None, 
     "Options" -> None, "Attributes" -> {}, "FullName" -> 
-    "Global`$KernelLaunch"|>, False]]], "Output",ExpressionUUID->"4dc21f51-\
-c3ce-4572-8f7c-af5ae561d51a"]
+    "Global`$KernelLaunch"|>, False]]], "Output",ExpressionUUID->"d2f86fac-\
+4ecd-4933-a278-eb332ad0fd26"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "$MBAnalyticaCacheDirectory"}]], "Input",ExpressionUUID->"22e14553-95a2-44b9-a3cf-7ec1f4d91002"],
+ RowBox[{"?", "$MBAnalyticaCacheDirectory"}]], "Input",ExpressionUUID->"e6d90145-b017-46a5-9c5b-3e953594aa69"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -617,13 +617,13 @@ MBAnalytica; the default is $UserBaseDirectory/ApplicationData/MBAnalytica.",
     "DownValues" -> None, "SubValues" -> None, "DefaultValues" -> None, 
     "NValues" -> None, "FormatValues" -> None, "Options" -> None, 
     "Attributes" -> {}, "FullName" -> "Global`$MBAnalyticaCacheDirectory"|>, 
-   False]]], "Output",ExpressionUUID->"3041862a-7861-48ff-8faf-ea2f8fa7108a"]
+   False]]], "Output",ExpressionUUID->"8e64335b-0a92-4eb3-b547-1e19cb8df5bc"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "$MBAnalyticaRISCPath"}]], "Input",ExpressionUUID->"c49c114d-a756-47f4-927c-55fa0594a800"],
+ RowBox[{"?", "$MBAnalyticaRISCPath"}]], "Input",ExpressionUUID->"c294bd69-4da4-41db-aa16-0f02cf31b749"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -853,13 +853,13 @@ it once for all sessions.", "Documentation" -> None, "OwnValues" -> None,
     "DefaultValues" -> None, "NValues" -> None, "FormatValues" -> None, 
     "Options" -> None, "Attributes" -> {}, "FullName" -> 
     "Global`$MBAnalyticaRISCPath"|>, False]]], "Output",ExpressionUUID->\
-"cbba4cca-0266-498a-b3b2-7b1b6541d29a"]
+"a91bcdd6-e8f3-4c9c-af56-412ba3c135de"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "$MBAnalyticaDirectory"}]], "Input",ExpressionUUID->"f7589d59-9506-49f1-8cad-a0f7fd3c9276"],
+ RowBox[{"?", "$MBAnalyticaDirectory"}]], "Input",ExpressionUUID->"6c71347c-6554-4c74-bc22-143003abba69"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -1122,13 +1122,13 @@ loaded from.\"\>", "InformationUsageText",
     "DefaultValues" -> None, "NValues" -> None, "FormatValues" -> None, 
     "Options" -> None, "Attributes" -> {}, "FullName" -> 
     "MBAnalytica`$MBAnalyticaDirectory"|>, False]]], "Output",ExpressionUUID->\
-"8c5f2a1a-a8e1-496d-b328-5b8cc7f4da7c"]
+"e1e1f259-bb57-4857-9bd4-735016fe3837"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "$MBAnalyticaMethods"}]], "Input",ExpressionUUID->"26af2991-bfbc-4d1e-8716-871d67786973"],
+ RowBox[{"?", "$MBAnalyticaMethods"}]], "Input",ExpressionUUID->"0916f489-4c16-4074-b46b-c342500e7f65"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -1396,13 +1396,13 @@ on this machine (\\\"SymbolicSum\\\", \\\"ExpandInt\\\", \
     "DownValues" -> None, "SubValues" -> None, "DefaultValues" -> None, 
     "NValues" -> None, "FormatValues" -> None, "Options" -> None, 
     "Attributes" -> {}, "FullName" -> "MBAnalytica`$MBAnalyticaMethods"|>, 
-   False]]], "Output",ExpressionUUID->"8698f48e-9eae-44ee-8a0f-295cf6c873b1"]
+   False]]], "Output",ExpressionUUID->"1f4790b0-58fc-479a-9057-1c3464b8b286"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "$MBAnalyticaVersion"}]], "Input",ExpressionUUID->"4577824b-8221-46cd-912f-67a4b066d67d"],
+ RowBox[{"?", "$MBAnalyticaVersion"}]], "Input",ExpressionUUID->"97cce4a8-d266-41c1-84c3-437117a5d545"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -1661,18 +1661,18 @@ MBAnalytica.\"\>", "InformationUsageText",
     "DownValues" -> None, "SubValues" -> None, "DefaultValues" -> None, 
     "NValues" -> None, "FormatValues" -> None, "Options" -> None, 
     "Attributes" -> {}, "FullName" -> "MBAnalytica`$MBAnalyticaVersion"|>, 
-   False]]], "Output",ExpressionUUID->"08391856-b3a1-4210-a6bb-22a7503b7226"]
+   False]]], "Output",ExpressionUUID->"a413fbaa-0dba-4eba-838d-a469bf20a4cc"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["External Commands", "Section",ExpressionUUID->"90047499-9914-4bfc-ae42-4d58d671772b"],
+Cell["External Commands", "Section",ExpressionUUID->"3e23cce1-fac3-4c74-9f67-f73f6cafaa4a"],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "MBEvaluate"}]], "Input",ExpressionUUID->"a2d05431-7ec2-4eda-aff4-896e348bd9ca"],
+ RowBox[{"?", "MBEvaluate"}]], "Input",ExpressionUUID->"657fffbb-7dbb-4529-9256-f3c4ec5785f0"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -1715,9 +1715,9 @@ evaluated\\n\\nThe integration variables are the variables inside the Gamma \
 and PolyGamma functions and the kinematic variables are whatever is left, so \
 neither has to be given. MBEvaluate[MBInt, MBVar, {Eps, Ord}] names the \
 kinematic variables explicitly; they are taken in 0 < x < 1.\\n\\nA \
-coefficient that could not be brought to a closed form is returned as \
-MBFailed[reasons].\\n\\nOptions:\\n  Method -> Automatic       tries the \
-methods available on this machine in the order \\\"SymbolicSum\\\", \
+coefficient that no method could evaluate is omitted from the result, and a \
+message names its order.\\n\\nOptions:\\n  Method -> Automatic       tries \
+the methods available on this machine in the order \\\"SymbolicSum\\\", \
 \\\"ExpandInt\\\", \\\"Subtraction\\\", each one only on the orders the \
 earlier ones left open; \\\"SymbolicSum\\\", \\\"ExpandInt\\\" or \
 \\\"Subtraction\\\" uses that method alone (\\\"HyperLog\\\" and \\\"Standard\
@@ -1795,7 +1795,8 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     "MBAnalytica`Private`OpenKeys", ",", 
                     "MBAnalytica`Private`Got", ",", 
                     "MBAnalytica`Private`Finished", ",", 
-                    "MBAnalytica`Private`OpenOrders"}], "}"}], ",", 
+                    "MBAnalytica`Private`OpenOrders", ",", "Evaluated"}], 
+                    "}"}], ",", 
                     RowBox[{
                     RowBox[{"MBAnalytica`Private`Method1", "=", 
                     RowBox[{"OptionValue", "[", "Method", "]"}]}], ";", 
@@ -1909,11 +1910,12 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"{", "}"}]}], ",", "\"none\"", ",", 
                     "MBAnalytica`Private`Kinematics"}], "]"}]}], "]"}], ";", 
                     RowBox[{"MBAnalytica`Private`Lo", "=", 
+                    RowBox[{"MBAnalytica`Private`WithoutUserValues", "[", 
                     RowBox[{"MBAnalytica`Private`LeadingPole", "[", 
                     
                     RowBox[{"MBAnalytica`Private`MBInt", ",", 
                     "MBAnalytica`Private`Eps", ",", 
-                    "MBAnalytica`Private`Ord"}], "]"}]}], ";", 
+                    "MBAnalytica`Private`Ord"}], "]"}], "]"}]}], ";", 
                     RowBox[{"If", "[", 
                     RowBox[{
                     RowBox[{"!", 
@@ -1941,7 +1943,7 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"(", 
                     RowBox[{
                     RowBox[{"#1", "\[Rule]", 
-                    RowBox[{"MBFailed", "[", 
+                    RowBox[{"MBAnalytica`Private`NotEvaluated", "[", 
                     RowBox[{"{", "\"not attempted\"", "}"}], "]"}]}], "&"}], 
                     ")"}], "/@", 
                     RowBox[{"Range", "[", 
@@ -1962,8 +1964,8 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"Head", "[", 
                     
                     RowBox[{"MBAnalytica`Private`Coefficients", "[", "#1", 
-                    "]"}], "]"}], "===", "MBFailed"}], "&"}]}], "]"}]}], ";", 
-                    
+                    "]"}], "]"}], "===", "MBAnalytica`Private`NotEvaluated"}],
+                     "&"}]}], "]"}]}], ";", 
                     RowBox[{"If", "[", 
                     RowBox[{
                     RowBox[{"MBAnalytica`Private`OpenKeys", "===", 
@@ -1983,6 +1985,7 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"Max", "[", "MBAnalytica`Private`OpenKeys", 
                     "]"}]}], "]"}], ";", 
                     RowBox[{"MBAnalytica`Private`Got", "=", 
+                    RowBox[{"MBAnalytica`Private`WithoutUserValues", "[", 
                     RowBox[{"MBAnalytica`Private`RunMethod", "[", 
                     
                     RowBox[{"MBAnalytica`Private`M1", ",", 
@@ -1993,7 +1996,20 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"Min", "[", "MBAnalytica`Private`OpenKeys", "]"}],
                      ",", 
                     RowBox[{"Max", "[", "MBAnalytica`Private`OpenKeys", "]"}],
-                     ",", "MBAnalytica`Private`Settings"}], "]"}]}], ";", 
+                     ",", "MBAnalytica`Private`Settings"}], "]"}], "]"}]}], 
+                    ";", 
+                    RowBox[{"MBAnalytica`Private`Got", "=", 
+                    RowBox[{"MBAnalytica`Private`WithoutUserValues", "[", 
+                    RowBox[{"Association", "[", 
+                    RowBox[{"KeyValueMap", "[", 
+                    RowBox[{
+                    RowBox[{
+                    RowBox[{"#1", "\[Rule]", 
+                    RowBox[{"MBAnalytica`Private`CheckOutputClass", "[", 
+                    
+                    RowBox[{"#2", ",", "MBAnalytica`Private`M1", ",", 
+                    "MBAnalytica`Private`Kinematics"}], "]"}]}], "&"}], ",", 
+                    "MBAnalytica`Private`Got"}], "]"}], "]"}], "]"}]}], ";", 
                     RowBox[{"Scan", "[", 
                     RowBox[{
                     RowBox[{"Function", "[", 
@@ -2010,7 +2026,7 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     
                     RowBox[{"MBAnalytica`Private`Got", "[", 
                     "MBAnalytica`Private`K1", "]"}], "]"}], "=!=", 
-                    "MBFailed"}]}], ",", 
+                    "MBAnalytica`Private`NotEvaluated"}]}], ",", 
                     RowBox[{
                     
                     RowBox[{"MBAnalytica`Private`Coefficients", "[", 
@@ -2035,7 +2051,7 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     
                     RowBox[{"MBAnalytica`Private`Got", "[", 
                     "MBAnalytica`Private`K1", "]"}], "]"}], "===", 
-                    "MBFailed"}]}], ",", 
+                    "MBAnalytica`Private`NotEvaluated"}]}], ",", 
                     RowBox[{
                     
                     RowBox[{"MBAnalytica`Private`Coefficients", "[", 
@@ -2051,8 +2067,8 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"Head", "[", 
                     
                     RowBox[{"MBAnalytica`Private`Coefficients", "[", "#1", 
-                    "]"}], "]"}], "===", "MBFailed"}], "&"}]}], "]"}]}], 
-                    "]"}]}], ",", 
+                    "]"}], "]"}], "===", "MBAnalytica`Private`NotEvaluated"}],
+                     "&"}]}], "]"}]}], "]"}]}], ",", 
                     RowBox[{"{", 
                     
                     RowBox[{"MBAnalytica`Private`M1", ",", 
@@ -2068,8 +2084,8 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"Head", "[", 
                     
                     RowBox[{"MBAnalytica`Private`Coefficients", "[", "#1", 
-                    "]"}], "]"}], "===", "MBFailed"}], "&"}]}], "]"}]}], ";", 
-                    
+                    "]"}], "]"}], "===", "MBAnalytica`Private`NotEvaluated"}],
+                     "&"}]}], "]"}]}], ";", 
                     RowBox[{"If", "[", 
                     RowBox[{
                     RowBox[{"MBAnalytica`Private`OpenOrders", "=!=", 
@@ -2082,9 +2098,27 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     RowBox[{"(", 
                     RowBox[{
                     SuperscriptBox["MBAnalytica`Private`Eps", "#1"], "&"}], 
-                    ")"}], "/@", "MBAnalytica`Private`OpenOrders"}]}], 
-                    "]"}]}], "]"}], ";", 
+                    ")"}], "/@", "MBAnalytica`Private`OpenOrders"}], ",", 
+                    RowBox[{"MBAnalytica`Private`OpenReasons", "[", 
+                    
+                    RowBox[{"MBAnalytica`Private`Coefficients", ",", 
+                    "MBAnalytica`Private`OpenOrders", ",", 
+                    "MBAnalytica`Private`Eps"}], "]"}]}], "]"}]}], "]"}], ";", 
+                    RowBox[{"Evaluated", "=", 
+                    RowBox[{"KeySelect", "[", 
+                    RowBox[{"MBAnalytica`Private`Coefficients", ",", 
+                    RowBox[{
+                    RowBox[{"!", 
+                    RowBox[{"MemberQ", "[", 
+                    RowBox[{"MBAnalytica`Private`OpenOrders", ",", "#1"}], 
+                    "]"}]}], "&"}]}], "]"}]}], ";", 
+                    RowBox[{"If", "[", 
+                    RowBox[{
+                    RowBox[{"Evaluated", "===", 
+                    RowBox[{"Association", "[", "]"}]}], ",", 
+                    RowBox[{"Return", "[", "$Failed", "]"}]}], "]"}], ";", 
                     RowBox[{"MBAnalytica`Private`Finished", "=", 
+                    RowBox[{"MBAnalytica`Private`WithoutUserValues", "[", 
                     RowBox[{"Association", "[", 
                     RowBox[{"KeyValueMap", "[", 
                     RowBox[{
@@ -2096,8 +2130,8 @@ MBEvaluate[MB1, {\[Epsilon], 0}]\\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method \
                     
                     RowBox[{
                     "MBAnalytica`Private`Settings", "[", "\"Complex\"", 
-                    "]"}]}], "]"}]}], "&"}], ",", 
-                    "MBAnalytica`Private`Coefficients"}], "]"}], "]"}]}], ";", 
+                    "]"}]}], "]"}]}], "&"}], ",", "Evaluated"}], "]"}], "]"}],
+                     "]"}]}], ";", 
                     
                     RowBox[{"MBAnalytica`Private`ShowOutputContexts", "[", 
                     "]"}], ";", 
@@ -2341,9 +2375,9 @@ evaluated\\n\\nThe integration variables are the variables inside the Gamma \
 and PolyGamma functions and the kinematic variables are whatever is left, so \
 neither has to be given. MBEvaluate[MBInt, MBVar, {Eps, Ord}] names the \
 kinematic variables explicitly; they are taken in 0 < x < 1.\\n\\nA \
-coefficient that could not be brought to a closed form is returned as \
-MBFailed[reasons].\\n\\nOptions:\\n  Method -> Automatic       tries the \
-methods available on this machine in the order \\\"SymbolicSum\\\", \
+coefficient that no method could evaluate is omitted from the result, and a \
+message names its order.\\n\\nOptions:\\n  Method -> Automatic       tries \
+the methods available on this machine in the order \\\"SymbolicSum\\\", \
 \\\"ExpandInt\\\", \\\"Subtraction\\\", each one only on the orders the \
 earlier ones left open; \\\"SymbolicSum\\\", \\\"ExpandInt\\\" or \
 \\\"Subtraction\\\" uses that method alone (\\\"HyperLog\\\" and \\\"Standard\
@@ -2427,20 +2461,20 @@ Ord    - the deepest order of Eps to be evaluated\n\nThe integration \
 variables are the variables inside the Gamma and PolyGamma functions and the \
 kinematic variables are whatever is left, so neither has to be given. \
 MBEvaluate[MBInt, MBVar, {Eps, Ord}] names the kinematic variables \
-explicitly; they are taken in 0 < x < 1.\n\nA coefficient that could not be \
-brought to a closed form is returned as MBFailed[reasons].\n\nOptions:\n  \
-Method -> Automatic       tries the methods available on this machine in the \
-order \"SymbolicSum\", \"ExpandInt\", \"Subtraction\", each one only on the \
-orders the earlier ones left open; \"SymbolicSum\", \"ExpandInt\" or \
-\"Subtraction\" uses that method alone (\"HyperLog\" and \"Standard\" are \
-accepted as aliases of \"ExpandInt\", and \"Resum\" of \"SymbolicSum\")\n  \
-Verbose -> False          prints one line per stage\n  BarnesReduce -> True   \
-   applies the Barnes lemmas before the SymbolicSum method solves the \
-integral\n  Complex -> False          returns the real part; True returns the \
-full complex value\n\nExamples:\n  MBEvaluate[MB1, {\[Epsilon], 0}]\n  \
-MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  MBEvaluate[MB1u, \
-{\[Epsilon], -1}, Complex -> True]", "Documentation" -> None, "OwnValues" -> 
-    None, "UpValues" -> None, "DownValues" -> 
+explicitly; they are taken in 0 < x < 1.\n\nA coefficient that no method \
+could evaluate is omitted from the result, and a message names its order.\n\n\
+Options:\n  Method -> Automatic       tries the methods available on this \
+machine in the order \"SymbolicSum\", \"ExpandInt\", \"Subtraction\", each \
+one only on the orders the earlier ones left open; \"SymbolicSum\", \
+\"ExpandInt\" or \"Subtraction\" uses that method alone (\"HyperLog\" and \
+\"Standard\" are accepted as aliases of \"ExpandInt\", and \"Resum\" of \
+\"SymbolicSum\")\n  Verbose -> False          prints one line per stage\n  \
+BarnesReduce -> True      applies the Barnes lemmas before the SymbolicSum \
+method solves the integral\n  Complex -> False          returns the real \
+part; True returns the full complex value\n\nExamples:\n  MBEvaluate[MB1, {\
+\[Epsilon], 0}]\n  MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n\
+  MBEvaluate[MB1u, {\[Epsilon], -1}, Complex -> True]", "Documentation" -> 
+    None, "OwnValues" -> None, "UpValues" -> None, "DownValues" -> 
     Information`InformationValueForm[
      DownValues, $CellContext`MBEvaluate, {$CellContext`MBEvaluate[
          Pattern[MBAnalytica`Private`MBInt, 
@@ -2467,8 +2501,8 @@ MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  MBEvaluate[MB1u, \
           MBAnalytica`Private`Methods, MBAnalytica`Private`Kinematics, 
           MBAnalytica`Private`Lo, MBAnalytica`Private`Coefficients, 
           MBAnalytica`Private`OpenKeys, MBAnalytica`Private`Got, 
-          MBAnalytica`Private`Finished, MBAnalytica`Private`OpenOrders}, 
-         MBAnalytica`Private`Method1 = OptionValue[Method]; If[
+          MBAnalytica`Private`Finished, MBAnalytica`Private`OpenOrders, 
+          Evaluated}, MBAnalytica`Private`Method1 = OptionValue[Method]; If[
            Or[
            MBAnalytica`Private`Method1 === "HyperLog", 
             MBAnalytica`Private`Method1 === "Standard"], 
@@ -2508,10 +2542,10 @@ MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  MBEvaluate[MB1u, \
            If[
            MBAnalytica`Private`Kinematics === {}, "none", 
             MBAnalytica`Private`Kinematics]]; 
-         MBAnalytica`Private`Lo = 
-          MBAnalytica`Private`LeadingPole[
-           MBAnalytica`Private`MBInt, MBAnalytica`Private`Eps, 
-            MBAnalytica`Private`Ord]; If[
+         MBAnalytica`Private`Lo = MBAnalytica`Private`WithoutUserValues[
+            MBAnalytica`Private`LeadingPole[
+            MBAnalytica`Private`MBInt, MBAnalytica`Private`Eps, 
+             MBAnalytica`Private`Ord]]; If[
            Not[
             IntegerQ[MBAnalytica`Private`Lo]], Message[
              MessageName[$CellContext`MBEvaluate, "pole"]]; Return[$Failed]]; 
@@ -2520,34 +2554,40 @@ MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  MBEvaluate[MB1u, \
            MBAnalytica`Private`Eps, "^", MBAnalytica`Private`Lo, " through ", 
            MBAnalytica`Private`Eps, "^", MBAnalytica`Private`Ord]; 
          MBAnalytica`Private`Coefficients = <|
-            Map[# -> $CellContext`MBFailed[{"not attempted"}]& , 
+            Map[# -> MBAnalytica`Private`NotEvaluated[{"not attempted"}]& , 
              Range[MBAnalytica`Private`Lo, MBAnalytica`Private`Ord]]|>; 
          Do[MBAnalytica`Private`OpenKeys = Select[
               Keys[MBAnalytica`Private`Coefficients], Head[
-                
-                MBAnalytica`Private`Coefficients[#]] === \
-$CellContext`MBFailed& ]; If[MBAnalytica`Private`OpenKeys === {}, 
+                MBAnalytica`Private`Coefficients[#]] === 
+              MBAnalytica`Private`NotEvaluated& ]; 
+           If[MBAnalytica`Private`OpenKeys === {}, 
              Break[]]; MBAnalytica`Private`Say[
              MBAnalytica`Private`Settings["Verbose"], "MBEvaluate: ", 
              MBAnalytica`Private`M1, " on ", MBAnalytica`Private`Eps, "^", 
              Min[MBAnalytica`Private`OpenKeys], " .. ", 
              MBAnalytica`Private`Eps, "^", 
              Max[MBAnalytica`Private`OpenKeys]]; 
-           MBAnalytica`Private`Got = 
-            MBAnalytica`Private`RunMethod[
-             MBAnalytica`Private`M1, MBAnalytica`Private`MBInt, 
-              MBAnalytica`Private`MBVar, MBAnalytica`Private`Kinematics, 
-              MBAnalytica`Private`Eps, 
-              Min[MBAnalytica`Private`OpenKeys], 
-              Max[MBAnalytica`Private`OpenKeys], 
-              MBAnalytica`Private`Settings]; Scan[
+           MBAnalytica`Private`Got = MBAnalytica`Private`WithoutUserValues[
+              MBAnalytica`Private`RunMethod[
+              MBAnalytica`Private`M1, MBAnalytica`Private`MBInt, 
+               MBAnalytica`Private`MBVar, MBAnalytica`Private`Kinematics, 
+               MBAnalytica`Private`Eps, 
+               Min[MBAnalytica`Private`OpenKeys], 
+               Max[MBAnalytica`Private`OpenKeys], 
+               MBAnalytica`Private`Settings]]; 
+           MBAnalytica`Private`Got = MBAnalytica`Private`WithoutUserValues[<|
+               
+               KeyValueMap[# -> 
+                MBAnalytica`Private`CheckOutputClass[#2, 
+                  MBAnalytica`Private`M1, MBAnalytica`Private`Kinematics]& , 
+                MBAnalytica`Private`Got]|>]; Scan[
              Function[MBAnalytica`Private`K1, 
               If[
                And[
                 KeyExistsQ[MBAnalytica`Private`Got, MBAnalytica`Private`K1], 
                 Head[
-                  MBAnalytica`Private`Got[
-                  MBAnalytica`Private`K1]] =!= $CellContext`MBFailed], 
+                  MBAnalytica`Private`Got[MBAnalytica`Private`K1]] =!= 
+                MBAnalytica`Private`NotEvaluated], 
                MBAnalytica`Private`Coefficients[MBAnalytica`Private`K1] = 
                MBAnalytica`Private`Got[MBAnalytica`Private`K1]]], 
              MBAnalytica`Private`OpenKeys]; Scan[
@@ -2556,31 +2596,37 @@ $CellContext`MBFailed& ]; If[MBAnalytica`Private`OpenKeys === {},
                And[
                 KeyExistsQ[MBAnalytica`Private`Got, MBAnalytica`Private`K1], 
                 Head[
-                  MBAnalytica`Private`Got[
-                  MBAnalytica`Private`K1]] === $CellContext`MBFailed], 
+                  MBAnalytica`Private`Got[MBAnalytica`Private`K1]] === 
+                MBAnalytica`Private`NotEvaluated], 
                MBAnalytica`Private`Coefficients[MBAnalytica`Private`K1] = 
                MBAnalytica`Private`Got[MBAnalytica`Private`K1]]], 
              Select[MBAnalytica`Private`OpenKeys, Head[
-                
-                MBAnalytica`Private`Coefficients[#]] === \
-$CellContext`MBFailed& ]], {
+                MBAnalytica`Private`Coefficients[#]] === 
+              MBAnalytica`Private`NotEvaluated& ]], {
            MBAnalytica`Private`M1, MBAnalytica`Private`Methods}]; 
          MBAnalytica`Private`OpenOrders = Select[
             Keys[MBAnalytica`Private`Coefficients], Head[
-              
-              MBAnalytica`Private`Coefficients[#]] === $CellContext`MBFailed& \
-]; If[MBAnalytica`Private`OpenOrders =!= {}, 
+              MBAnalytica`Private`Coefficients[#]] === 
+            MBAnalytica`Private`NotEvaluated& ]; 
+         If[MBAnalytica`Private`OpenOrders =!= {}, 
            Message[
             MessageName[$CellContext`MBEvaluate, "open"], 
-            Map[
-            MBAnalytica`Private`Eps^#& , MBAnalytica`Private`OpenOrders]]]; 
-         MBAnalytica`Private`Finished = <|
+            Map[MBAnalytica`Private`Eps^#& , MBAnalytica`Private`OpenOrders], 
             
-            KeyValueMap[# -> 
-             MBAnalytica`Private`FinishCoefficient[#2, 
-               MBAnalytica`Private`Kinematics, 
-               MBAnalytica`Private`Settings["Complex"]]& , 
-             MBAnalytica`Private`Coefficients]|>; 
+            MBAnalytica`Private`OpenReasons[
+            MBAnalytica`Private`Coefficients, MBAnalytica`Private`OpenOrders, 
+             MBAnalytica`Private`Eps]]]; 
+         Evaluated = KeySelect[MBAnalytica`Private`Coefficients, Not[
+             MemberQ[MBAnalytica`Private`OpenOrders, #]]& ]; 
+         If[Evaluated === <||>, 
+           Return[$Failed]]; 
+         MBAnalytica`Private`Finished = 
+          MBAnalytica`Private`WithoutUserValues[<|
+             
+             KeyValueMap[# -> 
+              MBAnalytica`Private`FinishCoefficient[#2, 
+                MBAnalytica`Private`Kinematics, 
+                MBAnalytica`Private`Settings["Complex"]]& , Evaluated]|>]; 
          MBAnalytica`Private`ShowOutputContexts[]; Return[
            MBAnalytica`Private`AssembleSeries[
            MBAnalytica`Private`Finished, MBAnalytica`Private`Eps]]]}], 
@@ -2589,14 +2635,14 @@ $CellContext`MBFailed& ]], {
     "Options" -> {
      Method -> Automatic, Verbose -> False, $CellContext`BarnesReduce -> True,
        Complex -> False}, "Attributes" -> {}, "FullName" -> 
-    "MBAnalytica`MBEvaluate"|>, False]]], "Output",ExpressionUUID->"7833633a-\
-aa6f-47d2-849e-b7645038985d"]
+    "MBAnalytica`MBEvaluate"|>, False]]], "Output",ExpressionUUID->"4f00e7d1-\
+6858-4557-906e-03a060109877"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "CosmoTreeMB"}]], "Input",ExpressionUUID->"7634d7fb-0e5e-4c5d-871a-f2a668b2813f"],
+ RowBox[{"?", "CosmoTreeMB"}]], "Input",ExpressionUUID->"6c0d3e6d-7c63-4fe9-abee-8d9a2443ec02"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -3575,14 +3621,14 @@ by \"Terms\").", "Documentation" -> None, "OwnValues" -> None, "UpValues" ->
      "Energies" -> Automatic, "Point" -> Automatic, "KLegs" -> {}, 
       "Orientations" -> All, "VariableName" -> "u", "LightSplit" -> False, 
       "Terms" -> All, "PushChoice" -> 1}, "Attributes" -> {}, "FullName" -> 
-    "MBAnalytica`CosmoTreeMB"|>, False]]], "Output",ExpressionUUID->"1c14dd1a-\
-b2dd-4ee8-8f2f-a3be408b1942"]
+    "MBAnalytica`CosmoTreeMB"|>, False]]], "Output",ExpressionUUID->"eefc4b99-\
+94a3-4e70-bb26-c55ff510da73"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "MBAnalyticaCheck"}]], "Input",ExpressionUUID->"84753015-f6ef-430b-8170-b9b8a31afa91"],
+ RowBox[{"?", "MBAnalyticaCheck"}]], "Input",ExpressionUUID->"fc8d9f51-75b7-4b85-98d9-e283c665ed7a"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -3953,253 +3999,18 @@ run. It returns an association with the same information.", "Documentation" ->
     "DefaultValues" -> None, "NValues" -> None, "FormatValues" -> None, 
     "Options" -> None, "Attributes" -> {}, "FullName" -> 
     "MBAnalytica`MBAnalyticaCheck"|>, False]]], "Output",ExpressionUUID->\
-"86fa9e45-5e18-475d-acc0-bcb62a1f62de"]
-}, Open  ]],
-
-Cell[CellGroupData[{
-
-Cell[BoxData[
- RowBox[{"?", "MBFailed"}]], "Input",ExpressionUUID->"81dc43dc-45c6-41b7-8e1c-70280a3074b3"],
-
-Cell[BoxData[
- InterpretationBox[
-  StyleBox[
-   FrameBox[
-    DynamicModuleBox[{System`InformationDump`open$$ = False, 
-     System`InformationDump`mouseOver$$ = False}, 
-     PaneSelectorBox[{True->
-      TagBox[GridBox[{
-         {
-          ItemBox[
-           PaneBox[
-            StyleBox[
-             TagBox[
-              TooltipBox[
-               StyleBox["\<\" Symbol\"\>", "InformationRowLabel",
-                StripOnInput->False],
-               "\"Symbol\"",
-               TooltipStyle->"TextStyling"],
-              Annotation[#, "Symbol", "Tooltip"]& ], "InformationTitleText",
-             StripOnInput->False,
-             BaseStyle -> None],
-            FrameMargins->{{4, 0}, {-1, 1}}],
-           BaseStyle->"InformationTitleBackground",
-           StripOnInput->False], 
-          ItemBox["\<\"\"\>",
-           BaseStyle->"InformationTitleBackground",
-           StripOnInput->False]},
-         {
-          ItemBox[
-           PaneBox[
-            
-            StyleBox["\<\"MBFailed[reasons] stands for a coefficient that no \
-method could bring to a closed form; reasons names what was left \
-unresolved.\"\>", "InformationUsageText",
-             StripOnInput->False,
-             LineSpacing->{1.5, 1.5, 3.}],
-            FrameMargins->{{10, 10}, {8, 10}}],
-           BaseStyle->"InformationUsageSubtitleBackground",
-           StripOnInput->False], 
-          ItemBox["\<\"\"\>",
-           BaseStyle->"InformationUsageSubtitleBackground",
-           StripOnInput->False]},
-         {
-          PaneBox[GridBox[{
-             {
-              
-              DynamicModuleBox[{System`InformationDump`open$$ = {
-               False, False, False, False, False, False}}, 
-               StyleBox[GridBox[{
-                  {
-                   TagBox[
-                    TooltipBox[
-                    StyleBox["\<\" Full Name\"\>", "InformationRowLabel",
-                    StripOnInput->False],
-                    "\"FullName\"",
-                    TooltipStyle->"TextStyling"],
-                    
-                    Annotation[#, "FullName", 
-                    "Tooltip"]& ], "\<\"MBAnalytica`MBFailed\"\>"}
-                 },
-                 AutoDelete->False,
-                 GridBoxAlignment->{"Columns" -> {Right, Left}},
-                 GridBoxDividers->None,
-                 GridBoxItemSize->{"Columns" -> {Automatic, Automatic}},
-                 GridBoxSpacings->{"Columns" -> {
-                    Offset[0.27999999999999997`], {
-                    Offset[0.5599999999999999]}, 
-                    Offset[0.27999999999999997`]}, "Rows" -> {
-                    Offset[0.2], {
-                    Offset[0.8]}, 
-                    Offset[0.2]}}], "DialogStyle",
-                StripOnInput->False],
-               DynamicModuleValues:>{}]}
-            },
-            DefaultBaseStyle->"Column",
-            GridBoxAlignment->{"Columns" -> {{Left}}},
-            GridBoxDividers->{"Columns" -> {{False}}, "Rows" -> {{False}}},
-            
-            GridBoxItemSize->{
-             "Columns" -> {{Automatic}}, "Rows" -> {{Automatic}}},
-            GridBoxSpacings->{"Columns" -> {
-                Offset[0.27999999999999997`], {
-                 Offset[0.5599999999999999]}, 
-                Offset[0.27999999999999997`]}, "Rows" -> {
-                Offset[0.2], {
-                 Offset[3.6]}, 
-                Offset[0.2]}}],
-           FrameMargins->{{6, 6}, {6, 3}}], ""},
-         {
-          ItemBox[
-           TagBox[
-            ButtonBox[
-             PaneSelectorBox[{False->
-              
-              DynamicBox[FEPrivate`FrontEndResource[
-               "FEBitmaps", "UpPointerOpener"]], True->
-              
-              DynamicBox[FEPrivate`FrontEndResource[
-               "FEBitmaps", "UpPointerOpenerHot"]]}, Dynamic[
-              System`InformationDump`mouseOver$$]],
-             Alignment->Left,
-             Appearance->{"Default" -> None},
-             
-             ButtonFunction:>FEPrivate`Set[
-              System`InformationDump`open$$, False],
-             Evaluator->Automatic,
-             FrameMargins->{{9, 0}, {0, 0}},
-             ImageMargins->0,
-             ImageSize->Full,
-             Method->"Preemptive"],
-            
-            EventHandlerTag[{
-             "MouseEntered" :> 
-              FEPrivate`Set[System`InformationDump`mouseOver$$, True], 
-              "MouseExited" :> 
-              FEPrivate`Set[System`InformationDump`mouseOver$$, False], 
-              Method -> "Preemptive", PassEventsDown -> Automatic, 
-              PassEventsUp -> True}]],
-           BaseStyle->"InformationTitleBackground",
-           StripOnInput->False], "\[SpanFromLeft]"}
-        },
-        AutoDelete->False,
-        FrameStyle->Directive[
-          LightDarkSwitched[
-           GrayLevel[0.8]], 
-          Thickness[Tiny]],
-        GridBoxAlignment->{"Columns" -> {Left, Right}, "Rows" -> {{Center}}},
-        GridBoxDividers->{
-         "Columns" -> {{None}}, "Rows" -> {False, {True}, False}},
-        GridBoxItemSize->{
-         "Columns" -> {{Automatic}}, "Rows" -> {{Automatic}}}],
-       "Grid"], False->
-      TagBox[GridBox[{
-         {
-          ItemBox[
-           PaneBox[
-            StyleBox[
-             TagBox[
-              TooltipBox[
-               StyleBox["\<\" Symbol\"\>", "InformationRowLabel",
-                StripOnInput->False],
-               "\"Symbol\"",
-               TooltipStyle->"TextStyling"],
-              Annotation[#, "Symbol", "Tooltip"]& ], "InformationTitleText",
-             StripOnInput->False],
-            FrameMargins->{{4, 0}, {-1, 1}}],
-           BaseStyle->"InformationTitleBackground",
-           StripOnInput->False], 
-          ItemBox["\<\"\"\>",
-           BaseStyle->"InformationTitleBackground",
-           StripOnInput->False]},
-         {
-          ItemBox[
-           PaneBox[
-            
-            StyleBox["\<\"MBFailed[reasons] stands for a coefficient that no \
-method could bring to a closed form; reasons names what was left \
-unresolved.\"\>", "InformationUsageText",
-             StripOnInput->False,
-             LineSpacing->{1.5, 1.5, 3.}],
-            FrameMargins->{{10, 10}, {8, 10}}],
-           BaseStyle->"InformationUsageSubtitleBackground",
-           StripOnInput->False], 
-          ItemBox["\<\"\"\>",
-           BaseStyle->"InformationUsageSubtitleBackground",
-           StripOnInput->False]},
-         {
-          ItemBox[
-           TagBox[
-            ButtonBox[
-             PaneSelectorBox[{False->
-              
-              DynamicBox[FEPrivate`FrontEndResource[
-               "FEBitmaps", "DownPointerOpener"],
-               ImageSizeCache->{15., {4.013671875, 10.986328125}}], True->
-              
-              DynamicBox[FEPrivate`FrontEndResource[
-               "FEBitmaps", "DownPointerOpenerHot"],
-               ImageSizeCache->{15., {4.013671875, 10.986328125}}]}, Dynamic[
-              System`InformationDump`mouseOver$$]],
-             Alignment->Left,
-             Appearance->{"Default" -> None},
-             
-             ButtonFunction:>FEPrivate`Set[
-              System`InformationDump`open$$, True],
-             Evaluator->Automatic,
-             FrameMargins->{{9, 0}, {0, 0}},
-             ImageMargins->0,
-             ImageSize->Full,
-             Method->"Preemptive"],
-            
-            EventHandlerTag[{
-             "MouseEntered" :> 
-              FEPrivate`Set[System`InformationDump`mouseOver$$, True], 
-              "MouseExited" :> 
-              FEPrivate`Set[System`InformationDump`mouseOver$$, False], 
-              Method -> "Preemptive", PassEventsDown -> Automatic, 
-              PassEventsUp -> True}]],
-           BaseStyle->"InformationTitleBackground",
-           StripOnInput->False], "\[SpanFromLeft]"}
-        },
-        AutoDelete->False,
-        FrameStyle->Directive[
-          LightDarkSwitched[
-           GrayLevel[0.8]], 
-          Thickness[Tiny]],
-        GridBoxAlignment->{"Columns" -> {Left, Right}, "Rows" -> {{Center}}},
-        GridBoxDividers->{
-         "Columns" -> {{None}}, "Rows" -> {False, {True}, False}},
-        GridBoxItemSize->{
-         "Columns" -> {{Automatic}}, "Rows" -> {{Automatic}}}],
-       "Grid"]}, Dynamic[System`InformationDump`open$$],
-      BaselinePosition->Baseline,
-      FrameMargins->0,
-      ImageSize->Automatic],
-     DynamicModuleValues:>{}],
-    BaseStyle->"InformationGridFrame",
-    StripOnInput->False], "InformationGridPlain",
-   StripOnInput->False],
-  InformationData[<|
-   "ObjectType" -> "Symbol", "Usage" -> 
-    "MBFailed[reasons] stands for a coefficient that no method could bring to \
-a closed form; reasons names what was left unresolved.", "Documentation" -> 
-    None, "OwnValues" -> None, "UpValues" -> None, "DownValues" -> None, 
-    "SubValues" -> None, "DefaultValues" -> None, "NValues" -> None, 
-    "FormatValues" -> None, "Options" -> None, "Attributes" -> {}, "FullName" -> 
-    "MBAnalytica`MBFailed"|>, False]]], "Output",ExpressionUUID->"a3b22e5c-\
-9fcb-48c4-beef-9e1e614673ca"]
+"7458ea22-5964-4588-bbdc-0bc3a72f2d3a"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["External Command Options", "Section",ExpressionUUID->"4e4f223c-450a-479b-9240-7b8c0c03b138"],
+Cell["External Command Options", "Section",ExpressionUUID->"8c9972be-98d6-4c56-9cf7-8c81f0347118"],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"Options", "[", "MBEvaluate", "]"}]], "Input",ExpressionUUID->"97c7095e-c26c-4bdd-8bcb-71da44063622"],
+ RowBox[{"Options", "[", "MBEvaluate", "]"}]], "Input",ExpressionUUID->"3b3e806a-e63a-4705-b88d-215e58dc3324"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -4208,13 +4019,13 @@ Cell[BoxData[
    RowBox[{"Verbose", "\[Rule]", "False"}], ",", 
    RowBox[{"BarnesReduce", "\[Rule]", "True"}], ",", 
    RowBox[{"Complex", "\[Rule]", "False"}]}], "}"}]], "Output",ExpressionUUID->\
-"4c839e2e-1a08-46a2-b33d-314d2393e02a"]
+"981b4b6b-f3c5-45c5-a34d-670e0438b244"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"?", "BarnesReduce"}]], "Input",ExpressionUUID->"606c2675-90cc-4538-9d59-f98bb536f6a6"],
+ RowBox[{"?", "BarnesReduce"}]], "Input",ExpressionUUID->"c8f83795-49db-4080-a90a-c984681d3604"],
 
 Cell[BoxData[
  InterpretationBox[
@@ -4445,13 +4256,13 @@ True.", "Documentation" -> None, "OwnValues" -> None, "UpValues" -> None,
     "DownValues" -> None, "SubValues" -> None, "DefaultValues" -> None, 
     "NValues" -> None, "FormatValues" -> None, "Options" -> None, 
     "Attributes" -> {}, "FullName" -> "MBAnalytica`BarnesReduce"|>, 
-   False]]], "Output",ExpressionUUID->"d646d8e0-e2d1-4099-9e36-c203a5792a40"]
+   False]]], "Output",ExpressionUUID->"024c6917-9ac1-41f4-8cf5-a61eb03c21fd"]
 }, Open  ]],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"Options", "[", "CosmoTreeMB", "]"}]], "Input",ExpressionUUID->"bcb06a3c-734d-4cf2-a56c-cafe64f786c7"],
+ RowBox[{"Options", "[", "CosmoTreeMB", "]"}]], "Input",ExpressionUUID->"9c515343-34cc-4104-a98b-93093c4d2bb4"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -4465,7 +4276,7 @@ Cell[BoxData[
    RowBox[{"\<\"LightSplit\"\>", "\[Rule]", "False"}], ",", 
    RowBox[{"\<\"Terms\"\>", "\[Rule]", "All"}], ",", 
    RowBox[{"\<\"PushChoice\"\>", "\[Rule]", "1"}]}], "}"}]], "Output",Expressi\
-onUUID->"87cd92b9-655f-4a02-ac4e-cadd5444ea53"]
+onUUID->"90525414-f8d1-42bf-ae53-5b898d9da79d"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
@@ -4473,12 +4284,12 @@ onUUID->"87cd92b9-655f-4a02-ac4e-cadd5444ea53"]
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Mellin\[Dash]Barnes Integrals with Fold=1",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"656b6cec-\
-83f2-4a1d-b2d8-e6d3906bbc48"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"107c330a-\
+1c42-4d7b-8910-3c7a1aa2a79b"],
 
 Cell[CellGroupData[{
 
-Cell["Integral of the Installation Test", "Section",ExpressionUUID->"8debbceb-dea2-4df3-8fb1-21d72e15021a"],
+Cell["Integral of the Installation Test", "Section",ExpressionUUID->"ab1c6946-a3e4-4f61-9035-648316cc3711"],
 
 Cell["\<\
 This example is the one-fold integral J(\[Epsilon]) of the installation test, \
@@ -4486,11 +4297,11 @@ discussed in Section 5.4 of our paper. As \[Epsilon] \[Rule] 0, the poles of \
 Gamma[z + \[Epsilon]] and Gamma[-z] pinch the contour, and together with the \
 prefactor Gamma[\[Epsilon]] the continuation produces a pole of third order. \
 The integrand is entered as it stands.\
-\>", "Text",ExpressionUUID->"8b31734a-6d3b-4784-a17e-ce5d2b4806a5"],
+\>", "Text",ExpressionUUID->"ec736312-4724-49d4-b319-9c08fc7f5379"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"35ab7b9a-a9bc-4e26-90ca-7167d33e962d"],
+Cell["Configuration", "Subsection",ExpressionUUID->"46f21c43-95aa-4636-832d-43000afbcc1c"],
 
 Cell[BoxData[
  RowBox[{
@@ -4535,18 +4346,18 @@ Cell[BoxData[
      RowBox[{"Gamma", "[", 
       RowBox[{"2", " ", "+", " ", "z", " ", "-", " ", 
        RowBox[{"3", " ", "\[Epsilon]"}]}], "]"}]}]}]}], ";"}]], "Input",Expres\
-sionUUID->"9fffc248-516e-4674-9ad1-65ab24e322a7"]
+sionUUID->"774b84a6-d163-4f82-bf1f-b058536058a4"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Default Method", "Subsection",ExpressionUUID->"d2384114-eb8e-4586-996d-0d4af721496e"],
+Cell["Default Method", "Subsection",ExpressionUUID->"1561c005-66a7-4a8e-8045-72ebf4e2afdf"],
 
 Cell["\<\
 With the default Method -> Automatic, the methods available on the machine \
 are tried in the order SymbolicSum, ExpandInt, Subtraction, each one only on \
 the orders the earlier ones left open.\
-\>", "Text",ExpressionUUID->"c7ff9a86-8d99-4842-91f6-562dd4b416ac"],
+\>", "Text",ExpressionUUID->"d47aea1c-a20e-46b2-a338-f39b23a812a8"],
 
 Cell[CellGroupData[{
 
@@ -4555,7 +4366,7 @@ Cell[BoxData[
   RowBox[{"MB1", ",", " ", 
    RowBox[{"{", 
     RowBox[{"\[Epsilon]", ",", " ", "0"}], "}"}]}], "]"}]], "Input",Expression\
-UUID->"802ea090-d44a-49c3-9549-fa68792cc729"],
+UUID->"e0662169-40a7-4fba-8603-620ff6d25676"],
 
 Cell[BoxData[
  RowBox[{
@@ -4577,13 +4388,13 @@ Cell[BoxData[
   FractionBox[
    RowBox[{"380", " ", 
     RowBox[{"Zeta", "[", "3", "]"}]}], "3"]}]], "Output",ExpressionUUID->\
-"6878941b-5e65-4285-af01-cf3e9fb17940"]
+"7173f39e-c057-4588-a27f-e09cd04a0dff"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["SymbolicSum", "Subsection",ExpressionUUID->"92bd8f74-d71a-4301-b741-8cb2139eaa6d"],
+Cell["SymbolicSum", "Subsection",ExpressionUUID->"ee56448e-b46a-47d6-911e-2f2866b768e5"],
 
 Cell[CellGroupData[{
 
@@ -4594,7 +4405,7 @@ Cell[BoxData[
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "0"}], "}"}], ",", " ", 
     RowBox[{"Method", " ", "->", " ", "\"\<SymbolicSum\>\""}]}], 
-   "]"}]}]], "Input",ExpressionUUID->"c923f452-8dcd-4697-a0dc-2b47469c83bb"],
+   "]"}]}]], "Input",ExpressionUUID->"5abb7d58-41a0-4127-92fb-1d0ed6e1bf57"],
 
 Cell[BoxData[
  RowBox[{
@@ -4616,13 +4427,13 @@ Cell[BoxData[
   FractionBox[
    RowBox[{"380", " ", 
     RowBox[{"Zeta", "[", "3", "]"}]}], "3"]}]], "Output",ExpressionUUID->\
-"c1fb47e6-9b0d-4c6b-8906-5a37ba03ae36"]
+"39ff3970-a1a6-4b00-9579-8754e21dd3ea"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["ExpandInt", "Subsection",ExpressionUUID->"adda3b02-1ac5-4ad6-a39f-71d296a292b2"],
+Cell["ExpandInt", "Subsection",ExpressionUUID->"42b73a9e-f035-4963-9b63-3b72c67a52cf"],
 
 Cell[CellGroupData[{
 
@@ -4633,7 +4444,7 @@ Cell[BoxData[
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "1"}], "}"}], ",", " ", 
     RowBox[{"Method", " ", "->", " ", "\"\<ExpandInt\>\""}]}], 
-   "]"}]}]], "Input",ExpressionUUID->"38e52fc4-36d6-4a11-a645-17c4c703724e"],
+   "]"}]}]], "Input",ExpressionUUID->"844a399e-b0ec-46c9-80e7-12a0ba8620df"],
 
 Cell[BoxData[
  RowBox[{
@@ -4668,20 +4479,20 @@ Cell[BoxData[
   FractionBox[
    RowBox[{"380", " ", 
     RowBox[{"Zeta", "[", "3", "]"}]}], "3"]}]], "Output",ExpressionUUID->\
-"3ab8bf67-4ec1-49be-a8f9-d8cc8ed38874"]
+"75c269bb-0687-45e2-9c01-112fdf17a8f9"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Subtraction", "Subsection",ExpressionUUID->"e49979d6-cd51-4121-9385-9d09b756d677"],
+Cell["Subtraction", "Subsection",ExpressionUUID->"7458ab93-0b7d-4373-af43-3294d489adfb"],
 
 Cell["\<\
 The Subtraction method reaches \[Epsilon]^5, where the coefficient is of \
 weight up to eight. Besides products of zeta values, it contains the \
 irreducible constant of weight eight HPLs8a of the HPL package, which \
 corresponds to the multiple zeta value \[Zeta](5,3).\
-\>", "Text",ExpressionUUID->"cc0bec60-b0a3-4c7d-bb72-203b7b366fe5"],
+\>", "Text",ExpressionUUID->"37e146cf-34f8-43cd-b4a2-830cd342e8b6"],
 
 Cell[CellGroupData[{
 
@@ -4692,7 +4503,7 @@ Cell[BoxData[
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "5"}], "}"}], ",", " ", 
     RowBox[{"Method", " ", "->", " ", "\"\<Subtraction\>\""}]}], 
-   "]"}]}]], "Input",ExpressionUUID->"ea417529-7180-4a5b-83ba-cdc86b4ebed9"],
+   "]"}]}]], "Input",ExpressionUUID->"ec5a93cb-adad-4a02-950a-b354d5770bea"],
 
 Cell[BoxData[
  RowBox[{
@@ -4868,15 +4679,15 @@ Cell[BoxData[
      FractionBox[
       RowBox[{"8176337", " ", 
        RowBox[{"Zeta", "[", "7", "]"}]}], "28"]}], ")"}]}]}]], "Output",Expres\
-sionUUID->"251d2a5a-a9c5-47ab-ac59-10a8665b3599"]
+sionUUID->"e076921b-a7ac-491e-a29f-49dd1e966019"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Cross-check", "Subsection",ExpressionUUID->"8733786c-4d5c-44b8-924f-1e3767f11eca"],
+Cell["Cross-check", "Subsection",ExpressionUUID->"082d1f82-e1fb-49db-b0ca-99aefc272982"],
 
-Cell["The three methods agree on the orders they share.", "Text",ExpressionUUID->"4328d97f-2cc6-45b0-8863-dc6b04a5e28e"],
+Cell["The three methods agree on the orders they share.", "Text",ExpressionUUID->"73927770-b015-4660-862f-6fb297334c2c"],
 
 Cell[CellGroupData[{
 
@@ -4897,29 +4708,29 @@ Cell[BoxData[
        RowBox[{"resSubtraction", ",", " ", 
         RowBox[{"{", 
          RowBox[{"\[Epsilon]", ",", " ", "0", ",", " ", "1"}], "}"}]}], "]"}],
-       "]"}]}]}], "}"}], "]"}]], "Input",ExpressionUUID->"f877143c-94c4-40e2-\
-880f-e5264520f0b7"],
+       "]"}]}]}], "}"}], "]"}]], "Input",ExpressionUUID->"a78858a8-2768-4f80-\
+b727-41a6b1e6f106"],
 
 Cell[BoxData[
  RowBox[{"{", 
-  RowBox[{"0", ",", "0"}], "}"}]], "Output",ExpressionUUID->"9c2c94b7-1a80-4edb-88fe-9f586c6786dd"]
+  RowBox[{"0", ",", "0"}], "}"}]], "Output",ExpressionUUID->"2f45f55e-df7a-4875-9cde-393dc49a9b60"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Gauss Hypergeometric Function 2F1", "Section",ExpressionUUID->"28b2a39a-e581-4f4a-b9f8-5d1726d317ec"],
+Cell["Gauss Hypergeometric Function 2F1", "Section",ExpressionUUID->"b03c0eb2-2e2a-4809-8ebb-802a305fa54e"],
 
 Cell["\<\
 This example is the Gauss function 2F1(1, \[Epsilon]; 1 - \[Epsilon]; x) from \
 its MB representation, discussed in Section 6.1 of our paper. The kinematic \
 variable of the MB integral is y = 1 - x.\
-\>", "Text",ExpressionUUID->"d29af8a0-edc1-45d5-80cd-2e9aa6b3cf5a"],
+\>", "Text",ExpressionUUID->"9576dae0-de6b-41ff-b8bb-d7ff72efc93c"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"dc6224c1-8ecc-44ac-85dc-4bd77e264365"],
+Cell["Configuration", "Subsection",ExpressionUUID->"87ea36f9-c20d-4e31-9b6f-f284c83bbef6"],
 
 Cell[BoxData[
  RowBox[{
@@ -4946,13 +4757,13 @@ Cell[BoxData[
        RowBox[{"-", "2"}], " ", "\[Epsilon]"}], " ", "-", " ", "z"}], "]"}], " ", 
     RowBox[{"Gamma", "[", 
      RowBox[{"-", "z"}], "]"}], " ", 
-    RowBox[{"y", "^", "z"}]}]}], ";"}]], "Input",ExpressionUUID->"37f60751-\
-f6c4-4170-925a-0c696bca8de4"]
+    RowBox[{"y", "^", "z"}]}]}], ";"}]], "Input",ExpressionUUID->"e37e71f5-\
+ff92-4d40-aebe-b9a04d50dd45"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"da7380e8-b9d5-46b2-8da3-db8ed00d95c9"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"1d53ecde-4020-45ea-91e5-d62246d22722"],
 
 Cell[CellGroupData[{
 
@@ -4963,7 +4774,7 @@ Cell[BoxData[
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "3"}], "}"}], ",", " ", 
     RowBox[{"Method", " ", "->", " ", "\"\<SymbolicSum\>\""}]}], 
-   "]"}]}]], "Input",ExpressionUUID->"84e89ac3-41a9-4bdf-9c3a-810e7ac2bf8e"],
+   "]"}]}]], "Input",ExpressionUUID->"8a28248b-d239-480f-8202-fccd2f784821"],
 
 Cell[BoxData[
  RowBox[{"1", "-", 
@@ -5034,18 +4845,18 @@ Cell[BoxData[
        SuperscriptBox[
         RowBox[{"Log", "[", "y", "]"}], "3"]}], "3"], "-", 
      RowBox[{"Zeta", "[", "3", "]"}]}], ")"}]}]}]], "Output",ExpressionUUID->\
-"6bb12577-fa46-4231-877a-f8d5b21b0851"]
+"36fe2705-6b71-4986-af2c-b6f1f16ea7e9"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Cross-check", "Subsection",ExpressionUUID->"c23a4518-33d0-488e-9e86-2b15f5e4bb95"],
+Cell["Cross-check", "Subsection",ExpressionUUID->"de911605-c01a-4615-b313-7c6abe9faa5a"],
 
 Cell["\<\
 Through \[Epsilon]^2, the result agrees with 1 - \[Epsilon] Log[1 - x] + \
 \[Epsilon]^2 (PolyLog[2, x] + Log[1 - x]^2), here at x = 1/3.\
-\>", "Text",ExpressionUUID->"db6723de-1073-4deb-9a16-9b9bcc2df197"],
+\>", "Text",ExpressionUUID->"af35daf3-31f4-4467-8b64-21504ff0ac3f"],
 
 Cell[CellGroupData[{
 
@@ -5081,19 +4892,19 @@ Cell[BoxData[
        RowBox[{"2", "/", "3"}]}], "}"}]}], "]"}], ",", " ", 
    RowBox[{"{", 
     RowBox[{"k", ",", " ", "0", ",", " ", "2"}], "}"}]}], "]"}]], "Input",Expr\
-essionUUID->"db54a995-43e2-4837-bc83-242cdc2e6b40"],
+essionUUID->"e61234c0-a5f1-49d2-82b1-8c258a47c948"],
 
 Cell[BoxData[
  RowBox[{"{", 
   RowBox[{"0", ",", "0", ",", "0"}], "}"}]], "Output",ExpressionUUID->\
-"5082acd0-6102-498a-8fe8-215055d170b8"]
+"d82273e1-38f9-4d89-bdb5-6570aa43614c"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["2-Denominator Massless Angular Integral", "Section",ExpressionUUID->"90aeb73d-6115-4a1b-a183-d0d32bc420f8"],
+Cell["2-Denominator Massless Angular Integral", "Section",ExpressionUUID->"a810fb99-5ad7-4ff2-8ef2-ceefe943b057"],
 
 Cell["\<\
 This example is the angular integral of two massless denominators, discussed \
@@ -5101,11 +4912,11 @@ in Section 6.2 of our paper, with the powers j_1 = j_2 = 1 and the \
 normalisation I = 2^(-1 + 2 \[Epsilon]) \[Pi]^\[Epsilon] \[CapitalGamma](1 - \
 2 \[Epsilon])/\[CapitalGamma](1 - \[Epsilon]) \[CapitalOmega]. The variable \
 v12 is a kinematic variable in 0 < v12 < 1.\
-\>", "Text",ExpressionUUID->"eed8b5a4-88b9-4df4-8f64-ae11dce8403d"],
+\>", "Text",ExpressionUUID->"2084aa81-7110-4bd1-b1d5-0d0721286296"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"24ea49aa-8fe6-476e-a0e3-7ae036235f41"],
+Cell["Configuration", "Subsection",ExpressionUUID->"67b3f73e-9e4c-4405-8008-c601f39e6f25"],
 
 Cell[BoxData[
  RowBox[{
@@ -5144,12 +4955,12 @@ Cell[BoxData[
       RowBox[{"-", "1"}], " ", "-", " ", "\[Epsilon]", " ", "-", " ", "z12"}],
       "]"}], " ", 
     RowBox[{"v12", "^", "z12"}]}]}], ";"}]], "Input",ExpressionUUID->\
-"1e2db1e5-9946-4936-863d-3c434a62a969"]
+"3b319c02-27db-4b0c-8385-15424d978cb8"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"38c8dd2b-a2f7-4b44-8a38-20998da27214"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"abc37066-7298-44bb-9dce-dd3b6786b515"],
 
 Cell[CellGroupData[{
 
@@ -5160,7 +4971,7 @@ Cell[BoxData[
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "1"}], "}"}], ",", " ", 
     RowBox[{"Method", " ", "->", " ", "\"\<Subtraction\>\""}]}], 
-   "]"}]}]], "Input",ExpressionUUID->"7b2f6394-d303-4a83-9b86-47235b38d3f5"],
+   "]"}]}]], "Input",ExpressionUUID->"b8374f16-ec7f-421e-b500-2f5c07e1c96a"],
 
 Cell[BoxData[
  RowBox[{
@@ -5183,19 +4994,19 @@ Cell[BoxData[
        SuperscriptBox[
         RowBox[{"Log", "[", "v12", "]"}], "2"]}], 
       RowBox[{"2", " ", "v12"}]]}], ")"}]}]}]], "Output",ExpressionUUID->\
-"57356802-a4d4-4d5b-9206-c5a5f1554060"]
+"efee0d67-97d0-4ddb-8652-e195a219ee9a"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Cross-check", "Subsection",ExpressionUUID->"23f16843-026c-4628-8aa4-85a06d8e8ee8"],
+Cell["Cross-check", "Subsection",ExpressionUUID->"8567fb5b-b7b3-45fc-a3ae-bc61d1bc349e"],
 
 Cell["\<\
 The result agrees with the expansion of the closed form in terms of a Gauss \
 hypergeometric function, given in Section 6.2 of our paper, here at v12 = \
 1/3, order by order.\
-\>", "Text",ExpressionUUID->"a610fe5a-5374-4a2c-9e2c-c2c65b8982ce"],
+\>", "Text",ExpressionUUID->"ca52ccf3-2c29-44a7-bc26-be1fcad5b331"],
 
 Cell[CellGroupData[{
 
@@ -5233,12 +5044,12 @@ Cell[BoxData[
    RowBox[{"{", 
     RowBox[{"k", ",", " ", 
      RowBox[{"-", "1"}], ",", " ", "1"}], "}"}]}], "]"}]], "Input",ExpressionU\
-UID->"e09a3f07-8f7a-4314-a5e3-e87a317f5ca6"],
+UID->"40d45b43-8210-40e3-9305-a5f9b8f35c49"],
 
 Cell[BoxData[
  RowBox[{"{", 
   RowBox[{"0", ",", "0", ",", "0"}], "}"}]], "Output",ExpressionUUID->\
-"86e02960-e0cc-418f-a092-89f1a7303a4a"]
+"967ef416-c740-4c32-b7b3-086237bbbde5"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
@@ -5247,12 +5058,12 @@ Cell[BoxData[
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Mellin\[Dash]Barnes Integrals with Fold=2",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"0635f96c-\
-002b-45cb-8ccb-0761ae0fc1a5"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"17e8b1cb-\
+26cf-46de-97de-a58314076d44"],
 
 Cell[CellGroupData[{
 
-Cell["Two-Site Chain in Power-Law FRW Cosmology", "Section",ExpressionUUID->"78f9fd39-72ed-4e9c-a3de-94852fd29605"],
+Cell["Two-Site Chain in Power-Law FRW Cosmology", "Section",ExpressionUUID->"82e509a2-157e-45d4-b469-d4a9711836e3"],
 
 Cell["\<\
 This example is the two-site chain of conformally coupled scalars with cubic \
@@ -5264,16 +5075,16 @@ Product[BesselK[\[Nu]_l, y_l t_l^>] BesselI[\[Nu]_l, y_l t_l^<], l]], as one \
 balanced MB integral for every orientation of its lines. The integral is the \
 sum over the orientations of the prefactors times the values of these MB \
 integrals.\
-\>", "Text",ExpressionUUID->"16e27093-34e5-4255-8a8d-85ba6b0ffacb"],
+\>", "Text",ExpressionUUID->"e60a6316-f27a-49ff-8b28-5aa0d8c9a23b"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"2ec1edaa-0840-44d8-890f-5679262005ce"],
+Cell["Configuration", "Subsection",ExpressionUUID->"f91595d8-92e0-4bfc-b949-b2ec576e31e1"],
 
 Cell["\<\
 Every orientation gives a two-fold MB integral. The option \"Point\" \
 specifies a kinematic point at which its variables lie in the unit interval.\
-\>", "Text",ExpressionUUID->"221e472f-07ef-44ec-8517-804367cdc525"],
+\>", "Text",ExpressionUUID->"5e5ca26e-67fa-4291-9a0a-e188ddd95fd2"],
 
 Cell[CellGroupData[{
 
@@ -5311,7 +5122,7 @@ Cell[BoxData[{
  RowBox[{
   RowBox[{"T2", "[", 
    RowBox[{"[", "1", "]"}], "]"}], "[", "\"\<Integrand\>\"", "]"}]}], "Input",\
-ExpressionUUID->"a097df82-d875-477f-b745-58020e68c9cc"],
+ExpressionUUID->"d8194428-d1cc-4572-bc39-2ca992f79e1d"],
 
 Cell[BoxData[
  RowBox[{
@@ -5336,13 +5147,13 @@ Cell[BoxData[
      RowBox[{"2", "+", "z1"}], "]"}], " ", 
     RowBox[{"Gamma", "[", 
      RowBox[{"2", "+", "z1", "+", "z2", "-", "\[Epsilon]"}], "]"}]}], 
-   ")"}]}]], "Output",ExpressionUUID->"6b19709f-d5e8-4b36-bf32-f05f747aed0d"]
+   ")"}]}]], "Output",ExpressionUUID->"74216db7-4296-4c98-88b7-f78a2bc06a0d"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"6a956656-1728-4de7-95ff-116c2b258f7b"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"790d6807-e786-4922-a764-b1313a223cb3"],
 
 Cell[CellGroupData[{
 
@@ -5383,7 +5194,7 @@ Cell[BoxData[{
         RowBox[{"1", "/", "3"}]}]}], "}"}]}], "]"}], ",", " ", 
    RowBox[{"{", 
     RowBox[{"k", ",", " ", "0", ",", " ", "2"}], "}"}]}], "]"}]}], "Input",Exp\
-ressionUUID->"1902d9a2-a7ae-4700-9414-37e48b4d42e6"],
+ressionUUID->"e041cca0-7bfb-4dc1-91d1-380b50c28a3c"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -5393,18 +5204,18 @@ Cell[BoxData[
    "3.6119060627663964546046677099343863525399999999999999999999`38.\
 557736446804064", ",", 
    "10.23023919791372806550554891740957199347`39.0098857882693"}], 
-  "}"}]], "Output",ExpressionUUID->"ed469d64-28f0-427a-bd34-c8aa2e408727"]
+  "}"}]], "Output",ExpressionUUID->"e6232ffa-2070-4f97-9f13-692693d07350"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Cross-check", "Subsection",ExpressionUUID->"4b09d7c1-2c09-4084-acb9-f8626ec15689"],
+Cell["Cross-check", "Subsection",ExpressionUUID->"1af26fdf-ac0d-40ce-9e60-d4bfaccf552b"],
 
 Cell["\<\
 The coefficient of \[Epsilon]^0 agrees with the dilogarithmic de Sitter \
 result.\
-\>", "Text",ExpressionUUID->"8174d6d3-294d-4a79-bb4d-27c607395019"],
+\>", "Text",ExpressionUUID->"4a8976a1-01ad-49a7-9880-aadddc461f56"],
 
 Cell[CellGroupData[{
 
@@ -5457,10 +5268,10 @@ Cell[BoxData[
        RowBox[{"7", "/", "5"}]}], ",", " ", 
       RowBox[{"Y", " ", "->", " ", 
        RowBox[{"1", "/", "3"}]}]}], "}"}]}], ",", " ", "30"}], "]"}]], "Input",\
-ExpressionUUID->"4663bcff-0ac4-4e88-82b5-7699f699acc3"],
+ExpressionUUID->"46f3ec73-a726-497c-95b5-5efcd1212504"],
 
 Cell[BoxData["0.9700745664127942417010383257532148824948324729021975026138`30.\
-"], "Output",ExpressionUUID->"2930c98e-bd98-49c7-9964-55d4da2b11ff"]
+"], "Output",ExpressionUUID->"96a8a695-96ba-4362-b793-8656adae5492"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
@@ -5469,22 +5280,22 @@ Cell[BoxData["0.9700745664127942417010383257532148824948324729021975026138`30.\
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Mellin\[Dash]Barnes Integrals with Fold=3",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"751d1c0a-\
-5a77-4fb5-8db1-13dbc5bfa5e4"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"b5f210e1-\
+d4a3-4167-ae50-7384527747d8"],
 
 Cell[CellGroupData[{
 
-Cell["Hypergeometric Function T3 of Three Variables", "Section",ExpressionUUID->"20b3510e-5d38-4407-b925-fc058901e793"],
+Cell["Hypergeometric Function T3 of Three Variables", "Section",ExpressionUUID->"94931b65-e862-47fa-84e7-5972ff8380a2"],
 
 Cell["\<\
 This example is the function T3 of three variables of MultiHypExp, discussed \
 in Section 6.1 of our paper. With u_i = -x_i, it is a three-fold MB integral.\
 \
-\>", "Text",ExpressionUUID->"d47b3245-bbf4-41a7-94aa-2c5e40444870"],
+\>", "Text",ExpressionUUID->"93a61dc9-ac14-4fae-a165-97054fdc436b"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"66737858-2a33-4207-9e07-2f20101892ba"],
+Cell["Configuration", "Subsection",ExpressionUUID->"9eb2bd45-089a-482b-a4b7-c112238c1944"],
 
 Cell[BoxData[
  RowBox[{
@@ -5517,18 +5328,18 @@ Cell[BoxData[
        "z2", " ", "+", " ", "z3"}], "]"}]}], " ", 
     RowBox[{"u1", "^", "z1"}], " ", 
     RowBox[{"u2", "^", "z2"}], " ", 
-    RowBox[{"u3", "^", "z3"}]}]}], ";"}]], "Input",ExpressionUUID->"f11c3dd5-\
-5a6b-4a0e-b4fa-d1fe674774a2"]
+    RowBox[{"u3", "^", "z3"}]}]}], ";"}]], "Input",ExpressionUUID->"3ee786e6-\
+0e75-48e6-b455-353a55a64ebf"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"88d4ece9-fdb0-43cc-b6de-d71103287e64"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"8ad23f18-81b5-40b0-98b7-fe93ede5075f"],
 
 Cell["\<\
 The coefficient of \[Epsilon]^3 at x = (-1/5, -1/7, -1/9) agrees with \
 MultiHypExp (Section 6.5 of our paper).\
-\>", "Text",ExpressionUUID->"b743bef8-85cb-4dfa-844d-84aeb976f9cc"],
+\>", "Text",ExpressionUUID->"0d2fcff1-c9c0-4225-8722-1399747e0f29"],
 
 Cell[CellGroupData[{
 
@@ -5555,29 +5366,29 @@ Cell[BoxData[{
       RowBox[{"1", "/", "7"}]}], ",", " ", 
      RowBox[{"u3", " ", "->", " ", 
       RowBox[{"1", "/", "9"}]}]}], "}"}]}], "]"}]}], "Input",ExpressionUUID->\
-"fe2536e2-e5c9-483d-a6eb-5a65aab814ac"],
+"c4435f39-617e-4648-ac21-82075094ef9c"],
 
 Cell[BoxData["0.4616582618324450851701962871793477782719999999999999999999`38.\
-66432061209665"], "Output",ExpressionUUID->"433400bb-39c0-459b-a3fb-\
-77831d55437e"]
+66432061209665"], "Output",ExpressionUUID->"853cfa99-c072-4c1a-98b3-\
+920a2d94c988"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["3-Denominator Massless Angular Integral", "Section",ExpressionUUID->"45101758-098e-4d87-8268-ee5af2e30160"],
+Cell["3-Denominator Massless Angular Integral", "Section",ExpressionUUID->"af80aee4-5d20-481c-86e3-ca7ffca965a1"],
 
 Cell["\<\
 This example is the angular integral of three massless denominators, \
 discussed in Section 6.2 of our paper, with all powers j_k = 1. Every \
 variable v_kl is a kinematic variable in 0 < v_kl < 1, and the integral has \
 one fold per variable.\
-\>", "Text",ExpressionUUID->"991db175-cdb2-46b7-ae6b-bf7d3f8225b4"],
+\>", "Text",ExpressionUUID->"4f3126d6-8377-4773-b9ae-d209a6486537"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"cd35ea17-120c-404f-a3a4-070d3a32d9e4"],
+Cell["Configuration", "Subsection",ExpressionUUID->"3672dab6-3645-4150-a548-d94ccd5f5861"],
 
 Cell[BoxData[
  RowBox[{
@@ -5627,12 +5438,12 @@ Cell[BoxData[
     RowBox[{"v12", "^", "z12"}], " ", 
     RowBox[{"v13", "^", "z13"}], " ", 
     RowBox[{"v23", "^", "z23"}]}]}], ";"}]], "Input",ExpressionUUID->\
-"ff139b2c-f974-444c-a2e8-fc588fe0d49d"]
+"5cd16d7a-c592-4658-a87b-8c5c6a132501"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"a44641a4-0711-450a-81e4-798731323515"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"bd028b25-fc8e-447b-8a8b-d2ec0a551512"],
 
 Cell[CellGroupData[{
 
@@ -5642,7 +5453,7 @@ Cell[BoxData[
    RowBox[{"I111", ",", " ", 
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "0"}], "}"}]}], "]"}]}]], "Input",Express\
-ionUUID->"2b388acb-cd8d-4aa3-a42b-7337c3c406d3"],
+ionUUID->"5b7d3628-2b92-4e74-863a-d94039984ada"],
 
 Cell[BoxData[
  RowBox[{
@@ -5691,17 +5502,17 @@ Cell[BoxData[
    RowBox[{"\[Pi]", " ", 
     RowBox[{"Log", "[", "v23", "]"}]}], 
    RowBox[{"4", " ", "v13", " ", "v23"}]]}]], "Output",ExpressionUUID->\
-"00f5069f-f991-45b0-8c18-fae3c1d8be45"]
+"4d7cbac9-d1be-44f6-b4d0-de6b064c23f5"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Cross-check", "Subsection",ExpressionUUID->"44169e91-559d-4bac-97af-9dd15a023bf6"],
+Cell["Cross-check", "Subsection",ExpressionUUID->"3cc4b2f8-6f20-4dd1-a902-20037a82c7ee"],
 
 Cell["\<\
 The result agrees with the expansion given in Section 6.2 of our paper.\
-\>", "Text",ExpressionUUID->"b89749fe-307b-43c7-9f10-c9dbcc94a046"],
+\>", "Text",ExpressionUUID->"e637cdb7-b02f-4bac-8043-60426629913c"],
 
 Cell[CellGroupData[{
 
@@ -5753,28 +5564,28 @@ Cell[BoxData[{
     RowBox[{"v12", " ", ">", " ", "0"}], " ", "&&", " ", 
     RowBox[{"v13", " ", ">", " ", "0"}], " ", "&&", " ", 
     RowBox[{"v23", " ", ">", " ", "0"}]}]}], "]"}]}], "Input",ExpressionUUID->\
-"2c00662d-1383-4b5e-8ad0-7bae5885db52"],
+"c01cda43-7285-482b-b159-ea05507c63c3"],
 
-Cell[BoxData["0"], "Output",ExpressionUUID->"287d6745-4b73-4ca3-ac82-3381c603e2db"]
+Cell[BoxData["0"], "Output",ExpressionUUID->"69b2823b-45b1-447e-ae93-f97b28f5abc7"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Exchange of a Scalar of Nearly Conformal Mass", "Section",ExpressionUUID->"f599f39c-b29e-4710-9087-394f982dfc27"],
+Cell["Exchange of a Scalar of Nearly Conformal Mass", "Section",ExpressionUUID->"c816edf3-9ce0-49c3-97ff-68178a94be4a"],
 
 Cell["\<\
 This example is the two-site exchange of a scalar of mass m^2 = (9/4 - \
 \[Nu]^2) H^2 in de Sitter space with \[Nu] = 1/2 - \[Delta], discussed in \
 Section 6.4 of our paper. The regulator \[Epsilon] stands for \[Delta].\
-\>", "Text",ExpressionUUID->"ac905aea-5af6-4e48-9435-3e1c618e4532"],
+\>", "Text",ExpressionUUID->"3be6344a-45c4-4b10-af8e-156d7fce445c"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"c7f88f56-b628-4a62-bee5-69ad8a42ec83"],
+Cell["Configuration", "Subsection",ExpressionUUID->"4b2e555e-0cfb-4e4d-9f65-f0c864a047f4"],
 
-Cell["Every orientation gives a three-fold MB integral.", "Text",ExpressionUUID->"67df54a3-b017-4528-8b3a-ff449d12316a"],
+Cell["Every orientation gives a three-fold MB integral.", "Text",ExpressionUUID->"8580f84a-4ab4-404e-9f9c-cdf761419c77"],
 
 Cell[BoxData[
  RowBox[{
@@ -5806,17 +5617,17 @@ Cell[BoxData[
           RowBox[{"3", "/", "2"}]}], "}"}], ",", " ", 
         RowBox[{"{", 
          RowBox[{"1", "/", "3"}], "}"}]}], "}"}]}]}], "]"}]}], ";"}]], "Input",\
-ExpressionUUID->"3b41c648-d1c8-47e6-ba43-fb789ccc1b47"]
+ExpressionUUID->"74886e17-fc87-4391-996d-6121f0769fb9"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"46c2a30f-8810-4847-85df-3f930a11b726"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"440f6261-5300-4d14-aa7d-efc20cba77a6"],
 
 Cell["\<\
 The three coefficients agree with the expansion at this point given in \
 Section 6.4 of our paper and with SubTropica.\
-\>", "Text",ExpressionUUID->"66126ae7-ce72-474a-8ed9-8c0b3b05806e"],
+\>", "Text",ExpressionUUID->"6158b0cc-c163-4515-af80-cf165ce50eb3"],
 
 Cell[CellGroupData[{
 
@@ -5857,7 +5668,7 @@ Cell[BoxData[{
         RowBox[{"1", "/", "3"}]}]}], "}"}]}], "]"}], ",", " ", 
    RowBox[{"{", 
     RowBox[{"k", ",", " ", "0", ",", " ", "2"}], "}"}]}], "]"}]}], "Input",Exp\
-ressionUUID->"4a8fea59-f44a-48e9-9fb6-c111524da289"],
+ressionUUID->"bcfcafd9-9962-492a-8a6b-9abd8d7190fd"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -5865,7 +5676,7 @@ Cell[BoxData[
   "0.939509870449276052004894281320857082522`38.97290134713919", ",", 
    "2.46506981524898649623437559255107860915`38.391829223795", ",", 
    "4.5253088184664852548066969907011031287`37.65564822190134"}], 
-  "}"}]], "Output",ExpressionUUID->"229c9784-0bf7-4735-a93c-27b18546465c"]
+  "}"}]], "Output",ExpressionUUID->"6dc0c526-dbe4-4502-84af-60539878ecf7"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
@@ -5874,23 +5685,23 @@ Cell[BoxData[
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Mellin\[Dash]Barnes Integrals with Fold=4",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"d6082f1b-\
-130a-48d1-90cc-6a0ae94a7f20"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"15288206-\
+8c93-4336-a925-c9c1985aa62f"],
 
 Cell[CellGroupData[{
 
-Cell["3-Denominator Single Massive Angular Integral", "Section",ExpressionUUID->"06006c44-915d-4f03-aa0e-86ffb46deaee"],
+Cell["3-Denominator Single Massive Angular Integral", "Section",ExpressionUUID->"408d9457-d786-41e0-a6a1-b7e849c64600"],
 
 Cell["\<\
 This example is the angular integral of three denominators, one of them \
 massive, discussed in Section 6.2 of our paper. The additional variable v11 \
 adds a fold, in which the variable z11 enters the Gamma function of the first \
 denominator twice.\
-\>", "Text",ExpressionUUID->"831e4701-de28-4cf5-86ee-f7c47eb3046c"],
+\>", "Text",ExpressionUUID->"1c6f867a-e79a-4424-91e0-ae5821f264d0"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"17a0b364-682e-41d2-889b-8ec545bcbebf"],
+Cell["Configuration", "Subsection",ExpressionUUID->"3b73e422-0759-4f84-9051-abbf65fa3b0d"],
 
 Cell[BoxData[
  RowBox[{
@@ -5946,12 +5757,12 @@ Cell[BoxData[
     RowBox[{"v12", "^", "z12"}], " ", 
     RowBox[{"v13", "^", "z13"}], " ", 
     RowBox[{"v23", "^", "z23"}]}]}], ";"}]], "Input",ExpressionUUID->\
-"ea27dd3e-f7ba-4553-9779-ee39ae443fb2"]
+"8b616768-d5c1-4b5e-8704-2f4a2fb3302a"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"b363c17e-5af2-47a6-8d7c-bba664e0cd47"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"dd901632-a27c-4210-8cc9-c45ea2c4fd51"],
 
 Cell[CellGroupData[{
 
@@ -5962,7 +5773,7 @@ Cell[BoxData[
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "0"}], "}"}], ",", " ", 
     RowBox[{"Method", " ", "->", " ", "\"\<Subtraction\>\""}]}], 
-   "]"}]}]], "Input",ExpressionUUID->"fb24085a-e14b-4ebe-ae23-28bef1f219a8"],
+   "]"}]}]], "Input",ExpressionUUID->"2596794f-c9ef-4429-b454-91bd38dac670"],
 
 Cell[BoxData[
  RowBox[{
@@ -6043,7 +5854,7 @@ Cell[BoxData[
       RowBox[{
        RowBox[{"-", "v12"}], " ", "v13"}], "+", 
       RowBox[{"v11", " ", "v23"}]}], ")"}]}]]}]], "Output",ExpressionUUID->\
-"6680a0f7-0034-4e08-8e14-34b57baf55aa"]
+"d3a3e103-5d28-451d-88e3-aaedcaafee86"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
@@ -6052,12 +5863,12 @@ Cell[BoxData[
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Mellin\[Dash]Barnes Integrals with Fold=6",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"9d6c4d29-\
-c281-4b51-a29d-2bbf8a5ca789"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"892d037e-\
+e3e9-49d0-917b-32fe4cd94369"],
 
 Cell[CellGroupData[{
 
-Cell["Double Exchange near the Conformal Mass", "Section",ExpressionUUID->"5f00bb2f-d109-42c0-9ccc-fbbb17e808c8"],
+Cell["Double Exchange near the Conformal Mass", "Section",ExpressionUUID->"f1535c2f-80a2-49dd-a344-0271113fcc69"],
 
 Cell["\<\
 This example is the bispectrum generated by the double exchange of a massive \
@@ -6068,16 +5879,16 @@ vertex at the momentum k2 is the combination A = 2 \[Psi]KIKI + \
 \[Psi]KK] of four tree integrals, with \[CapitalPhi]i = Sqrt[\[Pi]/(2 ki)] \
 \[CapitalGamma](1/2 + \[Nu]) \[CapitalGamma](1/2 - \[Nu]) = Sqrt[\[Pi]/(2 \
 ki)] \[Pi]/Cos[\[Pi] \[Nu]]. Here \[Nu] = 1/2 - \[Delta].\
-\>", "Text",ExpressionUUID->"c6680f41-3950-4970-92af-ce35e4048a41"],
+\>", "Text",ExpressionUUID->"eac2e5b1-e9f5-4bff-814d-bb95489ac26f"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"c1402eb5-4989-4f5b-b874-51365ca09e34"],
+Cell["Configuration", "Subsection",ExpressionUUID->"6189fbbc-48b9-43aa-99be-6c8d4ebd00f1"],
 
 Cell["\<\
 The option \"KLegs\" adds the factors BesselK of the cut lines. The nine MB \
 integrals of the four tree integrals have two to six folds.\
-\>", "Text",ExpressionUUID->"22649cb1-2cdf-4ded-bc8c-d92485ab8445"],
+\>", "Text",ExpressionUUID->"5e0aa499-8e6d-4d52-9b88-36c574ba5d1a"],
 
 Cell[CellGroupData[{
 
@@ -6214,18 +6025,18 @@ Cell[BoxData[{
  RowBox[{"Length", " ", "/@", " ", 
   RowBox[{"{", 
    RowBox[{"KIKI", ",", " ", "K23", ",", " ", "K12", ",", " ", "KK"}], 
-   "}"}]}]}], "Input",ExpressionUUID->"17436703-00ee-48b5-be5b-4119313c0c47"],
+   "}"}]}]}], "Input",ExpressionUUID->"6aeca84f-2b46-4c9f-8115-228f37608cbc"],
 
 Cell[BoxData[
  RowBox[{"{", 
   RowBox[{"4", ",", "2", ",", "2", ",", "1"}], "}"}]], "Output",ExpressionUUID\
-->"464dcbf9-f016-48bb-bf97-a145015edd0a"]
+->"f98b88c8-491a-4ff7-b42a-3bce184b0130"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"789b240a-cc74-49d4-94ab-d1666046ba22"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"5baaddf6-a430-4fe6-9b28-16e8a2f907fe"],
 
 Cell["\<\
 The two coefficients agree with the expansion at this triangle given in \
@@ -6233,7 +6044,7 @@ Section 6.4 of our paper. CosmoTreeMB warns that one orientation of KIKI and \
 one of K23 have the kinematic variable k1/k3 = 5/4 at this triangle; their \
 closed forms, continued to this value, agree with the direct numerical \
 integration (Section 6.5 of our paper).\
-\>", "Text",ExpressionUUID->"1401c700-71f8-4398-9fa4-a2f28b358677"],
+\>", "Text",ExpressionUUID->"a2ae6f94-dead-4f32-b0d7-3775ce387a35"],
 
 Cell[CellGroupData[{
 
@@ -6321,7 +6132,7 @@ Cell[BoxData[{
         RowBox[{"4", "/", "5"}]}]}], "}"}]}], "]"}], ",", " ", 
    RowBox[{"{", 
     RowBox[{"k", ",", " ", "0", ",", " ", "1"}], "}"}]}], "]"}]}], "Input",Exp\
-ressionUUID->"6cbedde8-5267-4e15-8ebd-cecf78763cdc"],
+ressionUUID->"b0d3d8fe-f2c2-472a-bf93-50fe9fcb347a"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -6330,20 +6141,20 @@ Cell[BoxData[
    "-", "2.0847304389144213234924990986282608243699999999999999999999`38.\
 31904990753024"}], ",", 
    "4.38831428793637653447737327294888299833`38.642297723877284"}], 
-  "}"}]], "Output",ExpressionUUID->"986b4bd1-82b7-47fb-9ce1-79d8d22a56fb"]
+  "}"}]], "Output",ExpressionUUID->"26cbba27-24c1-497d-ad55-8dbc0ba54f30"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Closed Form", "Subsection",ExpressionUUID->"3d00f527-e731-409f-95f6-4bb4f0885b77"],
+Cell["Closed Form", "Subsection",ExpressionUUID->"8a3aba7c-b622-4b99-b5aa-54602bed91d6"],
 
 Cell["\<\
 The closed forms of the coefficients of A through \[Delta]^2, as functions of \
 k1, k2 and k3, assembled from the Subtraction results of the nine MB \
 integrals, are stored in the following cell, as an association from the order \
 of \[Delta] to its coefficient.\
-\>", "Text",ExpressionUUID->"c56bdaab-ec7b-403c-919d-423dfb1fe133"],
+\>", "Text",ExpressionUUID->"4963116b-93da-4d9a-8c6b-2e2ea8a1c613"],
 
 Cell[BoxData[
  RowBox[{
@@ -7835,15 +7646,15 @@ FjTXVrC6qI07+Kuz5Pm+pssd1Xse+a6PPNWNYD1V46fV+rres0xnA8/\
 JO3TeOFbgCMnN92HHsv/v2j29Pi4DrmfzDRleli1aP/V8RBBQ89inrosfARakmevKN9f8DMs340w==\
 "],
     SelectWithContents->True,
-    Selectable->False]}], ";"}]], "Input",ExpressionUUID->"dd77d5b8-fdd5-4d34-\
-9c80-55a983760843"],
+    Selectable->False]}], ";"}]], "Input",ExpressionUUID->"0e7f38ed-b024-431d-\
+9c1d-05ea064f0c3c"],
 
-Cell["The coefficient of \[Delta]^0 reads", "Text",ExpressionUUID->"1b601c66-eaed-4e36-8349-4ec74ae281c4"],
+Cell["The coefficient of \[Delta]^0 reads", "Text",ExpressionUUID->"09aa53b0-2179-43b9-95b0-b692a6d42b7d"],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
- RowBox[{"dexNC", "[", "0", "]"}]], "Input",ExpressionUUID->"f68e7aa5-1ef1-4e56-8514-c29165ddad0e"],
+ RowBox[{"dexNC", "[", "0", "]"}]], "Input",ExpressionUUID->"da0486b8-e0cb-4e66-b2ac-2ff0b1beddf1"],
 
 Cell[BoxData[
  RowBox[{
@@ -8435,14 +8246,14 @@ Cell[BoxData[
     RowBox[{"2", " ", 
      SuperscriptBox["k2", "2"], " ", 
      SuperscriptBox["k3", "2"]}], "+", 
-    SuperscriptBox["k3", "4"]}]]}]], "Output",ExpressionUUID->"9ae7a81e-6494-\
-4676-aa70-28cff5a191ee"]
+    SuperscriptBox["k3", "4"]}]]}]], "Output",ExpressionUUID->"822dfbeb-dd5d-\
+44f3-846f-3f691146c3c4"]
 }, Open  ]],
 
 Cell["\<\
 The numbers of distinct MPLs of the three coefficients, and their values at \
 the triangle, those of Section 6.4 of our paper:\
-\>", "Text",ExpressionUUID->"c9eeacd2-cf66-48b3-b130-28ad5be571e7"],
+\>", "Text",ExpressionUUID->"a6aa1bef-adaa-42c3-9417-292eac3eaa9b"],
 
 Cell[CellGroupData[{
 
@@ -8472,7 +8283,7 @@ Cell[BoxData[
           RowBox[{"4", "/", "5"}]}]}], "}"}]}], "]"}], ",", " ", 
      RowBox[{"{", 
       RowBox[{"k", ",", " ", "0", ",", " ", "2"}], "}"}]}], "]"}]}], 
-  "}"}]], "Input",ExpressionUUID->"9c41690d-573d-4e28-87a0-4345ee0e92cb"],
+  "}"}]], "Input",ExpressionUUID->"86c79433-6c58-48d1-819b-45d9725cc7c6"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -8489,15 +8300,15 @@ Cell[BoxData[
       "4.3883142879363765344773732729488829987`37.642297723877284", ",", 
      RowBox[{
      "-", "9.5812231435701169440223589632612818117999999999999999999999`37.\
-98142095486087"}]}], "}"}]}], "}"}]], "Output",ExpressionUUID->"ac73d84e-8e91-\
-4b6b-b025-e4b61c861425"]
+98142095486087"}]}], "}"}]}], "}"}]], "Output",ExpressionUUID->"e946e6d0-fe52-\
+47f4-89a1-b765a69d0fe3"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Double Exchange of a Light Field", "Section",ExpressionUUID->"69a8758d-cdd5-42e8-b5db-d882d71f9aa8"],
+Cell["Double Exchange of a Light Field", "Section",ExpressionUUID->"82d13c0a-3c2b-41ef-8c01-bdd751d909b3"],
 
 Cell["\<\
 This example is the same bispectrum for a light field, \[Nu] = 3/2 - \
@@ -8506,16 +8317,16 @@ contain powers (2 + v)^(\[Nu] - 1/2) whose MB splitting admits no straight \
 contour. The option \"LightSplit\" separates the integer part of the exponent \
 by the binomial theorem, and CosmoTreeMB returns every term of the split as a \
 separate integral.\
-\>", "Text",ExpressionUUID->"60c5d835-7188-4760-b797-fe32a3d5cada"],
+\>", "Text",ExpressionUUID->"7a0a2d4c-638a-4cb4-a53c-2bdfcdb6a389"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"6763a040-2065-483a-83f4-d26d69ec4b8c"],
+Cell["Configuration", "Subsection",ExpressionUUID->"a19cb90f-840b-469f-978b-9e6b8d3ed11b"],
 
 Cell["\<\
 For example, the integral \[Psi]K23 is split into eight MB integrals of three \
 and four folds.\
-\>", "Text",ExpressionUUID->"8f086b29-14b0-42ca-80c2-3e0259697880"],
+\>", "Text",ExpressionUUID->"debf6366-22c5-4071-b04c-9c9aa9ae2a2c"],
 
 Cell[CellGroupData[{
 
@@ -8558,22 +8369,22 @@ Cell[BoxData[{
         RowBox[{"{", "1", "}"}]}], "}"}]}], ",", " ", 
      RowBox[{"\"\<LightSplit\>\"", " ", "->", " ", "True"}]}], "]"}]}], 
   ";"}], "\n", 
- RowBox[{"Length", "[", "K23", "]"}]}], "Input",ExpressionUUID->"bf07dc37-\
-587d-473a-8e50-593a84042212"],
+ RowBox[{"Length", "[", "K23", "]"}]}], "Input",ExpressionUUID->"e5aef96b-\
+04a6-4eed-86d7-08b6fead2d31"],
 
-Cell[BoxData["8"], "Output",ExpressionUUID->"5c026c86-1113-423d-8d8c-767d36775bdb"]
+Cell[BoxData["8"], "Output",ExpressionUUID->"34f9c19c-e8a1-4362-b0b9-16ef11595965"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"d09ff83c-22ea-4726-a7ed-221327ef9915"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"cdb5ae06-5f03-467d-92dd-fb2bd054ad72"],
 
 Cell["\<\
 The coefficients of \[Psi]K23 through \[Delta]^2 agree with a direct \
 numerical integration of the Bessel time integral at small values of \[Delta] \
 (Section 6.5 of our paper).\
-\>", "Text",ExpressionUUID->"086800b7-d2f8-47f3-81f0-457262f9ae9e"],
+\>", "Text",ExpressionUUID->"bdc18898-88f9-4d91-a9f2-ff450901f6d1"],
 
 Cell[CellGroupData[{
 
@@ -8614,7 +8425,7 @@ Cell[BoxData[{
         RowBox[{"4", "/", "5"}]}]}], "}"}]}], "]"}], ",", " ", 
    RowBox[{"{", 
     RowBox[{"k", ",", " ", "0", ",", " ", "2"}], "}"}]}], "]"}]}], "Input",Exp\
-ressionUUID->"5e215d72-78ae-4615-8087-d095759ce920"],
+ressionUUID->"ad46ee39-43be-41d7-b5f5-cfc69d2a33b2"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -8622,20 +8433,20 @@ Cell[BoxData[
    RowBox[{
    "-", "0.280611940590524738426006991465494318467`38.448106147170755"}], ",",
     "0.46198535999080302459505828173136016997`37.66462821327052"}], 
-  "}"}]], "Output",ExpressionUUID->"a2343cb3-3c74-454c-9983-f4fdfc47dd87"]
+  "}"}]], "Output",ExpressionUUID->"fd99e95f-eae9-4d55-a5be-bafba46f736b"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Closed Form", "Subsection",ExpressionUUID->"a994e927-e481-472d-8b7e-1fdc2a105e2e"],
+Cell["Closed Form", "Subsection",ExpressionUUID->"7620c97a-abfb-4ea9-b9fa-19df54aabcfa"],
 
 Cell["\<\
 The closed forms of the coefficients of A through \[Delta]^1, assembled from \
 the Subtraction results of the thirty MB integrals of the light split, are \
 stored in the following cell, as an association from the order of \[Delta] to \
 its coefficient.\
-\>", "Text",ExpressionUUID->"4663c6c7-a76c-4c66-80e8-c6709f7c0c15"],
+\>", "Text",ExpressionUUID->"d5f2ef91-afa7-40b0-aa20-402860ca43b4"],
 
 Cell[BoxData[
  RowBox[{
@@ -14672,10 +14483,10 @@ yGiNX1ja78lHg9X/hZaKmHox/\
 ccNcKxFnUroA7dGCGB6wi8mwZQjpVjAiZ93M4rRe5ZVpvlGSFsarXf0ANcMgRNVotFCxG3E/h+\
 10QnF"],
     SelectWithContents->True,
-    Selectable->False]}], ";"}]], "Input",ExpressionUUID->"ab0d6957-201b-4a4b-\
-b5c6-38246eb3063f"],
+    Selectable->False]}], ";"}]], "Input",ExpressionUUID->"2ff90c5b-58f5-4b49-\
+bb35-d40a13348e75"],
 
-Cell["The two leading coefficients are free of MPLs:", "Text",ExpressionUUID->"7dbb666c-8d10-4d3e-a08a-bd1aa8572395"],
+Cell["The two leading coefficients are free of MPLs:", "Text",ExpressionUUID->"a9d85b00-c036-4b9c-be59-1e63bec1d1be"],
 
 Cell[CellGroupData[{
 
@@ -14692,7 +14503,7 @@ Cell[BoxData[
     RowBox[{"k1", " ", ">", " ", "0"}], " ", "&&", " ", 
     RowBox[{"k2", " ", ">", " ", "0"}], " ", "&&", " ", 
     RowBox[{"k3", " ", ">", " ", "0"}]}]}], "]"}]], "Input",ExpressionUUID->\
-"5eedaf05-cdc5-4e09-9f87-0d034efbc992"],
+"211f4d06-ac1f-47e6-80ff-d6943bb73cf9"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -14734,14 +14545,14 @@ Cell[BoxData[
         SuperscriptBox["k3", "2"], " ", 
         RowBox[{"(", 
          RowBox[{"k1", "+", "k2", "+", "k3"}], ")"}]}], ")"}]}], ")"}]}]}], 
-  "}"}]], "Output",ExpressionUUID->"5637e483-ee41-4482-bf79-54d1139d79c6"]
+  "}"}]], "Output",ExpressionUUID->"1d8f2587-c751-4e64-998e-01e502a48457"]
 }, Open  ]],
 
 Cell["\<\
 The numbers of distinct MPLs of the coefficients of \[Delta]^-3, ..., \
 \[Delta]^1, and their values at the triangle, those of Section 6.4 of our \
 paper:\
-\>", "Text",ExpressionUUID->"55dd9f7b-1738-4652-b57c-accdd07f715f"],
+\>", "Text",ExpressionUUID->"9f2ab27d-f8ba-43a0-9201-7173b9a29e33"],
 
 Cell[CellGroupData[{
 
@@ -14771,7 +14582,7 @@ Cell[BoxData[
      RowBox[{"{", 
       RowBox[{"k", ",", " ", 
        RowBox[{"-", "3"}], ",", " ", "1"}], "}"}]}], "]"}]}], "}"}]], "Input",\
-ExpressionUUID->"67311449-813f-438d-8e79-412283e1ab6f"],
+ExpressionUUID->"3d986f8d-55c5-45d4-aace-61f69a16c166"],
 
 Cell[BoxData[
  RowBox[{"{", 
@@ -14796,7 +14607,7 @@ Cell[BoxData[
      "-", "3.9087662227987751060837371419212642607399999999999999999999`38.\
 59203969673449"}], ",", 
      "4.7204536468752438095203888507318893694`37.6739837373772"}], "}"}]}], 
-  "}"}]], "Output",ExpressionUUID->"a954a9e1-54c0-4eaf-bd0b-47e7ef7c48ae"]
+  "}"}]], "Output",ExpressionUUID->"54d00569-5ae8-43f9-90b8-ffff4175ac9b"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
@@ -14805,23 +14616,23 @@ Cell[BoxData[
 Cell[CellGroupData[{
 
 Cell[TextData[StyleBox["Mellin\[Dash]Barnes Integrals with Fold=7",
- FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"58c75603-\
-1a4f-49c4-8ec0-e63de9e63cc3"],
+ FontColor->RGBColor[0.6, 0.4, 0.2]]], "Chapter",ExpressionUUID->"bdb886e9-\
+9f26-436b-93f6-9f27573894c6"],
 
 Cell[CellGroupData[{
 
-Cell["Master Integral for N4LO Higgs Production", "Section",ExpressionUUID->"b451ce62-cc5f-49c6-bcb2-80d5379fcfc4"],
+Cell["Master Integral for N4LO Higgs Production", "Section",ExpressionUUID->"1fa3ce4b-f4b1-462c-b7d9-2d919762e9d2"],
 
 Cell["\<\
 This example is a seven-fold MB integral I(u, \[Epsilon]) of Higgs-boson \
 production at N4LO, one of the master integrals that contribute to the RRV\
 \[Times]V corrections, differential in the variable 0 < u < 1, discussed in \
 Section 6.3 of our paper.\
-\>", "Text",ExpressionUUID->"6fef089c-36ba-4022-94be-31f0f581b4c0"],
+\>", "Text",ExpressionUUID->"063aeddc-0cf6-4132-a830-9fce56c6e4c6"],
 
 Cell[CellGroupData[{
 
-Cell["Configuration", "Subsection",ExpressionUUID->"a8134634-b851-42e0-84be-37e4a7eb1889"],
+Cell["Configuration", "Subsection",ExpressionUUID->"efbf81e3-985c-4d2b-a2b0-a37d0b153e8e"],
 
 Cell[BoxData[
  RowBox[{
@@ -14923,12 +14734,12 @@ Cell[BoxData[
      RowBox[{
      "z2", " ", "+", " ", "z4", " ", "+", " ", "z5", " ", "-", " ", "z7", " ",
        "+", " ", "\[Epsilon]"}], "]"}]}]}], ";"}]], "Input",ExpressionUUID->\
-"a988bf39-784b-4188-95cd-1af950187ade"]
+"20bc9e37-f078-4d0f-9a3f-3e2c91f46b90"]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Evaluation", "Subsection",ExpressionUUID->"44b62433-f537-4101-a455-9a8c1a03a98c"],
+Cell["Evaluation", "Subsection",ExpressionUUID->"d4610343-c209-4740-a66b-f12ffdf8f413"],
 
 Cell[CellGroupData[{
 
@@ -14948,7 +14759,7 @@ Cell[BoxData[{
     RowBox[{"{", 
      RowBox[{"\[Epsilon]", ",", " ", "0", ",", " ", 
       RowBox[{"-", "4"}]}], "}"}]}], "]"}], "]"}]}], "Input",ExpressionUUID->\
-"3f1a971e-4044-4b1e-9e42-5a7fbad75778"],
+"93fe2fac-dddf-4948-bf60-8943aa47bda8"],
 
 Cell[BoxData[
  RowBox[{
@@ -15023,19 +14834,19 @@ Cell[BoxData[
        RowBox[{"G", "[", 
         RowBox[{"0", ",", 
          RowBox[{"1", "-", "u"}], ",", "1"}], "]"}], "]"}]}]}], 
-    ")"}]}]}]], "Output",ExpressionUUID->"d7e088e2-1c23-42bf-8e52-\
-6d6c828c0464"]
+    ")"}]}]}]], "Output",ExpressionUUID->"54542678-1188-4b90-9d61-\
+8cfb3f6a2dec"]
 }, Open  ]]
 }, Closed]],
 
 Cell[CellGroupData[{
 
-Cell["Cross-check", "Subsection",ExpressionUUID->"af2341bb-446e-478d-bb9a-72eb9c27de9e"],
+Cell["Cross-check", "Subsection",ExpressionUUID->"b9063633-7040-4e31-8817-cd27f27daf63"],
 
 Cell["\<\
 The leading three orders agree with the expansion given in Section 6.3 of our \
 paper, in which G(0, 1; u) = -Li2(u), here at u = 1/3.\
-\>", "Text",ExpressionUUID->"bb7d4b31-b7ec-4278-b6d6-3c319189a150"],
+\>", "Text",ExpressionUUID->"09c73597-a837-4753-bcd3-99310dc19043"],
 
 Cell[CellGroupData[{
 
@@ -15094,13 +14905,13 @@ Cell[BoxData[
    RowBox[{"{", 
     RowBox[{"k", ",", " ", 
      RowBox[{"-", "6"}], ",", " ", 
-     RowBox[{"-", "4"}]}], "}"}]}], "]"}]], "Input",ExpressionUUID->"0d6b2f30-\
-fce7-47bb-bec2-8016555232da"],
+     RowBox[{"-", "4"}]}], "}"}]}], "]"}]], "Input",ExpressionUUID->"48c8bba9-\
+0c20-4338-b3df-470ffa74c685"],
 
 Cell[BoxData[
  RowBox[{"{", 
   RowBox[{"0", ",", "0", ",", "0"}], "}"}]], "Output",ExpressionUUID->\
-"7e5cf139-6e96-4533-97b2-628d36fb7539"]
+"1f18a7fc-738e-435e-ac3a-1198d20e9210"]
 }, Open  ]],
 
 Cell["\<\
@@ -15108,7 +14919,7 @@ The coefficient of \[Epsilon]^-3 is a lengthy combination of MPLs whose \
 letters contain the square root of u(4 - u). Its value at u = 1/3 agrees with \
 the numerical integration of MB.m given in Section 6.5 of our paper, \
 -931.7858(8).\
-\>", "Text",ExpressionUUID->"f14d059f-0e16-447e-9350-bed4698491ec"],
+\>", "Text",ExpressionUUID->"7b54997b-4977-4152-bcc9-7ae1d8ea96d5"],
 
 Cell[CellGroupData[{
 
@@ -15121,13 +14932,13 @@ Cell[BoxData[
    RowBox[{"{", 
     RowBox[{"u", " ", "->", " ", 
      RowBox[{"1", "/", "3"}]}], "}"}]}], "]"}]], "Input",ExpressionUUID->\
-"2f85c5fc-40ea-4f76-9289-3b9dd3aebfee"],
+"f52a9c6e-6b24-4e16-9721-afb1e6d2dff2"],
 
 Cell[BoxData[
  RowBox[{"-", 
   "931.7857747798015533660815438171535231280000000000000000000001`38.\
-96931607595359"}]], "Output",ExpressionUUID->"072f351c-17cf-4f58-8180-\
-48b143b87b80"]
+96931607595359"}]], "Output",ExpressionUUID->"913eaeeb-208d-41d9-93ca-\
+7e0113fa9ef0"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
@@ -15144,7 +14955,7 @@ Background->RGBColor[0.935, 0.935, 0.935],
 FrontEndVersion->"15.0 for Linux x86 (64-bit) (May 19, 2026)",
 StyleDefinitions->FrontEnd`FileName[{"Report"}, "StandardReport.nb", 
   CharacterEncoding -> "UTF-8"],
-ExpressionUUID->"26b7a939-e677-42f2-874f-aee50a2fe30a"
+ExpressionUUID->"45b97f15-8686-4144-a626-18bcc2259ec0"
 ]
 (* End of Notebook Content *)
 
@@ -15158,392 +14969,388 @@ CellTagsIndex->{}
 (*NotebookFileOutline
 Notebook[{
 Cell[CellGroupData[{
-Cell[576, 22, 150, 2, 105, "Title",ExpressionUUID->"700af00f-5d53-4fba-8361-1886ab22b768"],
-Cell[729, 26, 314, 12, 105, "Author",ExpressionUUID->"8c25f254-5a15-4317-8f69-d4732b4e327a"],
+Cell[576, 22, 150, 2, 105, "Title",ExpressionUUID->"ea4ae082-91be-407e-a845-593b4c4a6df8"],
+Cell[729, 26, 314, 12, 105, "Author",ExpressionUUID->"cc731356-5732-4b0e-b108-ef12cb2c43ad"],
 Cell[CellGroupData[{
-Cell[1068, 42, 148, 2, 105, "Chapter",ExpressionUUID->"307687d8-756e-4bf0-a9ae-2a50b8848273"],
+Cell[1068, 42, 148, 2, 105, "Chapter",ExpressionUUID->"d9463c52-a977-44e7-a148-cea41fc21509"],
 Cell[CellGroupData[{
-Cell[1241, 48, 89, 0, 105, "Input",ExpressionUUID->"aed6d869-5ec3-4b09-9f22-deeb7980038d"],
-Cell[1333, 50, 134, 0, 105, "Output",ExpressionUUID->"a0667002-8df3-4175-aa53-2c7f3b4a26a1"]
+Cell[1241, 48, 89, 0, 105, "Input",ExpressionUUID->"b403bd64-a84c-4408-8f79-49f2526a3859"],
+Cell[1333, 50, 134, 0, 105, "Output",ExpressionUUID->"08b28eba-424a-4e93-be66-c079bf8a3aeb"]
 }, Open  ]],
-Cell[1482, 53, 180, 4, 105, "Input",ExpressionUUID->"6ce1fc1a-4651-43eb-96c1-7e97c5d0db46"],
+Cell[1482, 53, 180, 4, 105, "Input",ExpressionUUID->"f2962771-147d-484e-9fff-964422604c9d"],
 Cell[CellGroupData[{
-Cell[1687, 61, 195, 4, 105, "Input",ExpressionUUID->"fa2dff11-c65a-42c3-ab95-845e7dad253a"],
+Cell[1687, 61, 195, 4, 105, "Input",ExpressionUUID->"b57f02d5-ecef-46de-93d1-fd132a95d88d"],
 Cell[CellGroupData[{
-Cell[1907, 69, 185, 3, 105, "Print",ExpressionUUID->"b5bb487c-6ce7-4e78-9e47-0e05303296b8"],
-Cell[2095, 74, 155, 2, 105, "Print",ExpressionUUID->"8b66cb11-f6cb-4667-b1b4-a35ae55aaa6a"],
-Cell[2253, 78, 126, 0, 105, "Print",ExpressionUUID->"880426fa-b51d-4498-b140-2b26980191c2"]
+Cell[1907, 69, 185, 3, 105, "Print",ExpressionUUID->"674b4664-c4b8-48c7-80ba-47b2e584450f"],
+Cell[2095, 74, 155, 2, 105, "Print",ExpressionUUID->"6b314264-f217-490d-b557-c602cabb8e03"],
+Cell[2253, 78, 126, 0, 105, "Print",ExpressionUUID->"251710bc-5780-453a-b7a4-1ce17e84447a"]
 }, Open  ]]
 }, Open  ]],
-Cell[2406, 82, 467, 7, 105, "Text",ExpressionUUID->"c176e54f-5d23-4f60-b9b2-717d04f01444"],
-Cell[2876, 91, 568, 15, 105, "Input",ExpressionUUID->"cbef5937-e0e9-45a8-9b33-ac3f82914aa2"]
+Cell[2406, 82, 467, 7, 105, "Text",ExpressionUUID->"a3dff278-767c-40f8-a4cd-ebfd44031ce3"],
+Cell[2876, 91, 568, 15, 105, "Input",ExpressionUUID->"9a6752a4-2c12-48cd-aa1d-a73e25ab5802"]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[3481, 111, 146, 2, 105, "Chapter",ExpressionUUID->"c07423b3-4648-4f57-bd20-773d2afb06c3"],
+Cell[3481, 111, 146, 2, 105, "Chapter",ExpressionUUID->"25038882-97b5-4006-bde7-9afe0c8517b4"],
 Cell[CellGroupData[{
-Cell[3652, 117, 90, 0, 105, "Section",ExpressionUUID->"51dcc0f5-9d45-4748-a407-f5744667ee5a"],
+Cell[3652, 117, 90, 0, 105, "Section",ExpressionUUID->"e4a3ddd6-9d1d-42e8-8378-c21eb0639d1a"],
 Cell[CellGroupData[{
-Cell[3767, 121, 111, 1, 105, "Input",ExpressionUUID->"24eb323b-a5ff-4d56-8285-65657d07c334"],
-Cell[3881, 124, 10452, 260, 105, "Output",ExpressionUUID->"4dc21f51-c3ce-4572-8f7c-af5ae561d51a"]
-}, Open  ]],
-Cell[CellGroupData[{
-Cell[14370, 389, 124, 1, 105, "Input",ExpressionUUID->"22e14553-95a2-44b9-a3cf-7ec1f4d91002"],
-Cell[14497, 392, 9111, 227, 105, "Output",ExpressionUUID->"3041862a-7861-48ff-8faf-ea2f8fa7108a"]
+Cell[3767, 121, 111, 1, 105, "Input",ExpressionUUID->"17973a53-f5aa-4b55-9a6c-799cc5c092a1"],
+Cell[3881, 124, 10452, 260, 105, "Output",ExpressionUUID->"d2f86fac-4ecd-4933-a278-eb332ad0fd26"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[23645, 624, 118, 1, 105, "Input",ExpressionUUID->"c49c114d-a756-47f4-927c-55fa0594a800"],
-Cell[23766, 627, 9186, 228, 105, "Output",ExpressionUUID->"cbba4cca-0266-498a-b3b2-7b1b6541d29a"]
+Cell[14370, 389, 124, 1, 105, "Input",ExpressionUUID->"e6d90145-b017-46a5-9c5b-3e953594aa69"],
+Cell[14497, 392, 9111, 227, 105, "Output",ExpressionUUID->"8e64335b-0a92-4eb3-b547-1e19cb8df5bc"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[32989, 860, 119, 1, 105, "Input",ExpressionUUID->"f7589d59-9506-49f1-8cad-a0f7fd3c9276"],
-Cell[33111, 863, 10323, 261, 105, "Output",ExpressionUUID->"8c5f2a1a-a8e1-496d-b328-5b8cc7f4da7c"]
+Cell[23645, 624, 118, 1, 105, "Input",ExpressionUUID->"c294bd69-4da4-41db-aa16-0f02cf31b749"],
+Cell[23766, 627, 9186, 228, 105, "Output",ExpressionUUID->"a91bcdd6-e8f3-4c9c-af56-412ba3c135de"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[43471, 1129, 117, 1, 105, "Input",ExpressionUUID->"26af2991-bfbc-4d1e-8716-871d67786973"],
-Cell[43591, 1132, 10620, 266, 105, "Output",ExpressionUUID->"8698f48e-9eae-44ee-8a0f-295cf6c873b1"]
+Cell[32989, 860, 119, 1, 105, "Input",ExpressionUUID->"6c71347c-6554-4c74-bc22-143003abba69"],
+Cell[33111, 863, 10323, 261, 105, "Output",ExpressionUUID->"e1e1f259-bb57-4857-9bd4-735016fe3837"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[54248, 1403, 117, 1, 105, "Input",ExpressionUUID->"4577824b-8221-46cd-912f-67a4b066d67d"],
-Cell[54368, 1406, 10158, 257, 105, "Output",ExpressionUUID->"08391856-b3a1-4210-a6bb-22a7503b7226"]
-}, Open  ]]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[64575, 1669, 91, 0, 105, "Section",ExpressionUUID->"90047499-9914-4bfc-ae42-4d58d671772b"],
-Cell[CellGroupData[{
-Cell[64691, 1673, 108, 1, 105, "Input",ExpressionUUID->"a2d05431-7ec2-4eda-aff4-896e348bd9ca"],
-Cell[64802, 1676, 43625, 916, 105, "Output",ExpressionUUID->"7833633a-aa6f-47d2-849e-b7645038985d"]
+Cell[43471, 1129, 117, 1, 105, "Input",ExpressionUUID->"0916f489-4c16-4074-b46b-c342500e7f65"],
+Cell[43591, 1132, 10620, 266, 105, "Output",ExpressionUUID->"1f4790b0-58fc-479a-9057-1c3464b8b286"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[108464, 2597, 109, 1, 105, "Input",ExpressionUUID->"7634d7fb-0e5e-4c5d-871a-f2a668b2813f"],
-Cell[108576, 2600, 46852, 978, 105, "Output",ExpressionUUID->"1c14dd1a-b2dd-4ee8-8f2f-a3be408b1942"]
+Cell[54248, 1403, 117, 1, 105, "Input",ExpressionUUID->"97cce4a8-d266-41c1-84c3-437117a5d545"],
+Cell[54368, 1406, 10158, 257, 105, "Output",ExpressionUUID->"a413fbaa-0dba-4eba-838d-a469bf20a4cc"]
+}, Open  ]]
+}, Closed]],
+Cell[CellGroupData[{
+Cell[64575, 1669, 91, 0, 105, "Section",ExpressionUUID->"3e23cce1-fac3-4c74-9f67-f73f6cafaa4a"],
+Cell[CellGroupData[{
+Cell[64691, 1673, 108, 1, 105, "Input",ExpressionUUID->"657fffbb-7dbb-4529-9256-f3c4ec5785f0"],
+Cell[64802, 1676, 46527, 962, 105, "Output",ExpressionUUID->"4f00e7d1-6858-4557-906e-03a060109877"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[155465, 3583, 114, 1, 105, "Input",ExpressionUUID->"84753015-f6ef-430b-8170-b9b8a31afa91"],
-Cell[155582, 3586, 15595, 369, 105, "Output",ExpressionUUID->"86fa9e45-5e18-475d-acc0-bcb62a1f62de"]
+Cell[111366, 2643, 109, 1, 105, "Input",ExpressionUUID->"6c0d3e6d-7c63-4fe9-abee-8d9a2443ec02"],
+Cell[111478, 2646, 46852, 978, 105, "Output",ExpressionUUID->"eefc4b99-94a3-4e70-bb26-c55ff510da73"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[171214, 3960, 106, 1, 105, "Input",ExpressionUUID->"81dc43dc-45c6-41b7-8e1c-70280a3074b3"],
-Cell[171323, 3963, 9035, 227, 105, "Output",ExpressionUUID->"a3b22e5c-9fcb-48c4-beef-9e1e614673ca"]
+Cell[158367, 3629, 114, 1, 105, "Input",ExpressionUUID->"fc8d9f51-75b7-4b85-98d9-e283c665ed7a"],
+Cell[158484, 3632, 15595, 369, 105, "Output",ExpressionUUID->"7458ea22-5964-4588-bbdc-0bc3a72f2d3a"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[180407, 4196, 98, 0, 105, "Section",ExpressionUUID->"4e4f223c-450a-479b-9240-7b8c0c03b138"],
+Cell[174128, 4007, 98, 0, 105, "Section",ExpressionUUID->"8c9972be-98d6-4c56-9cf7-8c81f0347118"],
 Cell[CellGroupData[{
-Cell[180530, 4200, 124, 1, 105, "Input",ExpressionUUID->"97c7095e-c26c-4bdd-8bcb-71da44063622"],
-Cell[180657, 4203, 317, 7, 105, "Output",ExpressionUUID->"4c839e2e-1a08-46a2-b33d-314d2393e02a"]
+Cell[174251, 4011, 124, 1, 105, "Input",ExpressionUUID->"3b3e806a-e63a-4705-b88d-215e58dc3324"],
+Cell[174378, 4014, 317, 7, 105, "Output",ExpressionUUID->"981b4b6b-f3c5-45c5-a34d-670e0438b244"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[181011, 4215, 110, 1, 105, "Input",ExpressionUUID->"606c2675-90cc-4538-9d59-f98bb536f6a6"],
-Cell[181124, 4218, 9337, 229, 105, "Output",ExpressionUUID->"d646d8e0-e2d1-4099-9e36-c203a5792a40"]
+Cell[174732, 4026, 110, 1, 105, "Input",ExpressionUUID->"c8f83795-49db-4080-a90a-c984681d3604"],
+Cell[174845, 4029, 9337, 229, 105, "Output",ExpressionUUID->"024c6917-9ac1-41f4-8cf5-a61eb03c21fd"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[190498, 4452, 125, 1, 105, "Input",ExpressionUUID->"bcb06a3c-734d-4cf2-a56c-cafe64f786c7"],
-Cell[190626, 4455, 605, 12, 105, "Output",ExpressionUUID->"87cd92b9-655f-4a02-ac4e-cadd5444ea53"]
+Cell[184219, 4263, 125, 1, 105, "Input",ExpressionUUID->"9c515343-34cc-4104-a98b-93093c4d2bb4"],
+Cell[184347, 4266, 605, 12, 105, "Output",ExpressionUUID->"90525414-f8d1-42bf-ae53-5b898d9da79d"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[191292, 4474, 174, 2, 105, "Chapter",ExpressionUUID->"656b6cec-83f2-4a1d-b2d8-e6d3906bbc48"],
+Cell[185013, 4285, 174, 2, 105, "Chapter",ExpressionUUID->"107c330a-1c42-4d7b-8910-3c7a1aa2a79b"],
 Cell[CellGroupData[{
-Cell[191491, 4480, 107, 0, 105, "Section",ExpressionUUID->"8debbceb-dea2-4df3-8fb1-21d72e15021a"],
-Cell[191601, 4482, 434, 6, 105, "Text",ExpressionUUID->"8b31734a-6d3b-4784-a17e-ce5d2b4806a5"],
+Cell[185212, 4291, 107, 0, 105, "Section",ExpressionUUID->"ab1c6946-a3e4-4f61-9035-648316cc3711"],
+Cell[185322, 4293, 434, 6, 105, "Text",ExpressionUUID->"ec736312-4724-49d4-b319-9c08fc7f5379"],
 Cell[CellGroupData[{
-Cell[192060, 4492, 90, 0, 105, "Subsection",ExpressionUUID->"35ab7b9a-a9bc-4e26-90ca-7167d33e962d"],
-Cell[192153, 4494, 1649, 43, 105, "Input",ExpressionUUID->"9fffc248-516e-4674-9ad1-65ab24e322a7"]
+Cell[185781, 4303, 90, 0, 105, "Subsection",ExpressionUUID->"46f21c43-95aa-4636-832d-43000afbcc1c"],
+Cell[185874, 4305, 1649, 43, 105, "Input",ExpressionUUID->"774b84a6-d163-4f82-bf1f-b058536058a4"]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[193839, 4542, 91, 0, 105, "Subsection",ExpressionUUID->"d2384114-eb8e-4586-996d-0d4af721496e"],
-Cell[193933, 4544, 273, 4, 105, "Text",ExpressionUUID->"c7ff9a86-8d99-4842-91f6-562dd4b416ac"],
+Cell[187560, 4353, 91, 0, 105, "Subsection",ExpressionUUID->"1561c005-66a7-4a8e-8045-72ebf4e2afdf"],
+Cell[187654, 4355, 273, 4, 105, "Text",ExpressionUUID->"d47aea1c-a20e-46b2-a338-f39b23a812a8"],
 Cell[CellGroupData[{
-Cell[194231, 4552, 213, 5, 105, "Input",ExpressionUUID->"802ea090-d44a-49c3-9549-fa68792cc729"],
-Cell[194447, 4559, 628, 20, 105, "Output",ExpressionUUID->"6878941b-5e65-4285-af01-cf3e9fb17940"]
+Cell[187952, 4363, 213, 5, 105, "Input",ExpressionUUID->"e0662169-40a7-4fba-8603-620ff6d25676"],
+Cell[188168, 4370, 628, 20, 105, "Output",ExpressionUUID->"7173f39e-c057-4588-a27f-e09cd04a0dff"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[195124, 4585, 88, 0, 105, "Subsection",ExpressionUUID->"92bd8f74-d71a-4301-b741-8cb2139eaa6d"],
+Cell[188845, 4396, 88, 0, 105, "Subsection",ExpressionUUID->"ee56448e-b46a-47d6-911e-2f2866b768e5"],
 Cell[CellGroupData[{
-Cell[195237, 4589, 338, 7, 105, "Input",ExpressionUUID->"c923f452-8dcd-4697-a0dc-2b47469c83bb"],
-Cell[195578, 4598, 628, 20, 105, "Output",ExpressionUUID->"c1fb47e6-9b0d-4c6b-8906-5a37ba03ae36"]
+Cell[188958, 4400, 338, 7, 105, "Input",ExpressionUUID->"5abb7d58-41a0-4127-92fb-1d0ed6e1bf57"],
+Cell[189299, 4409, 628, 20, 105, "Output",ExpressionUUID->"39ff3970-a1a6-4b00-9579-8754e21dd3ea"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[196255, 4624, 86, 0, 105, "Subsection",ExpressionUUID->"adda3b02-1ac5-4ad6-a39f-71d296a292b2"],
+Cell[189976, 4435, 86, 0, 105, "Subsection",ExpressionUUID->"42b73a9e-f035-4963-9b63-3b72c67a52cf"],
 Cell[CellGroupData[{
-Cell[196366, 4628, 334, 7, 105, "Input",ExpressionUUID->"38e52fc4-36d6-4a11-a645-17c4c703724e"],
-Cell[196703, 4637, 1035, 33, 105, "Output",ExpressionUUID->"3ab8bf67-4ec1-49be-a8f9-d8cc8ed38874"]
+Cell[190087, 4439, 334, 7, 105, "Input",ExpressionUUID->"844a399e-b0ec-46c9-80e7-12a0ba8620df"],
+Cell[190424, 4448, 1035, 33, 105, "Output",ExpressionUUID->"75c269bb-0687-45e2-9c01-112fdf17a8f9"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[197787, 4676, 88, 0, 105, "Subsection",ExpressionUUID->"e49979d6-cd51-4121-9385-9d09b756d677"],
-Cell[197878, 4678, 349, 5, 105, "Text",ExpressionUUID->"cc0bec60-b0a3-4c7d-bb72-203b7b366fe5"],
+Cell[191508, 4487, 88, 0, 105, "Subsection",ExpressionUUID->"7458ab93-0b7d-4373-af43-3294d489adfb"],
+Cell[191599, 4489, 349, 5, 105, "Text",ExpressionUUID->"37e146cf-34f8-43cd-b4a2-830cd342e8b6"],
 Cell[CellGroupData[{
-Cell[198252, 4687, 338, 7, 105, "Input",ExpressionUUID->"ea417529-7180-4a5b-83ba-cdc86b4ebed9"],
-Cell[198593, 4696, 5826, 174, 105, "Output",ExpressionUUID->"251d2a5a-a9c5-47ab-ac59-10a8665b3599"]
+Cell[191973, 4498, 338, 7, 105, "Input",ExpressionUUID->"ec5a93cb-adad-4a02-950a-b354d5770bea"],
+Cell[192314, 4507, 5826, 174, 105, "Output",ExpressionUUID->"e076921b-a7ac-491e-a29f-49dd1e966019"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[204468, 4876, 88, 0, 105, "Subsection",ExpressionUUID->"8733786c-4d5c-44b8-924f-1e3767f11eca"],
-Cell[204559, 4878, 120, 0, 105, "Text",ExpressionUUID->"4328d97f-2cc6-45b0-8863-dc6b04a5e28e"],
+Cell[198189, 4687, 88, 0, 105, "Subsection",ExpressionUUID->"082d1f82-e1fb-49db-b0ca-99aefc272982"],
+Cell[198280, 4689, 120, 0, 105, "Text",ExpressionUUID->"73927770-b015-4660-862f-6fb297334c2c"],
 Cell[CellGroupData[{
-Cell[204704, 4882, 692, 18, 105, "Input",ExpressionUUID->"f877143c-94c4-40e2-880f-e5264520f0b7"],
-Cell[205399, 4902, 128, 2, 105, "Output",ExpressionUUID->"9c2c94b7-1a80-4edb-88fe-9f586c6786dd"]
-}, Open  ]]
-}, Closed]]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[205588, 4911, 107, 0, 105, "Section",ExpressionUUID->"28b2a39a-e581-4f4a-b9f8-5d1726d317ec"],
-Cell[205698, 4913, 278, 4, 105, "Text",ExpressionUUID->"d29af8a0-edc1-45d5-80cd-2e9aa6b3cf5a"],
-Cell[CellGroupData[{
-Cell[206001, 4921, 90, 0, 105, "Subsection",ExpressionUUID->"dc6224c1-8ecc-44ac-85dc-4bd77e264365"],
-Cell[206094, 4923, 958, 26, 105, "Input",ExpressionUUID->"37f60751-f6c4-4170-925a-0c696bca8de4"]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[207089, 4954, 87, 0, 105, "Subsection",ExpressionUUID->"da7380e8-b9d5-46b2-8da3-db8ed00d95c9"],
-Cell[CellGroupData[{
-Cell[207201, 4958, 330, 7, 105, "Input",ExpressionUUID->"84e89ac3-41a9-4bdf-9c3a-810e7ac2bf8e"],
-Cell[207534, 4967, 2288, 69, 105, "Output",ExpressionUUID->"6bb12577-fa46-4231-877a-f8d5b21b0851"]
-}, Open  ]]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[209871, 5042, 88, 0, 105, "Subsection",ExpressionUUID->"c23a4518-33d0-488e-9e86-2b15f5e4bb95"],
-Cell[209962, 5044, 215, 3, 105, "Text",ExpressionUUID->"db6723de-1073-4deb-9a16-9b9bcc2df197"],
-Cell[CellGroupData[{
-Cell[210202, 5051, 1229, 32, 105, "Input",ExpressionUUID->"db54a995-43e2-4837-bc83-242cdc2e6b40"],
-Cell[211434, 5085, 140, 3, 105, "Output",ExpressionUUID->"5082acd0-6102-498a-8fe8-215055d170b8"]
+Cell[198425, 4693, 692, 18, 105, "Input",ExpressionUUID->"a78858a8-2768-4f80-b727-41a6b1e6f106"],
+Cell[199120, 4713, 128, 2, 105, "Output",ExpressionUUID->"2f45f55e-df7a-4875-9cde-393dc49a9b60"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[211635, 5095, 113, 0, 105, "Section",ExpressionUUID->"90aeb73d-6115-4a1b-a183-d0d32bc420f8"],
-Cell[211751, 5097, 427, 6, 105, "Text",ExpressionUUID->"eed8b5a4-88b9-4df4-8f64-ae11dce8403d"],
+Cell[199309, 4722, 107, 0, 105, "Section",ExpressionUUID->"b03c0eb2-2e2a-4809-8ebb-802a305fa54e"],
+Cell[199419, 4724, 278, 4, 105, "Text",ExpressionUUID->"9576dae0-de6b-41ff-b8bb-d7ff72efc93c"],
 Cell[CellGroupData[{
-Cell[212203, 5107, 90, 0, 105, "Subsection",ExpressionUUID->"24ea49aa-8fe6-476e-a0e3-7ae036235f41"],
-Cell[212296, 5109, 1272, 37, 105, "Input",ExpressionUUID->"1e2db1e5-9946-4936-863d-3c434a62a969"]
+Cell[199722, 4732, 90, 0, 105, "Subsection",ExpressionUUID->"87ea36f9-c20d-4e31-9b6f-f284c83bbef6"],
+Cell[199815, 4734, 958, 26, 105, "Input",ExpressionUUID->"e37e71f5-ff92-4d40-aebe-b9a04d50dd45"]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[213605, 5151, 87, 0, 105, "Subsection",ExpressionUUID->"38c8dd2b-a2f7-4b44-8a38-20998da27214"],
+Cell[200810, 4765, 87, 0, 105, "Subsection",ExpressionUUID->"1d53ecde-4020-45ea-91e5-d62246d22722"],
 Cell[CellGroupData[{
-Cell[213717, 5155, 330, 7, 105, "Input",ExpressionUUID->"7b2f6394-d303-4a83-9b86-47235b38d3f5"],
-Cell[214050, 5164, 675, 21, 105, "Output",ExpressionUUID->"57356802-a4d4-4d5b-9206-c5a5f1554060"]
+Cell[200922, 4769, 330, 7, 105, "Input",ExpressionUUID->"8a28248b-d239-480f-8202-fccd2f784821"],
+Cell[201255, 4778, 2288, 69, 105, "Output",ExpressionUUID->"36fe2705-6b71-4986-af2c-b6f1f16ea7e9"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[214774, 5191, 88, 0, 105, "Subsection",ExpressionUUID->"23f16843-026c-4628-8aa4-85a06d8e8ee8"],
-Cell[214865, 5193, 253, 4, 105, "Text",ExpressionUUID->"a610fe5a-5374-4a2c-9e2c-c2c65b8982ce"],
+Cell[203592, 4853, 88, 0, 105, "Subsection",ExpressionUUID->"de911605-c01a-4615-b313-7c6abe9faa5a"],
+Cell[203683, 4855, 215, 3, 105, "Text",ExpressionUUID->"af35daf3-31f4-4467-8b64-21504ff0ac3f"],
 Cell[CellGroupData[{
-Cell[215143, 5201, 1230, 34, 105, "Input",ExpressionUUID->"e09a3f07-8f7a-4314-a5e3-e87a317f5ca6"],
-Cell[216376, 5237, 140, 3, 105, "Output",ExpressionUUID->"86e02960-e0cc-418f-a092-89f1a7303a4a"]
+Cell[203923, 4862, 1229, 32, 105, "Input",ExpressionUUID->"e61234c0-a5f1-49d2-82b1-8c258a47c948"],
+Cell[205155, 4896, 140, 3, 105, "Output",ExpressionUUID->"d82273e1-38f9-4d89-bdb5-6570aa43614c"]
 }, Open  ]]
 }, Closed]]
-}, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[216589, 5248, 174, 2, 105, "Chapter",ExpressionUUID->"0635f96c-002b-45cb-8ccb-0761ae0fc1a5"],
+Cell[205356, 4906, 113, 0, 105, "Section",ExpressionUUID->"a810fb99-5ad7-4ff2-8ef2-ceefe943b057"],
+Cell[205472, 4908, 427, 6, 105, "Text",ExpressionUUID->"2084aa81-7110-4bd1-b1d5-0d0721286296"],
 Cell[CellGroupData[{
-Cell[216788, 5254, 115, 0, 105, "Section",ExpressionUUID->"78f9fd39-72ed-4e9c-a3de-94852fd29605"],
-Cell[216906, 5256, 687, 10, 105, "Text",ExpressionUUID->"16e27093-34e5-4255-8a8d-85ba6b0ffacb"],
+Cell[205924, 4918, 90, 0, 105, "Subsection",ExpressionUUID->"67b3f73e-9e4c-4405-8008-c601f39e6f25"],
+Cell[206017, 4920, 1272, 37, 105, "Input",ExpressionUUID->"3b319c02-27db-4b0c-8385-15424d978cb8"]
+}, Closed]],
 Cell[CellGroupData[{
-Cell[217618, 5270, 90, 0, 105, "Subsection",ExpressionUUID->"2ec1edaa-0840-44d8-890f-5679262005ce"],
-Cell[217711, 5272, 226, 3, 105, "Text",ExpressionUUID->"221e472f-07ef-44ec-8517-804367cdc525"],
+Cell[207326, 4962, 87, 0, 105, "Subsection",ExpressionUUID->"abc37066-7298-44bb-9dce-dd3b6786b515"],
 Cell[CellGroupData[{
-Cell[217962, 5279, 1183, 34, 105, "Input",ExpressionUUID->"a097df82-d875-477f-b745-58020e68c9cc"],
-Cell[219148, 5315, 843, 23, 105, "Output",ExpressionUUID->"6b19709f-d5e8-4b36-bf32-f05f747aed0d"]
+Cell[207438, 4966, 330, 7, 105, "Input",ExpressionUUID->"b8374f16-ec7f-421e-b500-2f5c07e1c96a"],
+Cell[207771, 4975, 675, 21, 105, "Output",ExpressionUUID->"efee0d67-97d0-4ddb-8652-e195a219ee9a"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[220040, 5344, 87, 0, 105, "Subsection",ExpressionUUID->"6a956656-1728-4de7-95ff-116c2b258f7b"],
+Cell[208495, 5002, 88, 0, 105, "Subsection",ExpressionUUID->"8567fb5b-b7b3-45fc-a3ae-bc61d1bc349e"],
+Cell[208586, 5004, 253, 4, 105, "Text",ExpressionUUID->"ca52ccf3-2c29-44a7-bc26-be1fcad5b331"],
 Cell[CellGroupData[{
-Cell[220152, 5348, 1362, 37, 105, "Input",ExpressionUUID->"1902d9a2-a7ae-4700-9414-37e48b4d42e6"],
-Cell[221517, 5387, 368, 8, 105, "Output",ExpressionUUID->"ed469d64-28f0-427a-bd34-c8aa2e408727"]
-}, Open  ]]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[221934, 5401, 88, 0, 105, "Subsection",ExpressionUUID->"4b09d7c1-2c09-4084-acb9-f8626ec15689"],
-Cell[222025, 5403, 160, 3, 105, "Text",ExpressionUUID->"8174d6d3-294d-4a79-bb4d-27c607395019"],
-Cell[CellGroupData[{
-Cell[222210, 5410, 1668, 49, 105, "Input",ExpressionUUID->"4663bcff-0ac4-4e88-82b5-7699f699acc3"],
-Cell[223881, 5461, 148, 1, 105, "Output",ExpressionUUID->"2930c98e-bd98-49c7-9964-55d4da2b11ff"]
+Cell[208864, 5012, 1230, 34, 105, "Input",ExpressionUUID->"40d45b43-8210-40e3-9305-a5f9b8f35c49"],
+Cell[210097, 5048, 140, 3, 105, "Output",ExpressionUUID->"967ef416-c740-4c32-b7b3-086237bbbde5"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[224102, 5470, 174, 2, 105, "Chapter",ExpressionUUID->"751d1c0a-5a77-4fb5-8db1-13dbc5bfa5e4"],
+Cell[210310, 5059, 174, 2, 105, "Chapter",ExpressionUUID->"17e8b1cb-26cf-46de-97de-a58314076d44"],
 Cell[CellGroupData[{
-Cell[224301, 5476, 119, 0, 105, "Section",ExpressionUUID->"20b3510e-5d38-4407-b925-fc058901e793"],
-Cell[224423, 5478, 237, 4, 105, "Text",ExpressionUUID->"d47b3245-bbf4-41a7-94aa-2c5e40444870"],
+Cell[210509, 5065, 115, 0, 105, "Section",ExpressionUUID->"82e509a2-157e-45d4-b469-d4a9711836e3"],
+Cell[210627, 5067, 687, 10, 105, "Text",ExpressionUUID->"e60a6316-f27a-49ff-8b28-5aa0d8c9a23b"],
 Cell[CellGroupData[{
-Cell[224685, 5486, 90, 0, 105, "Subsection",ExpressionUUID->"66737858-2a33-4207-9e07-2f20101892ba"],
-Cell[224778, 5488, 1173, 32, 105, "Input",ExpressionUUID->"f11c3dd5-5a6b-4a0e-b4fa-d1fe674774a2"]
-}, Closed]],
+Cell[211339, 5081, 90, 0, 105, "Subsection",ExpressionUUID->"f91595d8-92e0-4bfc-b949-b2ec576e31e1"],
+Cell[211432, 5083, 226, 3, 105, "Text",ExpressionUUID->"5e5ca26e-67fa-4291-9a0a-e188ddd95fd2"],
 Cell[CellGroupData[{
-Cell[225988, 5525, 87, 0, 105, "Subsection",ExpressionUUID->"88d4ece9-fdb0-43cc-b6de-d71103287e64"],
-Cell[226078, 5527, 190, 3, 105, "Text",ExpressionUUID->"b743bef8-85cb-4dfa-844d-84aeb976f9cc"],
-Cell[CellGroupData[{
-Cell[226293, 5534, 873, 23, 105, "Input",ExpressionUUID->"fe2536e2-e5c9-483d-a6eb-5a65aab814ac"],
-Cell[227169, 5559, 164, 2, 105, "Output",ExpressionUUID->"433400bb-39c0-459b-a3fb-77831d55437e"]
-}, Open  ]]
-}, Closed]]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[227394, 5568, 113, 0, 105, "Section",ExpressionUUID->"45101758-098e-4d87-8268-ee5af2e30160"],
-Cell[227510, 5570, 322, 5, 105, "Text",ExpressionUUID->"991db175-cdb2-46b7-ae6b-bf7d3f8225b4"],
-Cell[CellGroupData[{
-Cell[227857, 5579, 90, 0, 105, "Subsection",ExpressionUUID->"cd35ea17-120c-404f-a3a4-070d3a32d9e4"],
-Cell[227950, 5581, 1809, 48, 105, "Input",ExpressionUUID->"ff139b2c-f974-444c-a2e8-fc588fe0d49d"]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[229796, 5634, 87, 0, 105, "Subsection",ExpressionUUID->"a44641a4-0711-450a-81e4-798731323515"],
-Cell[CellGroupData[{
-Cell[229908, 5638, 256, 6, 105, "Input",ExpressionUUID->"2b388acb-cd8d-4aa3-a42b-7337c3c406d3"],
-Cell[230167, 5646, 1563, 47, 105, "Output",ExpressionUUID->"00f5069f-f991-45b0-8c18-fae3c1d8be45"]
+Cell[211683, 5090, 1183, 34, 105, "Input",ExpressionUUID->"d8194428-d1cc-4572-bc39-2ca992f79e1d"],
+Cell[212869, 5126, 843, 23, 105, "Output",ExpressionUUID->"74216db7-4296-4c98-88b7-f78a2bc06a0d"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[231779, 5699, 88, 0, 105, "Subsection",ExpressionUUID->"44169e91-559d-4bac-97af-9dd15a023bf6"],
-Cell[231870, 5701, 150, 2, 105, "Text",ExpressionUUID->"b89749fe-307b-43c7-9f10-c9dbcc94a046"],
+Cell[213761, 5155, 87, 0, 105, "Subsection",ExpressionUUID->"790d6807-e786-4922-a764-b1313a223cb3"],
 Cell[CellGroupData[{
-Cell[232045, 5707, 1669, 48, 105, "Input",ExpressionUUID->"2c00662d-1383-4b5e-8ad0-7bae5885db52"],
-Cell[233717, 5757, 83, 0, 105, "Output",ExpressionUUID->"287d6745-4b73-4ca3-ac82-3381c603e2db"]
+Cell[213873, 5159, 1362, 37, 105, "Input",ExpressionUUID->"e041cca0-7bfb-4dc1-91d1-380b50c28a3c"],
+Cell[215238, 5198, 368, 8, 105, "Output",ExpressionUUID->"e6232ffa-2070-4f97-9f13-692693d07350"]
 }, Open  ]]
-}, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[233861, 5764, 119, 0, 105, "Section",ExpressionUUID->"f599f39c-b29e-4710-9087-394f982dfc27"],
-Cell[233983, 5766, 299, 4, 105, "Text",ExpressionUUID->"ac905aea-5af6-4e48-9435-3e1c618e4532"],
+Cell[215655, 5212, 88, 0, 105, "Subsection",ExpressionUUID->"1af26fdf-ac0d-40ce-9e60-d4bfaccf552b"],
+Cell[215746, 5214, 160, 3, 105, "Text",ExpressionUUID->"4a8976a1-01ad-49a7-9880-aadddc461f56"],
 Cell[CellGroupData[{
-Cell[234307, 5774, 90, 0, 105, "Subsection",ExpressionUUID->"c7f88f56-b628-4a62-bee5-69ad8a42ec83"],
-Cell[234400, 5776, 120, 0, 105, "Text",ExpressionUUID->"67df54a3-b017-4528-8b3a-ff449d12316a"],
-Cell[234523, 5778, 1026, 30, 105, "Input",ExpressionUUID->"3b41c648-d1c8-47e6-ba43-fb789ccc1b47"]
-}, Closed]],
-Cell[CellGroupData[{
-Cell[235586, 5813, 87, 0, 105, "Subsection",ExpressionUUID->"46c2a30f-8810-4847-85df-3f930a11b726"],
-Cell[235676, 5815, 197, 3, 105, "Text",ExpressionUUID->"66126ae7-ce72-474a-8ed9-8c0b3b05806e"],
-Cell[CellGroupData[{
-Cell[235898, 5822, 1365, 37, 105, "Input",ExpressionUUID->"4a8fea59-f44a-48e9-9fb6-c111524da289"],
-Cell[237266, 5861, 321, 6, 105, "Output",ExpressionUUID->"229c9784-0bf7-4735-a93c-27b18546465c"]
+Cell[215931, 5221, 1668, 49, 105, "Input",ExpressionUUID->"46f3ec73-a726-497c-95b5-5efcd1212504"],
+Cell[217602, 5272, 148, 1, 105, "Output",ExpressionUUID->"96a8a695-96ba-4362-b793-8656adae5492"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[237660, 5875, 174, 2, 105, "Chapter",ExpressionUUID->"d6082f1b-130a-48d1-90cc-6a0ae94a7f20"],
+Cell[217823, 5281, 174, 2, 105, "Chapter",ExpressionUUID->"b5f210e1-d4a3-4167-ae50-7384527747d8"],
 Cell[CellGroupData[{
-Cell[237859, 5881, 119, 0, 105, "Section",ExpressionUUID->"06006c44-915d-4f03-aa0e-86ffb46deaee"],
-Cell[237981, 5883, 329, 5, 105, "Text",ExpressionUUID->"831e4701-de28-4cf5-86ee-f7c47eb3046c"],
+Cell[218022, 5287, 119, 0, 105, "Section",ExpressionUUID->"94931b65-e862-47fa-84e7-5972ff8380a2"],
+Cell[218144, 5289, 237, 4, 105, "Text",ExpressionUUID->"93a61dc9-ac14-4fae-a165-97054fdc436b"],
 Cell[CellGroupData[{
-Cell[238335, 5892, 90, 0, 105, "Subsection",ExpressionUUID->"17a0b364-682e-41d2-889b-8ec545bcbebf"],
-Cell[238428, 5894, 1999, 54, 105, "Input",ExpressionUUID->"ea27dd3e-f7ba-4553-9779-ee39ae443fb2"]
+Cell[218406, 5297, 90, 0, 105, "Subsection",ExpressionUUID->"9eb2bd45-089a-482b-a4b7-c112238c1944"],
+Cell[218499, 5299, 1173, 32, 105, "Input",ExpressionUUID->"3ee786e6-0e75-48e6-b455-353a55a64ebf"]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[240464, 5953, 87, 0, 105, "Subsection",ExpressionUUID->"b363c17e-5af2-47a6-8d7c-bba664e0cd47"],
+Cell[219709, 5336, 87, 0, 105, "Subsection",ExpressionUUID->"8ad23f18-81b5-40b0-98b7-fe93ede5075f"],
+Cell[219799, 5338, 190, 3, 105, "Text",ExpressionUUID->"0d2fcff1-c9c0-4225-8722-1399747e0f29"],
 Cell[CellGroupData[{
-Cell[240576, 5957, 334, 7, 105, "Input",ExpressionUUID->"fb24085a-e14b-4ebe-ae23-28bef1f219a8"],
-Cell[240913, 5966, 2436, 79, 105, "Output",ExpressionUUID->"6680a0f7-0034-4e08-8e14-34b57baf55aa"]
+Cell[220014, 5345, 873, 23, 105, "Input",ExpressionUUID->"c4435f39-617e-4648-ac21-82075094ef9c"],
+Cell[220890, 5370, 164, 2, 105, "Output",ExpressionUUID->"853cfa99-c072-4c1a-98b3-920a2d94c988"]
+}, Open  ]]
+}, Closed]]
+}, Closed]],
+Cell[CellGroupData[{
+Cell[221115, 5379, 113, 0, 105, "Section",ExpressionUUID->"af80aee4-5d20-481c-86e3-ca7ffca965a1"],
+Cell[221231, 5381, 322, 5, 105, "Text",ExpressionUUID->"4f3126d6-8377-4773-b9ae-d209a6486537"],
+Cell[CellGroupData[{
+Cell[221578, 5390, 90, 0, 105, "Subsection",ExpressionUUID->"3672dab6-3645-4150-a548-d94ccd5f5861"],
+Cell[221671, 5392, 1809, 48, 105, "Input",ExpressionUUID->"5cd16d7a-c592-4658-a87b-8c5c6a132501"]
+}, Closed]],
+Cell[CellGroupData[{
+Cell[223517, 5445, 87, 0, 105, "Subsection",ExpressionUUID->"bd028b25-fc8e-447b-8a8b-d2ec0a551512"],
+Cell[CellGroupData[{
+Cell[223629, 5449, 256, 6, 105, "Input",ExpressionUUID->"5b7d3628-2b92-4e74-863a-d94039984ada"],
+Cell[223888, 5457, 1563, 47, 105, "Output",ExpressionUUID->"4d7cbac9-d1be-44f6-b4d0-de6b064c23f5"]
+}, Open  ]]
+}, Closed]],
+Cell[CellGroupData[{
+Cell[225500, 5510, 88, 0, 105, "Subsection",ExpressionUUID->"3cc4b2f8-6f20-4dd1-a902-20037a82c7ee"],
+Cell[225591, 5512, 150, 2, 105, "Text",ExpressionUUID->"e637cdb7-b02f-4bac-8043-60426629913c"],
+Cell[CellGroupData[{
+Cell[225766, 5518, 1669, 48, 105, "Input",ExpressionUUID->"c01cda43-7285-482b-b159-ea05507c63c3"],
+Cell[227438, 5568, 83, 0, 105, "Output",ExpressionUUID->"69b2823b-45b1-447e-ae93-f97b28f5abc7"]
+}, Open  ]]
+}, Closed]]
+}, Closed]],
+Cell[CellGroupData[{
+Cell[227582, 5575, 119, 0, 105, "Section",ExpressionUUID->"c816edf3-9ce0-49c3-97ff-68178a94be4a"],
+Cell[227704, 5577, 299, 4, 105, "Text",ExpressionUUID->"3be6344a-45c4-4b10-af8e-156d7fce445c"],
+Cell[CellGroupData[{
+Cell[228028, 5585, 90, 0, 105, "Subsection",ExpressionUUID->"4b2e555e-0cfb-4e4d-9f65-f0c864a047f4"],
+Cell[228121, 5587, 120, 0, 105, "Text",ExpressionUUID->"8580f84a-4ab4-404e-9f9c-cdf761419c77"],
+Cell[228244, 5589, 1026, 30, 105, "Input",ExpressionUUID->"74886e17-fc87-4391-996d-6121f0769fb9"]
+}, Closed]],
+Cell[CellGroupData[{
+Cell[229307, 5624, 87, 0, 105, "Subsection",ExpressionUUID->"440f6261-5300-4d14-aa7d-efc20cba77a6"],
+Cell[229397, 5626, 197, 3, 105, "Text",ExpressionUUID->"6158b0cc-c163-4515-af80-cf165ce50eb3"],
+Cell[CellGroupData[{
+Cell[229619, 5633, 1365, 37, 105, "Input",ExpressionUUID->"bcfcafd9-9962-492a-8a6b-9abd8d7190fd"],
+Cell[230987, 5672, 321, 6, 105, "Output",ExpressionUUID->"6dc0c526-dbe4-4502-84af-60539878ecf7"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[243422, 6053, 174, 2, 105, "Chapter",ExpressionUUID->"9d6c4d29-c281-4b51-a29d-2bbf8a5ca789"],
+Cell[231381, 5686, 174, 2, 105, "Chapter",ExpressionUUID->"15288206-8c93-4336-a925-c9c1985aa62f"],
 Cell[CellGroupData[{
-Cell[243621, 6059, 113, 0, 105, "Section",ExpressionUUID->"5f00bb2f-d109-42c0-9ccc-fbbb17e808c8"],
-Cell[243737, 6061, 657, 9, 105, "Text",ExpressionUUID->"c6680f41-3950-4970-92af-ce35e4048a41"],
+Cell[231580, 5692, 119, 0, 105, "Section",ExpressionUUID->"408d9457-d786-41e0-a6a1-b7e849c64600"],
+Cell[231702, 5694, 329, 5, 105, "Text",ExpressionUUID->"1c6f867a-e79a-4424-91e0-ae5821f264d0"],
 Cell[CellGroupData[{
-Cell[244419, 6074, 90, 0, 105, "Subsection",ExpressionUUID->"c1402eb5-4989-4f5b-b874-51365ca09e34"],
-Cell[244512, 6076, 216, 3, 105, "Text",ExpressionUUID->"22649cb1-2cdf-4ded-bc8c-d92485ab8445"],
+Cell[232056, 5703, 90, 0, 105, "Subsection",ExpressionUUID->"3b73e422-0759-4f84-9051-abbf65fa3b0d"],
+Cell[232149, 5705, 1999, 54, 105, "Input",ExpressionUUID->"8b616768-d5c1-4b5e-8704-2f4a2fb3302a"]
+}, Closed]],
 Cell[CellGroupData[{
-Cell[244753, 6083, 4673, 133, 105, "Input",ExpressionUUID->"17436703-00ee-48b5-be5b-4119313c0c47"],
-Cell[249429, 6218, 150, 3, 105, "Output",ExpressionUUID->"464dcbf9-f016-48bb-bf97-a145015edd0a"]
+Cell[234185, 5764, 87, 0, 105, "Subsection",ExpressionUUID->"dd901632-a27c-4210-8cc9-c45ea2c4fd51"],
+Cell[CellGroupData[{
+Cell[234297, 5768, 334, 7, 105, "Input",ExpressionUUID->"2596794f-c9ef-4429-b454-91bd38dac670"],
+Cell[234634, 5777, 2436, 79, 105, "Output",ExpressionUUID->"d3a3e103-5d28-451d-88e3-aaedcaafee86"]
+}, Open  ]]
+}, Closed]]
+}, Closed]]
+}, Closed]],
+Cell[CellGroupData[{
+Cell[237143, 5864, 174, 2, 105, "Chapter",ExpressionUUID->"892d037e-e3e9-49d0-917b-32fe4cd94369"],
+Cell[CellGroupData[{
+Cell[237342, 5870, 113, 0, 105, "Section",ExpressionUUID->"f1535c2f-80a2-49dd-a344-0271113fcc69"],
+Cell[237458, 5872, 657, 9, 105, "Text",ExpressionUUID->"eac2e5b1-e9f5-4bff-814d-bb95489ac26f"],
+Cell[CellGroupData[{
+Cell[238140, 5885, 90, 0, 105, "Subsection",ExpressionUUID->"6189fbbc-48b9-43aa-99be-6c8d4ebd00f1"],
+Cell[238233, 5887, 216, 3, 105, "Text",ExpressionUUID->"5e0aa499-8e6d-4d52-9b88-36c574ba5d1a"],
+Cell[CellGroupData[{
+Cell[238474, 5894, 4673, 133, 105, "Input",ExpressionUUID->"6aeca84f-2b46-4c9f-8115-228f37608cbc"],
+Cell[243150, 6029, 150, 3, 105, "Output",ExpressionUUID->"f98b88c8-491a-4ff7-b42a-3bce184b0130"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[249628, 6227, 87, 0, 105, "Subsection",ExpressionUUID->"789b240a-cc74-49d4-94ab-d1666046ba22"],
-Cell[249718, 6229, 421, 6, 105, "Text",ExpressionUUID->"1401c700-71f8-4398-9fa4-a2f28b358677"],
+Cell[243349, 6038, 87, 0, 105, "Subsection",ExpressionUUID->"5baaddf6-a430-4fe6-9b28-16e8a2f907fe"],
+Cell[243439, 6040, 421, 6, 105, "Text",ExpressionUUID->"a2ae6f94-dead-4f32-b0d7-3775ce387a35"],
 Cell[CellGroupData[{
-Cell[250164, 6239, 2875, 84, 105, "Input",ExpressionUUID->"6cbedde8-5267-4e15-8ebd-cecf78763cdc"],
-Cell[253042, 6325, 295, 7, 105, "Output",ExpressionUUID->"986b4bd1-82b7-47fb-9ce1-79d8d22a56fb"]
+Cell[243885, 6050, 2875, 84, 105, "Input",ExpressionUUID->"b0d3d8fe-f2c2-472a-bf93-50fe9fcb347a"],
+Cell[246763, 6136, 295, 7, 105, "Output",ExpressionUUID->"26cbba27-24c1-497d-ad55-8dbc0ba54f30"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[253386, 6338, 88, 0, 105, "Subsection",ExpressionUUID->"3d00f527-e731-409f-95f6-4bb4f0885b77"],
-Cell[253477, 6340, 341, 5, 105, "Text",ExpressionUUID->"c56bdaab-ec7b-403c-919d-423dfb1fe133"],
-Cell[253821, 6347, 93581, 1491, 105, "Input",ExpressionUUID->"dd77d5b8-fdd5-4d34-9c80-55a983760843"],
-Cell[347405, 7840, 106, 0, 105, "Text",ExpressionUUID->"1b601c66-eaed-4e36-8349-4ec74ae281c4"],
+Cell[247107, 6149, 88, 0, 105, "Subsection",ExpressionUUID->"8a3aba7c-b622-4b99-b5aa-54602bed91d6"],
+Cell[247198, 6151, 341, 5, 105, "Text",ExpressionUUID->"4963116b-93da-4d9a-8c6b-2e2ea8a1c613"],
+Cell[247542, 6158, 93581, 1491, 105, "Input",ExpressionUUID->"0e7f38ed-b024-431d-9c1d-05ea064f0c3c"],
+Cell[341126, 7651, 106, 0, 105, "Text",ExpressionUUID->"09aa53b0-2179-43b9-95b0-b692a6d42b7d"],
 Cell[CellGroupData[{
-Cell[347536, 7844, 113, 1, 105, "Input",ExpressionUUID->"f68e7aa5-1ef1-4e56-8514-c29165ddad0e"],
-Cell[347652, 7847, 18373, 591, 105, "Output",ExpressionUUID->"9ae7a81e-6494-4676-aa70-28cff5a191ee"]
+Cell[341257, 7655, 113, 1, 105, "Input",ExpressionUUID->"da0486b8-e0cb-4e66-b2ac-2ff0b1beddf1"],
+Cell[341373, 7658, 18373, 591, 105, "Output",ExpressionUUID->"822dfbeb-dd5d-44f3-846f-3f691146c3c4"]
 }, Open  ]],
-Cell[366040, 8441, 205, 3, 105, "Text",ExpressionUUID->"c9eeacd2-cf66-48b3-b130-28ad5be571e7"],
+Cell[359761, 8252, 205, 3, 105, "Text",ExpressionUUID->"a6aa1bef-adaa-42c3-9417-292eac3eaa9b"],
 Cell[CellGroupData[{
-Cell[366270, 8448, 937, 26, 105, "Input",ExpressionUUID->"9c41690d-573d-4e28-87a0-4345ee0e92cb"],
-Cell[367210, 8476, 638, 16, 105, "Output",ExpressionUUID->"ac73d84e-8e91-4b6b-b025-e4b61c861425"]
+Cell[359991, 8259, 937, 26, 105, "Input",ExpressionUUID->"86c79433-6c58-48d1-819b-45d9725cc7c6"],
+Cell[360931, 8287, 638, 16, 105, "Output",ExpressionUUID->"e946e6d0-fe52-47f4-89a1-b765a69d0fe3"]
 }, Open  ]]
 }, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[367909, 8499, 106, 0, 105, "Section",ExpressionUUID->"69a8758d-cdd5-42e8-b5db-d882d71f9aa8"],
-Cell[368018, 8501, 478, 7, 105, "Text",ExpressionUUID->"60c5d835-7188-4760-b797-fe32a3d5cada"],
+Cell[361630, 8310, 106, 0, 105, "Section",ExpressionUUID->"82d13c0a-3c2b-41ef-8c01-bdd751d909b3"],
+Cell[361739, 8312, 478, 7, 105, "Text",ExpressionUUID->"7a0a2d4c-638a-4cb4-a53c-2bdfcdb6a389"],
 Cell[CellGroupData[{
-Cell[368521, 8512, 90, 0, 105, "Subsection",ExpressionUUID->"6763a040-2065-483a-83f4-d26d69ec4b8c"],
-Cell[368614, 8514, 174, 3, 105, "Text",ExpressionUUID->"8f086b29-14b0-42ca-80c2-3e0259697880"],
+Cell[362242, 8323, 90, 0, 105, "Subsection",ExpressionUUID->"a19cb90f-840b-469f-978b-9e6b8d3ed11b"],
+Cell[362335, 8325, 174, 3, 105, "Text",ExpressionUUID->"debf6366-22c5-4071-b04c-9c9aa9ae2a2c"],
 Cell[CellGroupData[{
-Cell[368813, 8521, 1424, 40, 105, "Input",ExpressionUUID->"bf07dc37-587d-473a-8e50-593a84042212"],
-Cell[370240, 8563, 83, 0, 105, "Output",ExpressionUUID->"5c026c86-1113-423d-8d8c-767d36775bdb"]
+Cell[362534, 8332, 1424, 40, 105, "Input",ExpressionUUID->"e5aef96b-04a6-4eed-86d7-08b6fead2d31"],
+Cell[363961, 8374, 83, 0, 105, "Output",ExpressionUUID->"34f9c19c-e8a1-4362-b0b9-16ef11595965"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[370372, 8569, 87, 0, 105, "Subsection",ExpressionUUID->"d09ff83c-22ea-4726-a7ed-221327ef9915"],
-Cell[370462, 8571, 257, 4, 105, "Text",ExpressionUUID->"086800b7-d2f8-47f3-81f0-457262f9ae9e"],
+Cell[364093, 8380, 87, 0, 105, "Subsection",ExpressionUUID->"cdb5ae06-5f03-467d-92dd-fb2bd054ad72"],
+Cell[364183, 8382, 257, 4, 105, "Text",ExpressionUUID->"bdc18898-88f9-4d91-a9f2-ff450901f6d1"],
 Cell[CellGroupData[{
-Cell[370744, 8579, 1375, 37, 105, "Input",ExpressionUUID->"5e215d72-78ae-4615-8087-d095759ce920"],
-Cell[372122, 8618, 343, 6, 105, "Output",ExpressionUUID->"a2343cb3-3c74-454c-9983-f4fdfc47dd87"]
+Cell[364465, 8390, 1375, 37, 105, "Input",ExpressionUUID->"ad46ee39-43be-41d7-b5f5-cfc69d2a33b2"],
+Cell[365843, 8429, 343, 6, 105, "Output",ExpressionUUID->"fd99e95f-eae9-4d55-a5be-bafba46f736b"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[372514, 8630, 88, 0, 105, "Subsection",ExpressionUUID->"a994e927-e481-472d-8b7e-1fdc2a105e2e"],
-Cell[372605, 8632, 331, 5, 105, "Text",ExpressionUUID->"4663c6c7-a76c-4c66-80e8-c6709f7c0c15"],
-Cell[372939, 8639, 384664, 6036, 105, "Input",ExpressionUUID->"ab0d6957-201b-4a4b-b5c6-38246eb3063f"],
-Cell[757606, 14677, 117, 0, 105, "Text",ExpressionUUID->"7dbb666c-8d10-4d3e-a08a-bd1aa8572395"],
+Cell[366235, 8441, 88, 0, 105, "Subsection",ExpressionUUID->"7620c97a-abfb-4ea9-b9fa-19df54aabcfa"],
+Cell[366326, 8443, 331, 5, 105, "Text",ExpressionUUID->"d5f2ef91-afa7-40b0-aa20-402860ca43b4"],
+Cell[366660, 8450, 384664, 6036, 105, "Input",ExpressionUUID->"2ff90c5b-58f5-4b49-bb35-d40a13348e75"],
+Cell[751327, 14488, 117, 0, 105, "Text",ExpressionUUID->"a9d85b00-c036-4b9c-be59-1e63bec1d1be"],
 Cell[CellGroupData[{
-Cell[757748, 14681, 476, 13, 105, "Input",ExpressionUUID->"5eedaf05-cdc5-4e09-9f87-0d034efbc992"],
-Cell[758227, 14696, 1354, 40, 105, "Output",ExpressionUUID->"5637e483-ee41-4482-bf79-54d1139d79c6"]
+Cell[751469, 14492, 476, 13, 105, "Input",ExpressionUUID->"211f4d06-ac1f-47e6-80ff-d6943bb73cf9"],
+Cell[751948, 14507, 1354, 40, 105, "Output",ExpressionUUID->"1d8f2587-c751-4e64-998e-01e502a48457"]
 }, Open  ]],
-Cell[759596, 14739, 233, 4, 105, "Text",ExpressionUUID->"55dd9f7b-1738-4652-b57c-accdd07f715f"],
+Cell[753317, 14550, 233, 4, 105, "Text",ExpressionUUID->"9f2ab27d-f8ba-43a0-9201-7173b9a29e33"],
 Cell[CellGroupData[{
-Cell[759854, 14747, 953, 26, 105, "Input",ExpressionUUID->"67311449-813f-438d-8e79-412283e1ab6f"],
-Cell[760810, 14775, 899, 23, 105, "Output",ExpressionUUID->"a954a9e1-54c0-4eaf-bd0b-47e7ef7c48ae"]
+Cell[753575, 14558, 953, 26, 105, "Input",ExpressionUUID->"3d986f8d-55c5-45d4-aace-61f69a16c166"],
+Cell[754531, 14586, 899, 23, 105, "Output",ExpressionUUID->"54d00569-5ae8-43f9-90b8-ffff4175ac9b"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[761782, 14806, 174, 2, 105, "Chapter",ExpressionUUID->"58c75603-1a4f-49c4-8ec0-e63de9e63cc3"],
+Cell[755503, 14617, 174, 2, 105, "Chapter",ExpressionUUID->"bdb886e9-9f26-436b-93f6-9f27573894c6"],
 Cell[CellGroupData[{
-Cell[761981, 14812, 115, 0, 105, "Section",ExpressionUUID->"b451ce62-cc5f-49c6-bcb2-80d5379fcfc4"],
-Cell[762099, 14814, 333, 5, 105, "Text",ExpressionUUID->"6fef089c-36ba-4022-94be-31f0f581b4c0"],
+Cell[755702, 14623, 115, 0, 105, "Section",ExpressionUUID->"1fa3ce4b-f4b1-462c-b7d9-2d919762e9d2"],
+Cell[755820, 14625, 333, 5, 105, "Text",ExpressionUUID->"063aeddc-0cf6-4132-a830-9fce56c6e4c6"],
 Cell[CellGroupData[{
-Cell[762457, 14823, 90, 0, 105, "Subsection",ExpressionUUID->"a8134634-b851-42e0-84be-37e4a7eb1889"],
-Cell[762550, 14825, 3672, 100, 105, "Input",ExpressionUUID->"a988bf39-784b-4188-95cd-1af950187ade"]
+Cell[756178, 14634, 90, 0, 105, "Subsection",ExpressionUUID->"efbf81e3-985c-4d2b-a2b0-a37d0b153e8e"],
+Cell[756271, 14636, 3672, 100, 105, "Input",ExpressionUUID->"20bc9e37-f078-4d0f-9a3f-3e2c91f46b90"]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[766259, 14930, 87, 0, 105, "Subsection",ExpressionUUID->"44b62433-f537-4101-a455-9a8c1a03a98c"],
+Cell[759980, 14741, 87, 0, 105, "Subsection",ExpressionUUID->"d4610343-c209-4740-a66b-f12ffdf8f413"],
 Cell[CellGroupData[{
-Cell[766371, 14934, 586, 16, 105, "Input",ExpressionUUID->"3f1a971e-4044-4b1e-9e42-5a7fbad75778"],
-Cell[766960, 14952, 2304, 74, 105, "Output",ExpressionUUID->"d7e088e2-1c23-42bf-8e52-6d6c828c0464"]
+Cell[760092, 14745, 586, 16, 105, "Input",ExpressionUUID->"93fe2fac-dddf-4948-bf60-8943aa47bda8"],
+Cell[760681, 14763, 2304, 74, 105, "Output",ExpressionUUID->"54542678-1188-4b90-9d61-8cfb3f6a2dec"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[769313, 15032, 88, 0, 105, "Subsection",ExpressionUUID->"af2341bb-446e-478d-bb9a-72eb9c27de9e"],
-Cell[769404, 15034, 213, 3, 105, "Text",ExpressionUUID->"bb7d4b31-b7ec-4278-b6d6-3c319189a150"],
+Cell[763034, 14843, 88, 0, 105, "Subsection",ExpressionUUID->"b9063633-7040-4e31-8817-cd27f27daf63"],
+Cell[763125, 14845, 213, 3, 105, "Text",ExpressionUUID->"09c73597-a837-4753-bcd3-99310dc19043"],
 Cell[CellGroupData[{
-Cell[769642, 15041, 2152, 56, 105, "Input",ExpressionUUID->"0d6b2f30-fce7-47bb-bec2-8016555232da"],
-Cell[771797, 15099, 140, 3, 105, "Output",ExpressionUUID->"7e5cf139-6e96-4533-97b2-628d36fb7539"]
+Cell[763363, 14852, 2152, 56, 105, "Input",ExpressionUUID->"48c8bba9-0c20-4338-b3df-470ffa74c685"],
+Cell[765518, 14910, 140, 3, 105, "Output",ExpressionUUID->"1f18a7fc-738e-435e-ac3a-1198d20e9210"]
 }, Open  ]],
-Cell[771952, 15105, 317, 5, 105, "Text",ExpressionUUID->"f14d059f-0e16-447e-9350-bed4698491ec"],
+Cell[765673, 14916, 317, 5, 105, "Text",ExpressionUUID->"7b54997b-4977-4152-bcc9-7ae1d8ea96d5"],
 Cell[CellGroupData[{
-Cell[772294, 15114, 344, 9, 105, "Input",ExpressionUUID->"2f85c5fc-40ea-4f76-9289-3b9dd3aebfee"],
-Cell[772641, 15125, 186, 4, 105, "Output",ExpressionUUID->"072f351c-17cf-4f58-8180-48b143b87b80"]
+Cell[766015, 14925, 344, 9, 105, "Input",ExpressionUUID->"f52a9c6e-6b24-4e16-9721-afb1e6d2dff2"],
+Cell[766362, 14936, 186, 4, 105, "Output",ExpressionUUID->"913eaeeb-208d-41d9-93ca-7e0113fa9ef0"]
 }, Open  ]]
 }, Closed]]
 }, Closed]]

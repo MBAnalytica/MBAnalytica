@@ -7213,7 +7213,7 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                -6 + Pi^2 + 73 Pi^4/30 - 12 Zeta[3] in place of 2 Pi^4/45, and the ExpandInt method returned a wrong
                coefficient.  The quadrature runs over the straight contours of the piece (relative 1e-5); a value it
                cannot confirm within its budget is not accepted, so that the piece is ledgered and its order reported
-               as MBFailed *)
+               as not evaluated *)
             If[MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[rL, vrs] && Length[vrs] >= 2,
               Module[{tqs, centres, onContour, q},
                 tqs = Table[Unique["tq"], {Length[vrs]}];

@@ -3111,7 +3111,7 @@ MBCH2MPLOrder[Groups_, IntVars_, Ord_] := Module[
   Bad = Join[Bad, Select[{Global`sinf, Global`LinInf}, ! FreeQ[Total1, #] &]];
   If[! FreeQ[Total1, S], Bad = Append[Bad, S]];
   If[LeakQ[Total1], Bad = Append[Bad, "leak"]];
-  If[Bad =!= {}, Return[MBFailed[Bad]]];
+  If[Bad =!= {}, Return[MBAnalytica`Private`NotEvaluated[Bad]]];
 
   Res = Total1 /. Q_Symbol /;
      StringMatchQ[SymbolName[Q], "z" ~~ DigitCharacter ..] :>

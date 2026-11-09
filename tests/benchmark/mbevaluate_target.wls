@@ -14,7 +14,7 @@
    MB8 = MB8a + MB8b, MB14 = MB14a + MB14b; the rows marked k and f on the Subtraction page are, as there, the exact
    u-integrals of their differential kernels or families at the MB level, u^a (1-u)^b G -> G Gamma(1+a) Gamma(1+b) /
    Gamma(2+a+b)).  Each part is one MBEvaluate call; the row is their sum.
-   Checks: the value is free of MBFailed, H and HPL;
+   Checks: every order is evaluated (no MBEvaluate::open) and the value is free of H and HPL;
      inclusive rows: every order equals the exact benchmark MBnVal (exact zero difference, else 10^-30 at 40 digits);
      MBSymbolicSum differential rows: every order equals results_t/MBn_diff_k.m at u = 31/100, 7/100 to 10^-12;
      Standard and Subtraction differential rows: the full complex value (Complex -> True) equals the records of both
@@ -97,13 +97,17 @@ If[StringQ[Recheck] && Recheck =!= "" && FileExistsQ[Recheck],
   Values1 = {Saved["Value"]};
   Seconds = Saved["Seconds"];
   Print["MBEVAL_RECHECK ", Name, "  the MBEvaluate value saved in ", Recheck],
-  Values1 = Map[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ, Verbose -> VerboseQ] &, Parts];
+  Runs = Map[EvaluationData[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ, Verbose -> VerboseQ]] &, Parts];
+  Values1 = Map[#["Result"] &, Runs];
+  OmittedQ = ! FreeQ[Map[#["MessagesExpressions"] &, Runs], HoldPattern[MBEvaluate::open]];
   Seconds = Round[AbsoluteTime[] - T0]];
+(* a saved value carries no messages: an order that MBEvaluate omitted then fails its own check below *)
+If[! BooleanQ[OmittedQ], OmittedQ = False];
 GForm = Total[Values1];
 If[! IntegerQ[Lo], Lo = Exponent[Expand[GForm], Eps, Min]];
-Clean = ! MemberQ[Values1, $Failed] && FreeQ[GForm, MBAnalytica`MBFailed] && FreeQ[GForm, _HarmonicSums`H] &&
+Clean = ! MemberQ[Values1, $Failed] && ! OmittedQ && FreeQ[GForm, _HarmonicSums`H] &&
   (Names["HPL`HPL"] === {} || FreeQ[GForm, _HPL`HPL]);
-Print["MBEVAL_FORM ", Name, "  free of MBFailed, H and HPL: ", Clean, "  G functions: ", Count[GForm, _PolyLogTools`G, {0, Infinity}],
+Print["MBEVAL_FORM ", Name, "  every order evaluated, free of H and HPL: ", Clean, "  G functions: ", Count[GForm, _PolyLogTools`G, {0, Infinity}],
   "  seconds ", Seconds];
 Pass = Clean;
 OrderPass = <||>;

@@ -250,18 +250,18 @@ OutsideOutputClass[Coef_] := Module[{Atoms},
         "AppellF1", "AppellF2", "AppellF3", "AppellF4", "Sum", "Indeterminate", "ComplexInfinity", "DirectedInfinity"}, Name1])]]]]]];
 
 
-(* a coefficient of one method that is not in the output class is not exact: it is reported as MBFailed, so that the
+(* a coefficient of one method that is not in the output class is not exact: it is marked as NotEvaluated, so that the
    next method of Method -> Automatic is tried for this order *)
 CheckOutputClass[Coef_, Method1_String, Vars_List] := Module[{Outside},
-  If[Head[Coef] === MBFailed, Return[Coef]];
+  If[Head[Coef] === NotEvaluated, Return[Coef]];
   Outside = OutsideOutputClass[ToGBasis[Coef, Vars]];
   If[Outside === {}, Return[Coef]];
-  Return[MBFailed[{Method1, "functions outside the output class: " <> ToString[Take[Outside, UpTo[3]], InputForm]}]]];
+  Return[NotEvaluated[{Method1, "functions outside the output class: " <> ToString[Take[Outside, UpTo[3]], InputForm]}]]];
 
 
-(* coefficients: an association order -> coefficient (or MBFailed[...]) *)
+(* coefficients: an association order -> coefficient (or NotEvaluated[...]) *)
 FinishCoefficient[Coef_, Vars_List, ComplexQ_] := Module[{Res, Real1},
-  If[Head[Coef] === MBFailed, Return[Coef]];
+  If[Head[Coef] === NotEvaluated, Return[Coef]];
   Res = ToGBasis[Coef, Vars];
   If[TrueQ[ComplexQ], Return[Res]];
   Real1 = RealPart[Res, Vars];
