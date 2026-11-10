@@ -3,7 +3,7 @@
 (* mbevaluate_target.wls -- one row of a benchmark status table through MBEvaluate[..., Method -> METHOD] in this fresh
    kernel.  Every verdict is on the value MBEvaluate returns; nothing else of the package is called for the result.
    Environment:
-     METHOD     SymbolicSum | Standard | Subtraction
+     METHOD     SymbolicSum | ExpandInt | Subtraction
      KIND       inc (inclusive row) | u (differential row, u unintegrated, 0 < u < 1)
      NAME       the row (MB1, ..., MB14, MBpilot12, MBpilot13, MB1u, ..., MB14u)
      LO, HI     the orders of the row (LO = auto: from the leading pole)
@@ -26,7 +26,6 @@ ScriptDir = DirectoryName[ExpandFileName[If[StringQ[$InputFileName] && $InputFil
   First[Select[Join[$ScriptCommandLine, $CommandLine], StringEndsQ[#, "mbevaluate_target.wls"] &]]]]];
 PackageDir = ParentDirectory[ParentDirectory[ScriptDir]];
 Method1 = Environment["METHOD"];
-If[Method1 === "Resum", Method1 = "SymbolicSum"];  (* the earlier name of the method *)
 Kind = Environment["KIND"];
 Name = Environment["NAME"];
 Lo = Quiet[ToExpression[Environment["LO"]]];

@@ -103,7 +103,7 @@ CosmoSectorMB[Spec_] := Module[{Vars, Lines, Mons, Base, PP, Zm, Pp, Gam, Pw, Be
   Mons = Spec["Monomials"];
   Base = Spec["Base"];
   PP = Spec["P"];
-  Zm = Table[Symbol["Global`z" <> ToString[I1]], {I1, Length[Mons]}];
+  Zm = Spec["MonomialVariables"];
   Pp = PP - Total[Map[CosmoShift, Lines]];
   Gam = Times @@ Map[If[#[[1]] === 0, 1, Gamma[-#[[2]]] Gamma[-CosmoSplitMu[#] + #[[2]]] Gamma[1 + #[[1]] + CosmoSplitJ[#] + #[[2]]]] &, Lines];
   Gam = Gam (Times @@ Map[Gamma[-#] &, Zm]) Gamma[Pp + Total[Zm]];
@@ -134,8 +134,8 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
   VarName_String] := CosmoOrientation[Edges, Later, Push, BaseV, RV, NuL, KLegs, XX, YY, VarName,
   ConstantArray[None, Length[Edges] + Length[KLegs]]];
 CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_List, KLegs_List, XX_List, YY_List,
-  VarName_String, Splits_List] := Module[{NL, NK, NV, MJ, M, J, Xi, Ww, Uu, Zl, MuL, MuK, AV, AA, Q, ToXi, MQ, Weights, C0, Cs, Scale,
-    Kept, VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand, Constants, Merged},
+  VarName_String, Splits_List] := Module[{NL, NK, NV, MJ, M, J, Xi, Ww, Uu, Zl, Zm, MuL, MuK, AV, AA, Q, ToXi, MQ, Weights, C0,
+    Cs, Scale, Kept, VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand, Constants, Merged, Names1},
   NL = Length[Edges];
   NK = Length[KLegs];
   NV = Length[RV];
@@ -143,12 +143,15 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
   If[MJ === $Failed, Return[$Failed]];
   M = MJ[[1]];
   J = MJ[[2]];
-  Xi = Table[Symbol["Global`k" <> ToString[L1]], {L1, NL}];
-  Ww = Table[Symbol["Global`w" <> ToString[L1]], {L1, NL}];
+  (* the construction runs on private symbols without values: Global`u1 or Global`z1 with a value in the notebook were
+     substituted into the integrand (2^z1, ComplexInfinity; audit of 2026-11-09); the names of the result are chosen
+     at the end by CosmoOutputSymbol *)
+  Xi = Table[Unique["MBAnalytica`Private`CosmoXi"], {L1, NL}];
+  Ww = Table[Unique["MBAnalytica`Private`CosmoW"], {L1, NL}];
   Kept = Select[DeleteCases[Range[NV], BaseV], ! PossibleZeroQ[CosmoPushed[Edges, Push,
       CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs]][[#]]] &];
-  Uu = Table[Symbol["Global`" <> VarName <> ToString[I1]], {I1, NL + NK + Length[Kept]}];
-  Zl = Table[Symbol["Global`z" <> FromCharacterCode[96 + L1]], {L1, NL + NK}];
+  Uu = Table[Unique["MBAnalytica`Private`CosmoU"], {I1, NL + NK + Length[Kept]}];
+  Zl = Table[Unique["MBAnalytica`Private`CosmoZl"], {L1, NL + NK}];
   MuL = NuL - 1/2;
   MuK = Map[#[[3]] - 1/2 &, KLegs];
   AV = Table[RV[[V]] + Total[Table[If[MemberQ[Edges[[L1]], V], NuL[[L1]], 0], {L1, NL}]] +
@@ -172,8 +175,9 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
   Lines = Table[Join[{MuL[[L1]], Zl[[L1]], Uu[[L1]], MQ[Later[[L1]]]}, If[Splits[[L1]] === None, {}, Splits[[L1, 1 ;; 2]]]], {L1, NL}];
   KLines = Table[Join[{MuK[[K1]], Zl[[NL + K1]], Uu[[NL + K1]], MQ[KLegs[[K1, 1]]]},
      If[Splits[[NL + K1]] === None, {}, Splits[[NL + K1, 1 ;; 2]]]], {K1, NK}];
+  Zm = Table[Unique["MBAnalytica`Private`CosmoZm"], {I1, Length[Mons]}];
   Spec = <|"Vars" -> Join[Xi, Ww], "Weights" -> Weights, "Base" -> MQ[BaseV], "Monomials" -> Mons,
-    "Lines" -> Join[Lines, KLines], "P" -> AA|>;
+    "Lines" -> Join[Lines, KLines], "P" -> AA, "MonomialVariables" -> Zm|>;
   Integrand = (Times @@ MapThread[CosmoLineFactor, {MuL, Uu[[1 ;; NL]], Splits[[1 ;; NL]]}]) *
     (Times @@ MapThread[CosmoKLegFactor, {MuK, Uu[[NL + 1 ;; NL + NK]], Splits[[NL + 1 ;; NL + NK]]}]) CosmoSectorMB[Spec];
   URules = Join[Table[Uu[[L1]] -> 2 YY[[L1]]/Scale, {L1, NL}], Table[Uu[[NL + K1]] -> 2 KLegs[[K1, 2]]/Scale, {K1, NK}],
@@ -189,8 +193,34 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
       GatherBy[URules, Last]]];
   Integrand = Integrand /. Merged;
   URules = Select[URules, ! MemberQ[Merged[[All, 1]], First[#]] &];
+  (* the names of the result: VarName1, VarName2, ... for the kinematic variables, za, zb, ... for the folds of the lines
+     and z1, z2, ... for those of the monomials, as before, unless such a symbol has a value *)
+  Names1 = Join[
+    MapIndexed[#1 -> VarName <> ToString[First[#2]] &, Uu],
+    MapIndexed[#1 -> "z" <> FromCharacterCode[96 + First[#2]] &, Zl],
+    MapIndexed[#1 -> "z" <> ToString[First[#2]] &, Zm]];
+  Names1 = Select[Names1, ! FreeQ[{Integrand, URules}, First[#]] &];
+  Names1 = Map[First[#] -> CosmoOutputSymbol[Last[#]] &, Names1];
+  Integrand = Integrand /. Names1;
+  URules = Map[(First[#] /. Names1) -> Last[#] &, URules];
   Return[<|"Later" -> Later, "Push" -> Push, "Base" -> BaseV, "Integrand" -> Integrand, "Variables" -> URules,
     "Scale" -> Scale, "Prefactor" -> Scale^(-Total[RV]), "Term" -> Map[If[# === None, None, #[[2]]] &, Splits]|>]];
+
+
+(* ::Section:: *)
+(*Names of the result*)
+
+
+(* Global`Name, unless that symbol has a value or is protected: then a new symbol Name$n, with a message, so that the
+   user's assignment is neither used nor changed *)
+CosmoOutputSymbol[Name_String] := Module[{Full, Held, New},
+  Full = "Global`" <> Name;
+  If[Names[Full] === {}, Return[Symbol[Full]]];
+  Held = ToExpression[Full, InputForm, HoldComplete];
+  If[(OwnValues @@ Held) === {} && ! MemberQ[Attributes @@ Held, Protected], Return[Symbol[Full]]];
+  New = Unique[Full <> "$"];
+  Message[CosmoTreeMB::taken, Name, SymbolName[New]];
+  Return[New]];
 
 
 (* ::Section:: *)
@@ -204,7 +234,10 @@ Options[CosmoTreeMB] = {"Energies" -> Automatic, "Point" -> Automatic, "KLegs" -
 CosmoTreeMB::point = "A numeric kinematic point {x, y} (or {x, y, K-leg energies}) is needed to choose the positive rewriting of each orientation.";
 CosmoTreeMB::nopush = "Orientation `1` has no rewriting with positive coefficients at the given point.";
 CosmoTreeMB::tree = "The lines `1` do not form a tree on the vertices 1, ..., `2`.";
-CosmoTreeMB::unit = "At the given point, the kinematic variables `1` of the orientation with later vertices `2` are not all in the unit interval (values `3`); MBEvaluate takes them in 0 < x < 1.";
+CosmoTreeMB::taken = "The symbol `1` has a value, which is left unchanged; the result uses `2` instead (\"VariableName\" chooses other names for the kinematic variables).";
+CosmoTreeMB::exact = "The Bessel order `1` is an exact half-integer n + 1/2 with an integer n != 0, for which the Poisson representation degenerates (its folds pinch and 1/Gamma[-n] vanishes); use a regulated order such as `1` - \[Delta] and expand in \[Delta].";
+CosmoTreeMB::order = "The Bessel order `1` is below -1/2, where the Poisson integrals of the representation do not converge.";
+CosmoTreeMB::unit = "At the given point, the kinematic variables `1` of the orientation with later vertices `2` are not all in the unit interval (values `3`), so the closed forms of MBEvaluate are continued analytically to this point.";
 
 
 CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, Energies, XX, YY, KLegs, Point1, XP, YP,
@@ -217,6 +250,12 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
    Energies = {Table[Symbol["Global`x" <> ToString[V]], {V, NV}], Table[Symbol["Global`y" <> ToString[L1]], {L1, NL}]}];
   {XX, YY} = Energies;
   KLegs = OptionValue["KLegs"];
+  (* an exact order n + 1/2 with n != 0 gave a zero integrand for every orientation (audit of 2026-11-09) *)
+  Do[If[NumericQ[Nu1],
+      Which[
+        IntegerQ[Nu1 - 1/2] && Nu1 =!= 1/2, Message[CosmoTreeMB::exact, Nu1]; Return[$Failed, Module],
+        Re[Nu1] < -1/2, Message[CosmoTreeMB::order, Nu1]; Return[$Failed, Module]]],
+    {Nu1, Join[NuL, If[MatrixQ[KLegs] || ListQ[KLegs], Map[Last, KLegs], {}]]}];
   Point1 = OptionValue["Point"];
   If[Point1 === Automatic, Point1 = Energies];
   If[Length[Point1] === 2, Point1 = Append[Point1, KLegs[[All, 2]]]];

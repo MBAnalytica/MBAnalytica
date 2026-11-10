@@ -496,16 +496,11 @@ ShiftFor[AllParts_, NVar_] := Module[{Shift},
 (*Grouping Key*)
 
 
-GroupKey[Entry_] := Module[{Ref, NonZero},
-  If[Entry[[2]] === Null, Return["Const"]];
-  Ref = MBVerify[Entry[[2]], Entry[[3]], Entry[[4]], Entry[[5]]];
-  NonZero = NumericQ[Ref] && Abs[Ref] > 10^-8;
-  If[NonZero,
-   Return[{"Val", Length[Entry[[2]]], Round[Re[Ref], 10^-12], Round[Im[Ref], 10^-12]}]];
-  If[Ref === $Failed,
-   Return[{Entry[[3]], Entry[[4]], Entry[[5]], Entry[[2]]}]];
-  Return[{Entry[[3]], Entry[[4]], Entry[[5]],
-          {Round[Re[Ref], 10^-10], Round[Im[Ref], 10^-10]}}]];
+(* structures are grouped only when they are identical: integration variables, Mellin-Barnes variables, numerator and
+   denominator.  A key of rounded contour values merged unequal integrals whose values agreed to 10^-12 (or were both
+   below 10^-8), and only one of them was evaluated: Gamma[-z] Gamma[1 + z] ((1/2)^z - (1/2 + 10^-14)^z)/10^-14 summed to
+   4/3 instead of 4/9 (audit of 2026-11-09) *)
+GroupKey[Entry_] := If[Entry[[2]] === Null, "Const", Entry[[2 ;; 5]]];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -1052,17 +1047,43 @@ TruncT[Expr_, T_, NN_] := Module[{Rules},
 
 HPLSeries[{}, NN_, T_, Lg_] := 1;
 
+(* the series of H(Word; T) at T = 0 through T^NN, with Lg = Log[T].  A letter a != 0 of HarmonicSums has the kernel
+   1/(|a| - Sign[a] T) = Sum_M Sign[a]^M T^M/|a|^(M + 1); every nonzero letter was taken as 1, so that H(-1; T) =
+   Log[1 + T] came out as -Log[1 - T] (audit of 2026-11-09).  A letter that is not a nonzero real number is refused *)
 HPLSeries[Word_List, NN_, T_, Lg_] := HPLSeries[Word, NN, T, Lg] = Module[
   {Letter, Inner, Rules, Res},
   Letter = First[Word];
+  If[Letter =!= 0 && ! (NumericQ[Letter] && Element[Letter, Reals] && Letter != 0), Return[$Failed]];
   Inner = HPLSeries[Rest[Word], NN, T, Lg];
+  If[Inner === $Failed, Return[$Failed]];
   Rules = CoefficientRules[Expand[Inner], {T, Lg}];
   Res = 0;
   If[Letter === 0,
    Do[Res = Res + R[[2]]*IntMonomial[R[[1, 1]] - 1, R[[1, 2]], T, Lg], {R, Rules}],
-   Do[Do[Res = Res + R[[2]]*IntMonomial[R[[1, 1]] + M, R[[1, 2]], T, Lg],
+   Do[Do[Res = Res + R[[2]]*Sign[Letter]^M/Abs[Letter]^(M + 1)*IntMonomial[R[[1, 1]] + M, R[[1, 2]], T, Lg],
          {M, 0, NN - R[[1, 1]]}], {R, Rules}]];
   Return[TruncT[Expand[Res], T, NN]]];
+
+
+(* the order of the zero of B at Var = At: exact for a polynomial, the ceiling of the leading exponent otherwise *)
+ZeroOrderAt[B_, Var_, At_] := Module[{S1, Ex, Ser},
+  Ex = Quiet[Expand[B /. Var -> At + S1]];
+  If[PolynomialQ[Ex, S1],
+    If[Ex === 0, Return[Infinity]];
+    Return[Exponent[Ex, S1, Min]]];
+  Ser = Quiet[Series[Ex, {S1, 0, 4}]];
+  If[Head[Ser] =!= SeriesData, Return[1]];
+  Return[Max[1, Ceiling[Ser[[4]]/Ser[[6]]]]]];
+
+
+(* an upper bound of the order of the pole of Expr at Var = At: for every term, the sum over its factors B^-K with
+   B(At) = 0 of K times the order of the zero of B, and the largest over the terms.  The largest single power missed the
+   pole of a product such as 1/((1 - y)^2 (1 - y^2)^2) (audit of 2026-11-09) *)
+PoleOrderAt[Expr_, Var_, At_] := Module[{Terms},
+  Terms = If[Head[Expr] === Plus, List @@ Expr, {Expr}];
+  Return[Max[Join[{0}, Map[Function[T1, Total[Cases[{T1},
+    Power[B_, K_Integer /; K < 0] /; ! FreeQ[B, Var] && Quiet[TrueQ[PossibleZeroQ[B /. Var -> At]]] :>
+      -K ZeroOrderAt[B, Var, At], {0, Infinity}]]], Terms]]]]];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -1127,7 +1148,6 @@ ValueAtOne[Expr_] := Module[{Res},
 
 
 LimitToOne[Expr_] := Module[{Res, Hs, TrH, Sub, Rules, Ans, Pows, NN},
-  NN = 3;
   Res = SumsToHPL[Expr];
   If[Res === $Failed, Return[$Failed]];
   Res = LogsToHPL[Res];
@@ -1139,7 +1159,12 @@ LimitToOne[Expr_] := Module[{Res, Hs, TrH, Sub, Rules, Ans, Pows, NN},
   If[! FreeQ[TrH, TransformH], Return[$Failed]];
   If[! FreeQ[TrH, S], Return[$Failed]];
   Sub = Expand[TrH /. MBCHVarY -> 1 - MBCHSmallT];
+  (* the series of the H functions must reach the deepest pole of their coefficients, so that the constant term is
+     exact; a fixed depth of 3 lost the terms of a fourth-order pole (audit of 2026-11-09) *)
+  NN = Max[3, PoleOrderAt[Sub /. H[__, MBCHSmallT] -> 1, MBCHSmallT, 0]];
+  If[! IntegerQ[NN], Return[$Failed]];
   Sub = Sub /. H[A__, MBCHSmallT] :> HPLSeries[{A}, NN, MBCHSmallT, MBCHLogT];
+  If[! FreeQ[Sub, $Failed], Return[$Failed]];
   Sub = Sub /. Log[MBCHSmallT] -> MBCHLogT;
   If[! FreeQ[Sub, H[__, MBCHSmallT]], Return[$Failed]];
   If[! FreeQ[Sub, MBCHVarY], Return[$Failed]];
@@ -1152,6 +1177,8 @@ LimitToOne[Expr_] := Module[{Res, Hs, TrH, Sub, Rules, Ans, Pows, NN},
    Return[$Failed]];
   Ans = Total[Cases[Rules, R_ /; R[[1, 1]] === 0 :> R[[2]]]];
   Pows = CoefficientList[Expand[Ans], MBCHLogT];
+  (* a constant term that vanishes gives no list *)
+  If[Pows === {}, Pows = {0}];
   If[Length[Pows] > 1 &&
      AnyTrue[Rest[Pows], ! TrueQ[Quiet[PossibleZeroQ[ValueAtOne[#]]]] &],
    Return[$Failed]];
@@ -1734,11 +1761,8 @@ LaurentRules[Ex_] := Module[{E1, Terms, Keys1, Res},
   Return[Res]];
 
 
-(* the deepest pole at y = 1 among the factors of the expression *)
-PoleOrderAtOne[Expr_] := Module[{Pows},
-  Pows = Cases[Expr, Power[B_, K_Integer /; K < 0] /; ! FreeQ[B, MBCHVarY] &&
-      Quiet[TrueQ[PossibleZeroQ[B /. MBCHVarY -> 1]]] :> -K, {0, Infinity}];
-  Return[Max[Join[{0}, Pows]]]];
+(* an upper bound of the order of the pole at y = 1 of the expression (PoleOrderAt) *)
+PoleOrderAtOne[Expr_] := PoleOrderAt[Expr, MBCHVarY, 1];
 
 (* the s^0 L^0 term of the expression; $Failed if a pole in s or a power of L survives *)
 GLimit[Expr_] := Module[{G1, Gs, Ord, Sub, Ser, Rules, Bad, Fin, Probe},
@@ -3051,8 +3075,8 @@ LoadCellCache[] := Module[{Recs},
 SaveCellRecord[Tag_, Key_, Val_] := If[StringQ[MBCHCacheFile], Quiet[PutAppend[{Tag, Key, Val}, MBCHCacheFile]]];
 
 
-(* the grouping keys need one contour value per structure: the new ones go to the subkernels, a few per kernel
-   at a time, each batch recorded in the checkpoint *)
+(* the contour value of every structure, against which MBSolveOne checks its closed form: the new ones go to the
+   subkernels, a few per kernel at a time, each batch recorded in the checkpoint *)
 PrimeVerify[Structs_] := Module[{Args, New, Batches, Got},
   Got = LoadCellCache[];
   If[Got > 0, Say["Checkpoint: " <> ToString[Got] <> " records of an earlier run"]];

@@ -1124,7 +1124,7 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
     If[PossibleZeroQ[numFactor] || ! FreeQ[numFactor, Alternatives @@ vrs], numFactor = 1];
     normalised = intg/numFactor;
     canon = If[Length[vrs] == 1, MBAnalytica`SymbolicInt`Private`mbtCanonicalize[normalised, First[vrs]], normalised];
-    key = {MBAnalytica`SymbolicInt`Private`$mbtCacheVersion, canon, ctr, vrs};
+    key = {MBAnalytica`SymbolicInt`Private`$mbtCacheVersion, MBAnalytica`SymbolicInt`Private`mbtNativeFingerprint[], canon, ctr, vrs};
     {numFactor, key, IntegerString[Hash[key, "SHA"], 16]}];
   bwsCacheStore[key_, nf_, dh_, ex_] := If[key =!= None,
     Module[{val = Simplify[ex/nf]}, MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = val;

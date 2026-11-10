@@ -10,6 +10,8 @@
    another process holds is skipped.  The helper stops when its job's STOP file appears or the job file is gone.
    Environment: OFT_JOB (job file), OFT_ORDER (desc | mid | rot3), OFT_STORE (store directory). *)
 $HistoryLength = 0;
+(* the start marker: the process that started this helper waits for it (or for this process to stop) instead of a fixed time *)
+If[StringQ[Environment["OFT_MARKER"]] && Environment["OFT_MARKER"] =!= "", Quiet[Put[$ProcessID, Environment["OFT_MARKER"]]]];
 here = DirectoryName[ExpandFileName[If[StringQ[$InputFileName] && $InputFileName =!= "", $InputFileName, First[$ScriptCommandLine]]]];
 If[here === "", here = Directory[]];
 SetDirectory[here];

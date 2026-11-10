@@ -20,9 +20,22 @@ if [ $# -gt 0 ]; then
   LIST=$KEEP
 fi
 mkdir -p "$OUT"
-for item in $LIST; do echo "$item"; done | xargs -P "$JOBS" -I{} bash -c '
-  item={}; name=${item%%:*}; ord=${item##*:}
+# the item is the argument of the script, not an -I replacement: BSD xargs (macOS) refuses a replaced argument longer
+# than 255 bytes; -r: GNU xargs would otherwise run the script once on an empty selection
+for item in $LIST; do echo "$item"; done | xargs -r -P "$JOBS" -n 1 bash -c '
+  item=$1; name=${item%%:*}; ord=${item##*:}
   NAME=$name ORDER=$ord OUT="'"$OUT"'" KERNELS='"${KERNELS:-4}"' RESULTS_T="'"$RESULTS_T"'" \
     "'"$WS"'" -file "'"$HERE"'/symbolicsum_target.wls" > "'"$OUT"'/$name.log" 2>&1
-  grep -h "RESUM_RESULT" "'"$OUT"'/$name.log" || echo "RESUM_RESULT $name  order $ord  NO RESULT (see $name.log)"'
-echo "RESUM_REGRESSION_DONE $(date)"
+  grep -h "RESUM_RESULT" "'"$OUT"'/$name.log" || echo "RESUM_RESULT $name  order $ord  NO RESULT (see $name.log)"' _
+# the exit status: 0 only when every selected integral has a result line that passes (an empty selection, a missing
+# line or a failed comparison is a failure; audit of 2026-11-09)
+FAILED=0
+COUNT=0
+for item in $LIST; do
+  name=${item%%:*}
+  COUNT=$((COUNT + 1))
+  grep -q "RESUM_RESULT $name .* pass True" "$OUT/$name.log" 2>/dev/null || { echo "RESUM_FAILED $name"; FAILED=$((FAILED + 1)); }
+done
+[ "$COUNT" -eq 0 ] && { echo "RESUM_FAILED no integral selected"; FAILED=1; }
+echo "RESUM_REGRESSION_DONE $(date)  $COUNT integrals, $FAILED failed"
+[ "$FAILED" -eq 0 ]

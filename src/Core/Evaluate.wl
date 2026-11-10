@@ -340,7 +340,7 @@ RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Seri
     Return[FailAll[Lo, Hi, "SymbolicSum", "the resummed series is not finite"]]];
   Expanded = Expand[Series1];
   Orders = Range[Lo, Hi];
-  Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Orders]]]];
+  Return[Association[Map[# -> LaurentCoefficient[Expanded, Eps, #, "SymbolicSum"] &, Orders]]]];
 
 
 (* the time an engine step may take: no limit in practice by default (10^9 s; a limit only wastes the work done when it is
@@ -398,6 +398,7 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   Ledger = If[Kinematics === {} && ListQ[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], MBAnalytica`SymbolicInt`Private`$mbtFailedPieces, {}];
   Exact = Result =!= $Failed && Result =!= $Aborted && ! FailureQ[Result] && Ledger === {} &&
     FreeQ[Result, $Failed | $Aborted | Indeterminate | ComplexInfinity | MBAnalytica`SymbolicInt`Private`mbeUnsubtractedPole] &&
+    FreeQ[Result, SeriesData | Series | SeriesCoefficient] &&
     Cases[Result, N1_?NumberQ /; Precision[N1] =!= Infinity, {0, Infinity}] === {};
   Return[<|"Exact" -> Exact, "Result" -> (Result /. Reg -> Eps)|>]];
 
@@ -407,6 +408,24 @@ EngineRoute["ExpandInt"] = "Standard";
 EngineRoute["Subtraction"] = "Subtraction";
 
 
+(* the coefficient of Eps^K1 of an expanded Laurent polynomial in Eps, or NotEvaluated when it still depends on Eps: an
+   expression such as Gamma[Eps] or a nested SeriesData left in the result is not a Laurent coefficient *)
+LaurentCoefficient[Expanded_, Eps_, K1_, Method1_] := Module[{Coef},
+  Coef = Coefficient[Expanded, Eps, K1];
+  If[! FreeQ[Coef, Eps], Return[NotEvaluated[{Method1, "the coefficient still depends on the regulator"}]]];
+  Return[Coef]];
+
+(* a result returned with the convergence region of its series: Coefficient takes a ConditionalExpression as a single
+   term, so that the coefficient of 1/Eps came out as 0 and the whole expression as the coefficient of Eps^0 (the
+   one-mass angular integral with SymbolicSum).  The coefficients of its value are taken, each with the condition *)
+LaurentCoefficient[Expanded_ConditionalExpression, Eps_, K1_, Method1_] := Module[{Coef, Condition1},
+  Condition1 = Last[Expanded];
+  If[! FreeQ[Condition1, Eps], Return[NotEvaluated[{Method1, "the condition of the result depends on the regulator"}]]];
+  Coef = LaurentCoefficient[Expand[First[Expanded]], Eps, K1, Method1];
+  If[Head[Coef] === NotEvaluated, Return[Coef]];
+  Return[ConditionalExpression[Coef, Condition1]]];
+
+
 RunEngine[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Method1_String, Opts_Association] := Module[
   {Route, Call, Expanded, Coefs, Single},
   Route = EngineRoute[Method1];
@@ -414,11 +433,11 @@ RunEngine[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Method1_String, Opts_Associat
   Call = EngineCall[MBInt, Kinematics, Eps, Lo, Hi, Route, Opts];
   If[TrueQ[Call["Exact"]],
     Expanded = Expand[Call["Result"]];
-    Return[Association[Map[# -> Coefficient[Expanded, Eps, #] &, Range[Lo, Hi]]]]];
+    Return[Association[Map[# -> LaurentCoefficient[Expanded, Eps, #, Method1] &, Range[Lo, Hi]]]]];
   If[Lo === Hi, Return[FailAll[Lo, Hi, Method1, "a term could not be evaluated"]]];
   Coefs = Association[Map[Function[K1,
     Single = EngineCall[MBInt, Kinematics, Eps, K1, K1, Route, Opts];
-    K1 -> If[TrueQ[Single["Exact"]], Coefficient[Expand[Single["Result"]], Eps, K1],
+    K1 -> If[TrueQ[Single["Exact"]], LaurentCoefficient[Expand[Single["Result"]], Eps, K1, Method1],
       NotEvaluated[{Method1, "a term could not be evaluated"}]]], Range[Lo, Hi]]];
   Return[Coefs]];
 
@@ -448,9 +467,9 @@ MBEvaluate::method = "Method -> `1` is not Automatic, \"SymbolicSum\", \"ExpandI
 MBEvaluate::unavailable = "The method `1` cannot run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::none = "No method can run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::pole = "The leading pole of the integral could not be determined (MBresolve or MBexpand failed).";
-MBEvaluate::real = "A coefficient contains a function that is not real on the whole domain 0 < x < 1, so its real \
-part cannot be separated symbolically; its full complex value is returned. Complex -> True returns complex values \
-throughout.";
+MBEvaluate::real = "A coefficient contains a function that is not real for all kinematic variables in 0 < x < 1, so its \
+real part cannot be separated symbolically and its full complex value is returned. Complex -> True returns complex \
+values throughout.";
 MBEvaluate::open = "No method evaluated the coefficient(s) of `1`, which are omitted from the result (`2`).";
 
 
@@ -458,12 +477,45 @@ MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
   MBEvaluate[MBInt, Automatic, {Eps, Ord}, Opts];
 
 
-MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
+(* a kinematic variable or parameter whose name the dependencies read as one of their own constants or functions is
+   replaced by a private symbol before any method sees the integral, and restored in the result.  The dependencies name
+   their constants z2, z3, ln2, Log2, li4half or et1 and their functions S, H and G, and several steps of the methods
+   convert symbols by their names: a parameter called z2 came back as Zeta[2] (audit of 2026-11-09).  The private names
+   match none of these names.  Only such symbols are replaced: the integration variables, the symbols in the arguments
+   of the Gamma and polygamma functions, never reach the result, and replacing every symbol changed the order of the
+   kinematic variables against the internal symbols of the summation, after which EvaluateMultiSums summed none of the
+   series of F1(eps, eps, eps; 1 + eps; x, y) *)
+DependencyNameQ[S1_Symbol] := Module[{Name},
+  Name = SymbolName[S1];
+  Return[StringMatchQ[Name, RegularExpression["(z|ln|Log|li|et)[0-9].*"]] || MemberQ[{"S", "H", "G"}, Name]]];
+
+
+UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration},
+  Symbols = Cases[{MBInt, If[MBVar === Automatic, {}, MBVar]}, S1_Symbol /; Context[S1] =!= "System`" && S1 =!= Eps,
+    {0, Infinity}];
+  Integration = Cases[Cases[MBInt, (Gamma | PolyGamma)[A__] :> {A}, {0, Infinity}], S1_Symbol, {0, Infinity}];
+  Symbols = Select[Sort[DeleteDuplicates[Symbols]], DependencyNameQ[#] && ! MemberQ[Integration, #] &];
+  Return[MapIndexed[#1 -> Symbol["Global`mbaUserSymbol" <> IntegerString[First[#2], 10, 4]] &, Symbols]]];
+
+
+MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] := Module[{Rules1, Back, Result},
+  Rules1 = UserSymbolRules[MBInt, MBVar, Eps];
+  Back = Map[Reverse, Rules1];
+  Result = Block[{MBEvaluateBackRules = Back},
+    MBEvaluatePrivate[MBInt /. Rules1, If[MBVar === Automatic, Automatic, MBVar /. Rules1], {Eps, Ord}, Opts]];
+  Return[Result /. Back]];
+
+
+(* the rules back to the user's symbols, for the messages and the progress lines of the call *)
+MBEvaluateBackRules = {};
+
+
+Options[MBEvaluatePrivate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False};
+
+
+MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
   {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders, Evaluated},
   Method1 = OptionValue[Method];
-  (* "HyperLog" and "Standard", the earlier names of the ExpandInt method, and "Resum", that of SymbolicSum, are accepted as aliases *)
-  If[Method1 === "HyperLog" || Method1 === "Standard", Method1 = "ExpandInt"];
-  If[Method1 === "Resum", Method1 = "SymbolicSum"];
   If[! MemberQ[{Automatic, "SymbolicSum", "ExpandInt", "Subtraction"}, Method1],
     Message[MBEvaluate::method, Method1];
     Return[$Failed]];
@@ -477,7 +529,7 @@ MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Modul
     Return[$Failed]];
   Kinematics = KinematicVariables[MBInt, MBVar, Eps];
   Say[Settings["Verbose"], "MBEvaluate: methods ", Methods, ", kinematic variables ",
-    If[Kinematics === {}, "none", Kinematics]];
+    If[Kinematics === {}, "none", Kinematics /. MBEvaluateBackRules]];
   Lo = WithoutUserValues[LeadingPole[MBInt, Eps, Ord]];
   If[! IntegerQ[Lo], Message[MBEvaluate::pole]; Return[$Failed]];
   Say[Settings["Verbose"], "MBEvaluate: orders ", Eps, "^", Lo, " through ", Eps, "^", Ord];
@@ -487,13 +539,13 @@ MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Modul
     If[OpenKeys === {}, Break[]];
     Say[Settings["Verbose"], "MBEvaluate: ", M1, " on ", Eps, "^", Min[OpenKeys], " .. ", Eps, "^", Max[OpenKeys]];
     Got = WithoutUserValues[RunMethod[M1, MBInt, MBVar, Kinematics, Eps, Min[OpenKeys], Max[OpenKeys], Settings]];
-    Got = WithoutUserValues[Association[KeyValueMap[#1 -> CheckOutputClass[#2, M1, Kinematics] &, Got]]];
+    Got = WithoutUserValues[Association[KeyValueMap[#1 -> CheckOutputClass[#2, M1, Kinematics, Eps] &, Got]]];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] =!= NotEvaluated, Coefficients[K1] = Got[K1]]], OpenKeys];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] === NotEvaluated, Coefficients[K1] = Got[K1]]],
       Select[OpenKeys, Head[Coefficients[#]] === NotEvaluated &]],
     {M1, Methods}];
   OpenOrders = Select[Keys[Coefficients], Head[Coefficients[#]] === NotEvaluated &];
-  If[OpenOrders =!= {}, Message[MBEvaluate::open, Map[Eps^# &, OpenOrders], OpenReasons[Coefficients, OpenOrders, Eps]]];
+  If[OpenOrders =!= {}, Message[MBEvaluate::open, Map[Eps^# &, OpenOrders], OpenReasons[Coefficients, OpenOrders, Eps] /. MBEvaluateBackRules]];
   (* a coefficient that no method evaluated is omitted from the result, as the message says; when no order was
      evaluated, the result is $Failed *)
   Evaluated = KeySelect[Coefficients, ! MemberQ[OpenOrders, #] &];

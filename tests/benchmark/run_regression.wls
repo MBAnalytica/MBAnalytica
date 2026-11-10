@@ -178,7 +178,8 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
     MBSerialRunAll[]];
   rows = Join[Normal[summary], mfRows];
   Print["PUBLIC ROUTE TARGETS done after ", Round[AbsoluteTime[] - tPub + tLight], " s  ", DateString[]];
-  allPass = And @@ (TrueQ[#["Pass"]] & /@ rows);
+  (* an empty result set, or a row without a passing record, is a failure *)
+  allPass = rows =!= {} && AllTrue[rows, TrueQ[#["Pass"]] &];
   report = StringJoin[
     "MB_standard regression report  ", DateString[], "\n",
     "PieceKernels ", ToString[pk], "; every piece recomputed; certified library: none in this release\n",
@@ -190,4 +191,6 @@ Module[{here = Module[{f = If[StringQ[$InputFileName] && $InputFileName =!= "", 
     "REGRESSION_RESULT=", If[allPass, "ALL_GREEN", "NOT_GREEN"], "\n"];
   Export[FileNameJoin[{here, "regression_report.txt"}], report, "Text"];
   Print[report];
+  (* the exit status of the run: 0 only for a complete passing run (audit of 2026-11-09: NOT_GREEN exited with 0) *)
+  Exit[If[allPass, 0, 3]];
 ];

@@ -88,8 +88,8 @@ def main():
     for j in data['jobs']:
         k = key_of(fp, j); path = folder/(k+'.json')
         if data.get('cache') and path.exists():
-            saved = json.loads(path.read_text())
-            if saved.get('success') and native.certified(saved.get('response'), j['request']):
+            saved = native.read_record(path)
+            if saved is not None and saved.get('success') and native.certified(saved.get('response'), j['request']):
                 records[j['id']] = {**saved, 'id': j['id'], 'cache_hit': True}; continue
         state[j['id']] = {'winner': None, 'order': None, 'procs': set(), 'trials': [], 'left': len(j['orders']), 'key': k}
         todo.extend((j, o) for o in j['orders'])
@@ -99,7 +99,7 @@ def main():
         st = state[j['id']]
         rec = {'id': j['id'], 'success': st['winner'] is not None, 'trials': st['trials'], 'source_hash': st['key']}
         if st['winner'] is not None: rec.update(response=st['winner'], order_used=st['order'])
-        (folder/(st['key']+'.json')).write_text(json.dumps(rec)); records[j['id']] = rec
+        native.write_atomic(folder/(st['key']+'.json'), json.dumps(rec)); records[j['id']] = rec
         if (watch and st['winner'] is None and str(j['id']) in watch and halt['job'] is None
                 and not any(t.get('error') in ('TimeoutExpired', 'DeadlineExpired') for t in st['trials'])):
             with lock:
@@ -133,7 +133,7 @@ def main():
     verdicts = {}
     if halt['job'] is not None:
         ordered = [records[j['id']] for j in data['jobs'] if j['id'] in records]
-        dst.write_text(json.dumps({'complete': False, 'records': ordered, 'audit': verdicts, 'aborted': halt['job']}))
+        native.write_atomic(dst, json.dumps({'complete': False, 'records': ordered, 'audit': verdicts, 'aborted': halt['job']}))
         return 0
     if audit:
         def audit_one(j):
@@ -155,7 +155,7 @@ def main():
     ordered = [records[j['id']] for j in data['jobs'] if j['id'] in records]
     complete = len(ordered) == len(data['jobs']) and all(r.get('success') for r in ordered) \
         and (not audit or all(v == 'safe' for v in verdicts.values()))
-    dst.write_text(json.dumps({'complete': complete, 'records': ordered, 'audit': verdicts}))
+    native.write_atomic(dst, json.dumps({'complete': complete, 'records': ordered, 'audit': verdicts}))
     return 0
 
 

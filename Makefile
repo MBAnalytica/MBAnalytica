@@ -68,7 +68,6 @@ WOLFRAMSCRIPT ?= $(firstword $(shell command -v wolframscript 2>/dev/null) \
   $(wildcard /Applications/Wolfram.app/Contents/MacOS/wolframscript) \
   $(wildcard /Applications/Mathematica.app/Contents/MacOS/wolframscript))
 GINSH ?= $(shell command -v ginsh 2>/dev/null)
-CMAKE ?= cmake
 PYTHON3 ?= $(shell command -v python3 2>/dev/null)
 
 ifeq ($(OS),Darwin)
@@ -95,6 +94,21 @@ else
   DEPS_COMMAND := sudo apt install -y cmake g++ pkg-config patch libflint-dev libgmp-dev libmpfr-dev ginac-tools python3-venv
 endif
 
+# cmake is the first one that runs, so that a broken cmake early on PATH no longer hides a working one (a pip wrapper
+# whose Python package was removed, /usr/local/bin/cmake, made make deps report cmake missing while apt had installed
+# /usr/bin/cmake).  On macOS only Homebrew (both of its prefixes: a shell whose PATH starts with /usr/local finds an Intel
+# brew next to the one of /opt/homebrew), the system folders and CMake.app are searched, because the build runs with the
+# tools of Homebrew only.  CMAKE=/path/to/cmake skips the search
+ifeq ($(OS),Darwin)
+  CMAKE_SEARCH := $(BREW_PREFIX)/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/CMake.app/Contents/bin
+else
+  CMAKE_SEARCH := $(PATH):/usr/bin:/bin:/usr/local/bin:/snap/bin
+endif
+ifeq ($(origin CMAKE),undefined)
+  CMAKE := $(shell search='$(CMAKE_SEARCH)'; IFS=:; for d in $$search; do \
+    if [ -x "$$d/cmake" ] && "$$d/cmake" --version >/dev/null 2>&1; then echo "$$d/cmake"; exit 0; fi; done; echo cmake)
+endif
+
 # the SHA-256 check of the HPL tables: shasum (macOS, Debian) or sha256sum (coreutils: RHEL, Fedora)
 SHA256 := $(if $(shell command -v shasum 2>/dev/null),shasum -a 256,sha256sum)
 
@@ -118,7 +132,7 @@ endif
 CMAKE_FLAGS := -DCMAKE_BUILD_TYPE=Release -DHF_VERSION=$(HF_VERSION) -DHF_LIBRARYLINK=OFF -DHF_OPENMP=ON \
   -DHF_MIMALLOC=$(MIMALLOC) $(CMAKE_PLATFORM)
 
-.PHONY: all check deps upstream hyperflint python tables config test install uninstall benchmark clean
+.PHONY: all check deps upstream hyperflint python tables config test regression install uninstall benchmark clean
 
 all: check upstream hyperflint python tables config
 	@echo ""
@@ -128,10 +142,15 @@ all: check upstream hyperflint python tables config
 
 check:
 	@missing=0; \
-	if "$(CMAKE)" --version >/dev/null 2>&1; then echo "  found    cmake $$("$(CMAKE)" --version | head -1 | awk '{print $$3}')"; \
+	if $(BUILD_ENV) "$(CMAKE)" --version >/dev/null 2>&1; then \
+	  echo "  found    cmake $$($(BUILD_ENV) "$(CMAKE)" --version | head -1 | awk '{print $$3}') ($(CMAKE))"; \
 	else echo "  MISSING  cmake (or it does not run; set CMAKE=/path/to/cmake)"; missing=1; fi; \
+	( search='$(CMAKE_SEARCH)'; IFS=:; seen=":"; for d in $$search; do c="$$d/cmake"; \
+	    case "$$seen" in *":$$c:"*) continue ;; esac; seen="$$seen$$c:"; \
+	    if [ "$$c" != "$(CMAKE)" ] && [ -x "$$c" ] && ! "$$c" --version >/dev/null 2>&1; then \
+	      echo "  note     $$c does not run and is skipped"; fi; done ); \
 	if command -v pkg-config >/dev/null 2>&1; then echo "  found    pkg-config"; else echo "  MISSING  pkg-config"; missing=1; fi; \
-	if command -v patch >/dev/null 2>&1; then echo "  found    patch"; else echo "  MISSING  patch (the guarded HyperFLINT build applies a patch)"; missing=1; fi; \
+	if command -v patch >/dev/null 2>&1; then echo "  found    patch"; else echo "  MISSING  patch (HPL.m and PolyLogTools are patched after the download)"; missing=1; fi; \
 	for lib in gmp mpfr; do \
 	  if pkg-config --exists $$lib 2>/dev/null || [ -n "$$(ls /usr/include/$$lib.h /opt/homebrew/include/$$lib.h /usr/local/include/$$lib.h 2>/dev/null)" ]; \
 	  then echo "  found    $$lib"; else echo "  MISSING  $$lib (development files)"; missing=1; fi; \
@@ -151,11 +170,14 @@ check:
 deps:
 	@if $(MAKE) --no-print-directory check FROM_DEPS=yes; then echo ""; echo "All the system packages MBAnalytica needs are present."; exit 0; fi; \
 	echo ""; echo "The missing system packages are installed with:"; echo "  $(DEPS_COMMAND)"; \
-	if [ "$(CONFIRM)" = "yes" ]; then $(DEPS_COMMAND) && $(MAKE) --no-print-directory check FROM_DEPS=yes; exit $$?; \
+	install_deps() { $(DEPS_COMMAND) || return 1; echo ""; $(MAKE) --no-print-directory check FROM_DEPS=yes && return 0; \
+	  echo ""; echo "The packages are installed, but the check still fails: a tool that is installed does not run or is not found."; \
+	  echo "Give its path to make, for example  make deps CMAKE=/path/to/cmake  (also GINSH, PYTHON3 and WOLFRAMSCRIPT)."; return 1; }; \
+	if [ "$(CONFIRM)" = "yes" ]; then install_deps; exit $$?; \
 	elif [ -t 0 ]; then \
 	  while read -r -p "Run this command now? [y/n] " answer; do \
 	    case "$$answer" in \
-	      [yY]|[yY][eE][sS]) $(DEPS_COMMAND) && $(MAKE) --no-print-directory check FROM_DEPS=yes; exit $$? ;; \
+	      [yY]|[yY][eE][sS]) install_deps; exit $$? ;; \
 	      [nN]|[nN][oO]) echo "Not run."; exit 0 ;; \
 	      *) echo "Please answer y (yes) or n (no)." ;; \
 	    esac; \
@@ -194,7 +216,13 @@ upstream:
 	  { echo "The installed third-party files do not match dep/UPSTREAM_FILES.sha256"; exit 1; }; \
 	echo "  MB.m, MBresolve.m, barnesroutines.m, MBConicHulls.wl, PolyLogTools, HPL 2.0 and HypExp 2.0 downloaded and verified (HPL.m and PolyLogTools patched)"
 
-# ---- HyperFLINT: the plain build, and the guarded build with dep/IntVolFLINT/patches applied -----------------------
+# ---- HyperFLINT ---------------------------------------------------------------------------------------------------
+
+# the binaries depend on every source, header and CMake file of the fork (outside its build folders), so that a changed
+# source rebuilds them (audit of 2026-11-09: newer sources left "make hyperflint" with nothing to do)
+HF_SOURCES := $(shell find "$(HF_SRC)" -path "$(HF_SRC)/build*" -prune -o -type f \( -name "*.cpp" -o -name "*.hpp" \
+  -o -name "*.h" -o -name "*.c" -o -name "*.cc" -o -name "*.inc" -o -name "CMakeLists.txt" -o -name "*.cmake" \
+  -o -name "CMakePresets.json" -o -name "*.map" -o -name "exports.txt" \) -print 2>/dev/null)
 
 hyperflint: $(HF_BIN)/hyperflint $(HF_BIN)/hyperflint_guarded
 
@@ -210,7 +238,7 @@ $(FLINT_PREFIX)/lib/pkgconfig/flint.pc:
 	rm -rf "$(FLINT_PREFIX)/src"
 	@echo "  FLINT $(FLINT_LOCAL_VERSION) built"
 
-$(HF_BIN)/hyperflint: $(FLINT_DEP)
+$(HF_BIN)/hyperflint: $(FLINT_DEP) $(HF_SOURCES)
 	@echo "Building HyperFLINT $(HF_VERSION) (IntVolFLINT fork) ..."
 	$(BUILD_ENV) "$(CMAKE)" -S "$(HF_SRC)" -B "$(HF_SRC)/build" $(CMAKE_FLAGS) -DHF_BUILD_VARIANT=mbanalytica > "$(HF_SRC)/build.log" 2>&1 || \
 	  { tail -20 "$(HF_SRC)/build.log"; exit 1; }
@@ -220,19 +248,12 @@ $(HF_BIN)/hyperflint: $(FLINT_DEP)
 	cp "$(HF_SRC)/build/hyperflint" "$(HF_BIN)/hyperflint"
 	@"$(HF_BIN)/hyperflint" --version 2>/dev/null | grep -q "HF_VERSION" && echo "  HyperFLINT built: $(HF_BIN)/hyperflint"
 
-$(HF_BIN)/hyperflint_guarded: $(FLINT_DEP)
-	@echo "Building the guarded HyperFLINT (transform_nonlinear_guard.patch) ..."
-	rm -rf "$(HF_SRC)/build-guarded-src" && mkdir -p "$(HF_SRC)/build-guarded-src"
-	cd "$(HF_SRC)" && tar cf - --exclude './build*' . | (cd build-guarded-src && tar xf -)
-	cd "$(HF_SRC)/build-guarded-src" && patch -p1 -s < "$(ROOT)/dep/IntVolFLINT/patches/transform_nonlinear_guard.patch"
-	$(BUILD_ENV) "$(CMAKE)" -S "$(HF_SRC)/build-guarded-src" -B "$(HF_SRC)/build-guarded" $(CMAKE_FLAGS) -DHF_BUILD_VARIANT=mbanalytica-guarded \
-	  > "$(HF_SRC)/build-guarded.log" 2>&1 || { tail -20 "$(HF_SRC)/build-guarded.log"; exit 1; }
-	$(BUILD_ENV) "$(CMAKE)" --build "$(HF_SRC)/build-guarded" --target hyperflint-cli -j $(JOBS) >> "$(HF_SRC)/build-guarded.log" 2>&1 || \
-	  { tail -20 "$(HF_SRC)/build-guarded.log"; exit 1; }
-	mkdir -p "$(HF_BIN)"
-	cp "$(HF_SRC)/build-guarded/hyperflint" "$(HF_BIN)/hyperflint_guarded"
-	rm -rf "$(HF_SRC)/build-guarded-src"
-	@echo "  guarded HyperFLINT built: $(HF_BIN)/hyperflint_guarded"
+# the refusal of factors that are not linear in the integration variable, once the separate guarded build, is part of
+# every build (src/integrator/transform.cpp); hyperflint_guarded is the same binary, under the name that the parameter
+# Subtraction ladder and config.m use
+$(HF_BIN)/hyperflint_guarded: $(HF_BIN)/hyperflint
+	cp "$(HF_BIN)/hyperflint" "$(HF_BIN)/hyperflint_guarded"
+	@echo "  guarded HyperFLINT: $(HF_BIN)/hyperflint_guarded (the same build)"
 
 # ---- Python environment of the u-dependent Subtraction route -----------------------------------------------------
 
@@ -273,7 +294,9 @@ tables:
 
 # ---- config.m: the paths found on this machine, read by MBAnalytica.wl and by every worker ------------------------
 
-config:
+# config.m reads .python, so it is written after the python target (with make -j it read .python before python had
+# written it and recorded "Python" -> ""; audit of 2026-11-09), through a temporary file and a rename
+config: python
 	@{ echo "(* written by make on $$(date '+%Y-%m-%d %H:%M'); run make config to refresh it *)"; \
 	   echo "<|"; \
 	   echo "  \"Ginsh\" -> \"$(GINSH)\","; \
@@ -282,7 +305,7 @@ config:
 	   echo "  \"Python\" -> \"$$(cat "$(ROOT)/.python" 2>/dev/null)\","; \
 	   echo "  \"RISCPath\" -> \"$(RISC)\","; \
 	   echo "  \"WolframScript\" -> \"$(WOLFRAMSCRIPT)\""; \
-	   echo "|>"; } > "$(ROOT)/config.m"
+	   echo "|>"; } > "$(ROOT)/config.m.tmp.$$$$" && mv -f "$(ROOT)/config.m.tmp.$$$$" "$(ROOT)/config.m"
 	@echo "  config.m written"
 
 # ---- tests -------------------------------------------------------------------------------------------------------
@@ -290,6 +313,14 @@ config:
 test:
 	@if [ -z "$(WOLFRAMSCRIPT)" ]; then echo "wolframscript not found; set WOLFRAMSCRIPT=/path/to/wolframscript"; exit 1; fi
 	"$(WOLFRAMSCRIPT)" -file "$(ROOT)/tests/InstallTest.wls"
+
+# the regression tests of the defects found in the audit of 2026-11-09 (exact results or controlled refusals), and the
+# tests of the native job caches; a nonzero exit code when any test fails
+regression:
+	@if [ -z "$(WOLFRAMSCRIPT)" ]; then echo "wolframscript not found; set WOLFRAMSCRIPT=/path/to/wolframscript"; exit 1; fi
+	"$(WOLFRAMSCRIPT)" -file "$(ROOT)/tests/RegressionTest.wls"
+	@PY=$$(cat "$(ROOT)/.python" 2>/dev/null); if [ -z "$$PY" ] || [ ! -x "$$PY" ]; then PY=python3; fi; \
+	"$$PY" -I "$(ROOT)/tests/native_cache_test.py"
 
 benchmark:
 	@if [ -z "$(WOLFRAMSCRIPT)" ]; then echo "wolframscript not found; set WOLFRAMSCRIPT=/path/to/wolframscript"; exit 1; fi

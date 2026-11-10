@@ -85,4 +85,15 @@ bool nonlinear_den_was_unsupported();
 void set_nonlinear_den_detail(const std::string& what);
 std::string nonlinear_den_detail();
 
+// MBAnalytica (audit of 2026-11-09): the same post-barrier pattern for a
+// refused transformation (TransformFailed, e.g. a factor that is not linear
+// in the integration variable).  Thrown inside the OMP region it escaped as
+// std::terminate (SIGABRT); a worker now sets this flag and returns, and the
+// host throws TransformFailed after the barrier, so that the request fails in
+// a controlled way.  Reset per integration_step call, with the flag above.
+extern std::atomic<bool> g_transform_failed;
+void reset_transform_failed_flag();
+void set_transform_failed_flag();
+bool transform_failed_was_set();
+
 }  // namespace hyperflint

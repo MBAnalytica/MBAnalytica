@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -26,21 +27,54 @@ def certified(response, request):
             and not any(k in response for k in ('error', 'failed', 'divergent'))):
         return False
     allowed = set(request['vars']) - set(request['vars_int'])
-    for row in response['result']:
-        for text in [row['coef']] + [x for w in row['key'] for x in w]:
-            symbols = set(re.findall(r'[A-Za-z][A-Za-z0-9_]*', text))
-            if any(s not in allowed and not re.fullmatch(r'mzv_(?:m?\d+_?)+', s)
-                   for s in symbols):
-                return False
+    try:
+        for row in response['result']:
+            for text in [row['coef']] + [x for w in row['key'] for x in w]:
+                symbols = set(re.findall(r'[A-Za-z][A-Za-z0-9_]*', text))
+                if any(s not in allowed and not re.fullmatch(r'mzv_(?:m?\d+_?)+', s)
+                       for s in symbols):
+                    return False
+    except (KeyError, TypeError, AttributeError):
+        # a row without the fields of a response is not a certified result
+        return False
     return True
+
+
+def read_record(path):
+    """A record of the cache, or None when the file is missing, truncated, not JSON or not a record: every such file
+    is a cache miss and the job is computed again (a file holding only "{" stopped the runner, audit of 2026-11-09)."""
+    try:
+        saved = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return None
+    return saved if isinstance(saved, dict) else None
+
+
+def write_atomic(path, text):
+    """Write text through a unique temporary file of the same folder and an atomic rename, so that an interrupted
+    write or a concurrent writer never leaves a partial record behind."""
+    path = Path(path)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + '.', suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w') as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, str(path))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def run_job(job, data, folder):
     key = hashlib.sha256(json.dumps([data.get('engine_fingerprint'), job], sort_keys=True).encode()).hexdigest()
     path = folder / (key + '.json')
     if data.get('cache') and path.exists():
-        saved = json.loads(path.read_text())
-        if saved.get('success') and certified(saved.get('response'), job['request']):
+        saved = read_record(path)
+        if saved is not None and saved.get('success') and certified(saved.get('response'), job['request']):
             return {**saved, 'id': job['id'], 'cache_hit': True}
     trials = []
     for order in job['orders']:
@@ -63,10 +97,10 @@ def run_job(job, data, folder):
         if certified(response, req):
             record = {'id': job['id'], 'success': True, 'trials': trials,
                       'response': response, 'source_hash': key}
-            path.write_text(json.dumps(record))
+            write_atomic(path, json.dumps(record))
             return record
     record = {'id': job['id'], 'success': False, 'trials': trials, 'source_hash': key}
-    path.write_text(json.dumps(record))
+    write_atomic(path, json.dumps(record))
     return record
 
 
@@ -85,8 +119,8 @@ def main():
             record = fut.result()
             records.append(record)
             print(record['id'], record['success'], flush=True)
-    dst.write_text(json.dumps({'complete': all(r['success'] for r in records),
-                               'records': records}))
+    write_atomic(dst, json.dumps({'complete': all(r['success'] for r in records),
+                                  'records': records}))
     return 0
 
 

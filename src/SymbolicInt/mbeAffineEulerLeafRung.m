@@ -47,7 +47,7 @@ aleCubeLaurent[red_Association, pref_, ep_, lo_Integer, hi_Integer, verbose_: Fa
   If[cubeLo === Infinity, Return[ConstantArray[0, hi - lo + 1], Module]];
   bankDir = FileNameJoin[{Global`$MBStandardCacheDir, "affine_euler_leaf"}];
   Quiet@CreateDirectory[bankDir, CreateIntermediateDirectories -> True];
-  key = IntegerString[Hash[{"affine-leaf-v1", norm, vv}, "SHA256"], 16, 16];
+  key = IntegerString[Hash[{"affine-leaf-v1", norm, vv, MBAnalytica`SymbolicInt`Private`mbtNativeFingerprint[]}, "SHA256"], 16, 16];
   If[verbose, Print["    [affine Euler leaf] ", red["Variable"], " integrated; ", Length[vv], " variables, ",
     Length[pieces], " structural sources, cube orders ", {cubeLo, cubeHi}, ", key ", key]];
   Do[

@@ -247,13 +247,22 @@ OutsideOutputClass[Coef_] := Module[{Atoms},
       (Ctx === "HPL`" && ! (Name1 === "MZV" || StringStartsQ[Name1, "HPLs"])) ||
       MemberQ[{"HypExp`", "Sigma`", "EvaluateMultiSums`"}, Ctx] ||
       (Ctx === "System`" && MemberQ[{"Hypergeometric0F1", "Hypergeometric1F1", "Hypergeometric2F1", "HypergeometricPFQ",
-        "AppellF1", "AppellF2", "AppellF3", "AppellF4", "Sum", "Indeterminate", "ComplexInfinity", "DirectedInfinity"}, Name1])]]]]]];
+        "AppellF1", "AppellF2", "AppellF3", "AppellF4", "Sum", "NSum", "Indeterminate", "ComplexInfinity", "DirectedInfinity",
+        (* an unfinished expansion, integration or limit (audit of 2026-11-09: an accepted coefficient contained
+           SeriesData and Re[Gamma[e]] of the regulator, and Inactive[Integrate] passed the class check) *)
+        "SeriesData", "Series", "SeriesCoefficient", "O", "Integrate", "NIntegrate", "Inactive", "Inactivate", "Limit",
+        "Derivative", "Hold", "HoldForm", "HoldComplete", "Unevaluated"}, Name1])]]]]]];
 
 
 (* a coefficient of one method that is not in the output class is not exact: it is marked as NotEvaluated, so that the
-   next method of Method -> Automatic is tried for this order *)
-CheckOutputClass[Coef_, Method1_String, Vars_List] := Module[{Outside},
+   next method of Method -> Automatic is tried for this order.  A Laurent coefficient is free of the regulator: one
+   that still contains it, or a ConditionalExpression whose value does, is not evaluated either *)
+CheckOutputClass[Coef_, Method1_String, Vars_List] := CheckOutputClass[Coef, Method1, Vars, None];
+CheckOutputClass[Coef_, Method1_String, Vars_List, Eps_] := Module[{Outside, Value1},
   If[Head[Coef] === NotEvaluated, Return[Coef]];
+  Value1 = If[Head[Coef] === ConditionalExpression, First[Coef], Coef];
+  If[Eps =!= None && ! FreeQ[Value1, Eps],
+    Return[NotEvaluated[{Method1, "the coefficient still depends on the regulator"}]]];
   Outside = OutsideOutputClass[ToGBasis[Coef, Vars]];
   If[Outside === {}, Return[Coef]];
   Return[NotEvaluated[{Method1, "functions outside the output class: " <> ToString[Take[Outside, UpTo[3]], InputForm]}]]];

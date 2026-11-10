@@ -51,6 +51,20 @@ bool nonlinear_den_was_unsupported() {
     return g_nonlinear_den_unsupported.load(std::memory_order_relaxed);
 }
 
+std::atomic<bool> g_transform_failed{false};
+
+void reset_transform_failed_flag() {
+    g_transform_failed.store(false, std::memory_order_relaxed);
+}
+
+void set_transform_failed_flag() {
+    g_transform_failed.store(true, std::memory_order_relaxed);
+}
+
+bool transform_failed_was_set() {
+    return g_transform_failed.load(std::memory_order_relaxed);
+}
+
 bool tolerance_enabled() {
     // Static-local once-init: the lambda runs exactly once at first
     // call across all threads, and `cached` is treated as immutable

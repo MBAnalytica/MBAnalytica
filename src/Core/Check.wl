@@ -160,15 +160,28 @@ MethodsFrom[Results_List] := Module[{Absent, Blocked},
   Return[Select[{"SymbolicSum", "ExpandInt", "Subtraction"}, ! MemberQ[Blocked, #] &]]];
 
 
-RefreshMethods[] := Module[{Results},
+(* what the tests of the dependency table read: the files that make writes, the locations given in the session and
+   $Path.  MBEvaluate repeats the tests only when one of them changed, since the tests start processes (about 0.25 s per
+   call, audit of 2026-11-09), while MBAnalyticaCheck[] always repeats them *)
+DependencyInputs[] := Module[{Files, Stamps},
+  Files = {FileNameJoin[{PackageRoot, "config.m"}], FileNameJoin[{PackageRoot, "dep"}], HyperFLINTPath[], PythonPath[]};
+  Stamps = Map[If[StringQ[#] && FileExistsQ[#], FileDate[#, "Modification"], None] &, Files];
+  Return[{Stamps, Global`$MBAnalyticaRISCPath, Global`$MBStandardGinshExecutable, $Path, Environment["PATH"]}]];
+
+
+RefreshMethods[] := RefreshMethods[False];
+RefreshMethods[Force_] := Module[{Results},
+  If[! TrueQ[Force] && ListQ[LastCheck] && DependencyInputs[] === LastInputs, Return[LastCheck]];
   Results = CheckDependencies[];
   $MBAnalyticaMethods = MethodsFrom[Results];
   LastCheck = Results;
+  (* after the tests, which put the RISC folder on $Path *)
+  LastInputs = DependencyInputs[];
   Return[Results]];
 
 
 MBAnalyticaCheck[] := Module[{Results, Lines},
-  Results = RefreshMethods[];
+  Results = RefreshMethods[True];
   Lines = Map[
     Row[{If[#["Found"], Style["  found    ", Darker[Green]], Style["  MISSING  ", Red]],
       Style[#["Name"], Bold], "  (" <> #["Kind"] <> "; needed by " <> StringRiffle[#["Methods"], ", "] <> ")",

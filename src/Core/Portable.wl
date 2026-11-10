@@ -84,12 +84,28 @@ PrlimitTool[] := PrlimitTool[] = FindCommand["prlimit"];
 (*Time limits*)
 
 
+(* the Perl fallback of timeout(1): a supervisor that starts the command as the leader of a new process group, waits for
+   it, and at the limit sends TERM to the whole group, KILL to whatever is left after five seconds, reaps the command
+   and exits with 124, as GNU timeout does.  "alarm; exec" killed only the command itself, and its children kept
+   running (audit of 2026-11-09).  The script contains no single quote, so that ShellQuote can quote it *)
+PerlSupervisor = StringJoin[
+  "use POSIX \":sys_wait_h\"; my $limit = shift @ARGV; my $pid = fork(); die \"fork: $!\\n\" unless defined $pid; ",
+  "if (!$pid) { setpgrp(0, 0); exec { $ARGV[0] } @ARGV; POSIX::_exit(127); } ",
+  "my $start = time; my $status; ",
+  "while (1) { my $r = waitpid($pid, WNOHANG); if ($r == $pid) { $status = $?; last; } ",
+  "if (time - $start >= $limit) { kill \"TERM\", -$pid; my $t = time; ",
+  "while (time - $t < 5) { last if waitpid($pid, WNOHANG) == $pid; select(undef, undef, undef, 0.1); } ",
+  "kill \"KILL\", -$pid; waitpid($pid, 0); exit 124; } ",
+  "select(undef, undef, undef, 0.1); } ",
+  "exit($status & 127 ? 128 + ($status & 127) : $status >> 8);"];
+
+
 TimeoutArgs[Seconds_] := Module[{Tool, LimitText},
   Tool = TimeoutTool[];
   LimitText = ToString[Max[1, Ceiling[Seconds]]];
   Switch[Tool[[1]],
     "Gnu", Return[{Tool[[2]], LimitText}],
-    "Perl", Return[{Tool[[2]], "-e", "alarm shift @ARGV; exec @ARGV", LimitText}],
+    "Perl", Return[{Tool[[2]], "-e", PerlSupervisor, LimitText}],
     _, Return[{}]]];
 
 

@@ -38,15 +38,16 @@ Eps    - the dimensional regulator appearing in MBInt\n\
 Ord    - the deepest order of Eps to be evaluated\n\n\
 The integration variables are the variables inside the Gamma and PolyGamma functions and the kinematic variables \
 are whatever is left, so neither has to be given. MBEvaluate[MBInt, MBVar, {Eps, Ord}] names the kinematic \
-variables explicitly; they are taken in 0 < x < 1.\n\n\
+variables explicitly.\n\n\
 A coefficient that no method could evaluate is omitted from the result, and a message names its order.\n\n\
 Options:\n  \
 Method -> Automatic       tries the methods available on this machine in the order \"SymbolicSum\", \"ExpandInt\", \
-\"Subtraction\", each one only on the orders the earlier ones left open; \"SymbolicSum\", \"ExpandInt\" or \"Subtraction\" uses \
-that method alone (\"HyperLog\" and \"Standard\" are accepted as aliases of \"ExpandInt\", and \"Resum\" of \"SymbolicSum\")\n  \
+\"Subtraction\", each one only on the orders the earlier ones left open, while \"SymbolicSum\", \"ExpandInt\" or \"Subtraction\" \
+uses that method alone\n  \
 Verbose -> False          prints one line per stage\n  \
 BarnesReduce -> True      applies the Barnes lemmas before the SymbolicSum method solves the integral\n  \
-Complex -> False          returns the real part; True returns the full complex value\n\n\
+Complex -> False          returns the real part for real kinematic variables in 0 < x < 1, and True the full complex \
+value\n\n\
 Examples:\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}]\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  \
@@ -61,14 +62,15 @@ missing one, and which methods can run. It returns an association with the same 
 CosmoTreeMB::usage =
 "CosmoTreeMB[lines, r, nu] gives balanced unit-slope MB integrals, one per orientation of the lines, for the de Sitter \
 tree time integral Int prod_v dt_v t_v^(r_v - 1) Exp[-x_v t_v] prod_l BesselK[nu_l, y_l t>] BesselI[nu_l, y_l t<]. \
-lines lists the vertex pairs {v, w} of a tree on the vertices 1, ..., Length[r]; nu lists the Bessel orders. Each \
-result is an association: \"Integrand\" (the MB, for MBEvaluate), \"Variables\" (the MB variables in the energies), \
-\"Prefactor\", \"Later\" (the later vertex of each line), \"Push\" and \"Base\"; the integral is the sum over the \
-orientations of Prefactor times the integrand's value. Options: \"Energies\" -> {{x1, ...}, {y1, ...}}, \"Point\" -> \
-numeric energies (needed to choose positive rewritings), \"KLegs\" -> {{v, energy, nu}, ...} (factors BesselK[nu, \
-energy t_v] of an in-in block), \"Orientations\", \"VariableName\", and \"LightSplit\" -> True (for light fields, \
-the powers (2 + v)^(nu - 1/2) are split by the binomial theorem and every term is returned as a separate integral, \
-selected by \"Terms\").";
+lines lists the vertex pairs {v, w} of a tree on the vertices 1, ..., Length[r], and nu lists the Bessel orders. Each \
+result is an association with the keys \"Integrand\" (the MB, for MBEvaluate), \"Variables\" (the MB variables in the \
+energies), \"Prefactor\", \"Later\" (the later vertex of each line), \"Push\" and \"Base\", and the integral is the sum \
+over the orientations of Prefactor times the integrand's value. The options are \"Energies\" -> {{x1, ...}, {y1, ...}}, \
+\"Point\" -> numeric energies (needed to choose positive rewritings), \"KLegs\" -> {{v, energy, nu}, ...} (factors \
+BesselK[nu, energy t_v] of an in-in block), \"Orientations\", \"PushChoice\" -> n (the n-th rewriting with positive \
+coefficients), \"VariableName\", and \"LightSplit\" -> True (for light fields, the powers (2 + v)^(nu - 1/2) are split \
+by the binomial theorem and every term is returned as a separate integral, selected by \"Terms\"). An exact order \
+nu = n + 1/2 with an integer n != 0 is refused, since its representation degenerates, and a regulated order is needed.";
 
 
 (* ::Subsection::Closed:: *)
@@ -95,7 +97,7 @@ $Path. make RISC=/path records it once for all sessions.";
 
 
 Global`$MBAnalyticaCacheDirectory::usage =
-"$MBAnalyticaCacheDirectory is the folder for the caches and logs of MBAnalytica; the default is \
+"$MBAnalyticaCacheDirectory is the folder for the caches and logs of MBAnalytica, with the default \
 $UserBaseDirectory/ApplicationData/MBAnalytica.";
 
 

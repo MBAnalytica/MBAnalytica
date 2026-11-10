@@ -638,8 +638,14 @@ $mbtFailedPieces = {};
 (* Cache version: bump to invalidate all legacy disk/in-memory cache entries (e.g.
    pre-hardening 0-fallbacks that would otherwise be silently trusted).  v2 = the
    recovery-first / no-silent-drop hardening of 2026-06-18; v3 rejects the
-   HarmonicSums-Indeterminate fast-path cache poisoning found on 2026-08-28. *)
-$mbtCacheVersion = 3;
+   HarmonicSums-Indeterminate fast-path cache poisoning found on 2026-08-28; v4 (2026-11-09) drops every value computed
+   before the native integrators refused cubes with nonlinear factors and before the complete corner search. *)
+$mbtCacheVersion = 4;
+(* the SHA-256 hashes of the native integrators (the plain and the guarded HyperFLINT) are part of every piece key, so
+   that a value computed by another build of the integrators is never reused (2026-11-09) *)
+mbtNativeFingerprint[] := mbtNativeFingerprint[] = Hash[
+  Map[If[StringQ[#] && FileExistsQ[#], FileHash[#, "SHA256"], None] &,
+    {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], "SHA256"];
 
 (* Round 26 (2026-06-13): FIX the standard route for corner-singularity
    integrands.  Root cause: Round 10 switched the corner-sing branch from the
@@ -6778,7 +6784,7 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
        trusting those legacy zeros would silently drop a piece and BYPASS the
        $mbtFailedPieces ledger.  Bumping the version makes every legacy entry a miss
        so it is recomputed through the hardened recovery-first closer. *)
-    key = {MBAnalytica`SymbolicInt`Private`$mbtCacheVersion, canon, ctr, vrs};
+    key = {MBAnalytica`SymbolicInt`Private`$mbtCacheVersion, MBAnalytica`SymbolicInt`Private`mbtNativeFingerprint[], canon, ctr, vrs};
     (* In-memory cache hit *)
     If[KeyExistsQ[MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache, key],
       MBAnalytica`SymbolicInt`Private`$mbtCacheHits++;

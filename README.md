@@ -39,7 +39,7 @@ git clone https://github.com/MBAnalytica/MBAnalytica.git
 cd MBAnalytica
 ```
 
-2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3) by running the command below, which checks them and installs the missing ones after you answer `y`.
+2. Install the system packages that `MBAnalytica` needs (a C++ compiler, `cmake`, GMP, MPFR, FLINT, GiNaC and Python 3) by running the command below, which checks them and installs the missing ones after you answer `y`. It uses the first `cmake` that runs (on Linux the first one on your `PATH`, on macOS the one of Homebrew), and `make deps CMAKE=/path/to/cmake` chooses another one.
 
 ```bash
 make deps
@@ -59,6 +59,8 @@ The above command also downloads [MB.m, MBresolve.m and barnesroutines.m](https:
 make test
 ```
 
+The regression tests, which check exact results and controlled refusals of the package in a few minutes, are run with `make regression`.
+
 
 ## Files
 
@@ -67,7 +69,7 @@ make test
 | `MBAnalytica.wl` | Main package file |
 | `src/` | The three methods, the top-level command `MBEvaluate` and the command `CosmoTreeMB` |
 | `dep/` | Bundled packages, and the folders into which the downloaded packages and tables are installed |
-| `tests/` | Installation test and benchmark integrals |
+| `tests/` | Installation and regression tests, and benchmark integrals |
 | `Examples.nb` | Example evaluations |
 | `Makefile` | Installation |
 

@@ -231,7 +231,8 @@ withPlainSeries[expr_]:=Module[{dv=DownValues[Series],r},
 If[!ValueQ[$pieceCacheDir],$pieceCacheDir=FileNameJoin[{$closeStateDir,"piece_cache"}]];
 Quiet@CreateDirectory[$closeStateDir,CreateIntermediateDirectories->True];
 Quiet@CreateDirectory[$pieceCacheDir];
-pcKey[F_,ctr_]:=Hash[{F,Sort[ctr]},"SHA256","HexString"];
+(* the native integrators are part of the key (2026-11-09): a value of another build of HyperFLINT is not reused *)
+pcKey[F_,ctr_]:=Hash[{F,Sort[ctr],MBAnalytica`SymbolicInt`Private`mbtNativeFingerprint[]},"SHA256","HexString"];
 (* 2026-10-01 REFUSAL MEMORY (the MB8 family's two passes over item {43,3} re-ran every refused chain: 13771 s + 11187 s):
    a piece the worker chain refused is recorded with the chain version and the reasons; while the version is unchanged a
    later pass sends the piece straight to the lane/engine stages instead of running the chain again *)
@@ -723,7 +724,7 @@ rewriteTerm[g_,vs_List]:=Module[{h,args,dens,pt,ok,slope2Q},
    result that came back from closeTermRaw with its gates passed; a refused term (Failure) is never stored. *)
 If[!ValueQ[$termCacheDir],$termCacheDir=FileNameJoin[{$closeStateDir,"term_cache"}]];
 Quiet@CreateDirectory[$termCacheDir];
-closeTerm[g0_,ctr0_]:=Module[{key=Hash[{g0,Sort[Normal[ctr0]],T,e0,eta},"SHA256","HexString"],cf,r},
+closeTerm[g0_,ctr0_]:=Module[{key=Hash[{g0,Sort[Normal[ctr0]],T,e0,eta,MBAnalytica`SymbolicInt`Private`mbtNativeFingerprint[]},"SHA256","HexString"],cf,r},
   cf=FileNameJoin[{$termCacheDir,key<>".m"}];
   r=If[FileExistsQ[cf],Quiet@Check[Get[cf],$Failed],$Failed];
   If[AssociationQ[r]&&r["G"]===g0&&KeyExistsQ[r,"Laurent"],

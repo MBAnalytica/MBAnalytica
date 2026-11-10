@@ -908,6 +908,18 @@ TransformResultSym transform_word_impl(const PolyCtx& ctx,
         LinearFactorization lf_den = linear_factors(p.den(), var_idx,
                                                      zw_tab,
                                                      introduce_algebraic_letters);
+        // MBAnalytica (audit of 2026-11-09): a logarithmic differential needs
+        // EVERY numerator and denominator factor.  A factor that is not linear
+        // in the integration variable cannot be dropped: 1/(1+x+y^2+z^2) came
+        // out equal to 1/(1+x+y^2), and with algebraic_letters=false the
+        // two-fold cube gave Log[2].  algebraic_letters=true can still leave a
+        // quadratic unsplit when its discriminant depends on a later axis.
+        // The transformation is refused in every case (it was the separate
+        // guarded build before); the refusal reaches the caller as a failed
+        // request, see the TransformFailed handling in integration_step.cpp.
+        if (!lf_num.nonlinear.empty() || !lf_den.nonlinear.empty()) {
+            throw TransformFailed{};
+        }
         std::vector<LinearFactor> facts = lf_num.linear;
         for (auto& f : lf_den.linear) {
             facts.push_back(LinearFactor{-f.multiplicity, std::move(f.pole)});

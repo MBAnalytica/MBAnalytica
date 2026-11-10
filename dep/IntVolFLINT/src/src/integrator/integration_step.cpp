@@ -2151,6 +2151,16 @@ RegulatorSym integration_step(const PolyCtx& ctx,
             // R26 C1 — divergence detection from check_divergences
             // mode.  Same rationale as IntegrationStepFailed.
             throw;
+        } catch (const TransformFailed&) {
+            // MBAnalytica (audit of 2026-11-09): a refused transformation
+            // (a factor that is not linear in the integration variable).
+            // Never rethrown inside the OMP region (escape is UB ->
+            // std::terminate): flag it, and the host throws after the
+            // barrier.
+            set_transform_failed_flag();
+            hyperflint::IntegrationNodeRssSampler::instance()
+                .snapshot_thread_records();
+            return;
         } catch (const std::runtime_error&) {
             if (tolerance_enabled()) {
                 g_narrow_ctx_too_narrow.store(true,
@@ -2210,6 +2220,7 @@ RegulatorSym integration_step(const PolyCtx& ctx,
     // integration_step calls are serial (the var-step loop and the lazy
     // addend loop are both serial), so this reset cannot race a sibling.
     reset_nonlinear_den_flag();
+    reset_transform_failed_flag();
 
     // Phase 1 Task 1.E (post-FOLD-7): runtime gate between GCD dispatch
     // and OMP parallel-for.  Default (HF_USE_GCD unset or "0"): OMP path,
@@ -2380,6 +2391,11 @@ RegulatorSym integration_step(const PolyCtx& ctx,
     // is UB). Default path (flag clear): single relaxed-load no-op.
     if (nonlinear_den_was_unsupported()) {
         throw NonlinearDenominatorUnsupported{nonlinear_den_detail()};   // IVF: carries the named factor
+    }
+
+    // MBAnalytica (audit of 2026-11-09): a worker refused a transformation.
+    if (transform_failed_was_set()) {
+        throw TransformFailed{};
     }
 
     // Phase-d15: sum per-thread per-primitive timers and write into the

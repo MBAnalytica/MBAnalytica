@@ -154,23 +154,30 @@ Module[{},
   (* start nH helper processes on a job (an association written to <store>/job_<pid>_<hash>/job.wxf); helper k takes the
      items in the order: 1 from the end, 2 from the middle outwards, 3 from a third of the list (the caller takes them
      from the start); a helper that is not running ten seconds later (a licence refused at that moment, ...) is started
-     once more.  Returns {processes, job directory}. *)
+     once more.  The wait ends as soon as every helper has either written its start marker (OFT_MARKER, the first statement
+     of oft_residue_helper.wls) or stopped, instead of always after ten seconds (audit of 2026-11-09: ten idle seconds of
+     the calling process on every start).  Returns {processes, job directory}. *)
   Global`orsStartHelpers[job_Association, tag_, nH_Integer, verbose_] := Module[
-    {root = Global`orsRoot[], jobDir, jobFile, orders, kernel = MBAnalytica`SymbolicInt`Private`$mbtMathExecutable, start, procs},
+    {root = Global`orsRoot[], jobDir, jobFile, orders, kernel = MBAnalytica`SymbolicInt`Private`$mbtMathExecutable, start, procs,
+     marker, settled, deadline},
     jobDir = FileNameJoin[{root, "job_" <> ToString[$ProcessID] <> "_" <> IntegerString[Hash[tag], 16]}];
     Quiet@CreateDirectory[jobDir, CreateIntermediateDirectories -> True];
     jobFile = FileNameJoin[{jobDir, "job.wxf"}];
     Export[jobFile, Append[job, "Owner" -> $ProcessID], "WXF"];
     orders = Global`orsHelperOrders[nH];
-    start[o_String, lg_String] := Quiet@Check[StartProcess[{"bash", "-c", StringJoin["exec '", kernel,
+    start[o_String, lg_String, mk_String] := Quiet@Check[StartProcess[{"bash", "-c", StringJoin["exec '", kernel,
         "' -noinit -noprompt -script '", Global`$orsHelperScript, "' >> '", lg, "' 2>&1"]},
-      ProcessEnvironment -> Join[Association[GetEnvironment[]], <|"OFT_JOB" -> jobFile, "OFT_ORDER" -> o, "OFT_STORE" -> root|>]], $Failed];
-    procs = Table[start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}]], {k, nH}];
-    Pause[10];
+      ProcessEnvironment -> Join[Association[GetEnvironment[]],
+        <|"OFT_JOB" -> jobFile, "OFT_ORDER" -> o, "OFT_STORE" -> root, "OFT_MARKER" -> mk|>]], $Failed];
+    marker[k_Integer, attempt_Integer] := FileNameJoin[{jobDir, "started_" <> ToString[k] <> "_" <> ToString[attempt]}];
+    settled[p_, mk_String] := FileExistsQ[mk] || Head[p] =!= ProcessObject || ProcessStatus[p] =!= "Running";
+    procs = Table[start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}], marker[k, 1]], {k, nH}];
+    deadline = AbsoluteTime[] + 10;
+    While[AbsoluteTime[] < deadline && ! AllTrue[Range[nH], settled[procs[[#]], marker[#, 1]] &], Pause[0.25]];
     procs = Table[If[Head[procs[[k]]] === ProcessObject && ProcessStatus[procs[[k]]] === "Running", procs[[k]],
         If[verbose, Print["  [residue store] helper ", k, " stopped at start (exit code ",
           If[Head[procs[[k]]] === ProcessObject, ProcessInformation[procs[[k]]]["ExitCode"], "-"], "); starting it again"]];
-        Pause[5]; start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}]]], {k, nH}];
+        Pause[5]; start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}], marker[k, 2]]], {k, nH}];
     procs = Select[procs, Head[#] === ProcessObject &];
     If[verbose, Print["  [residue store] ", Length[procs], " helper process(es) started (orders ", Take[orders, Length[procs]],
       "), store ", root]];

@@ -789,26 +789,55 @@ Module[{},
      subtraction cannot see (MB9's residue 18: (1 - y + x y u v)^(-1+5 eps) with the face (1-y)^(-1+..)); a corner with
      no face on its atoms and a simple pole is an ordinary integrable letter of the piece (all of MB5's sealed
      orders carry such letters), and blowing it up would only cascade. *)
-  Global`fcuCornerLetters[expr_, vars_, eps_] := Module[{terms, out = {}},
+  (* the SHA-256 hashes of the native integrators of this session (the plain and the guarded HyperFLINT), for the keys
+     of the coefficient banks *)
+  Global`fcuNativeState[] := Global`fcuNativeState[] = Hash[Map[If[StringQ[#] && FileExistsQ[#], FileHash[#, "SHA256"], None] &,
+    {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary, Global`$ivfBin}], "SHA256"];
+  (* Missing["Incomplete"] when the vanishing sets of a letter could not all be found: an unknown corner structure is not
+     an absence of corners *)
+  Global`fcuCornerLetters[expr_, vars_, eps_] := Catch[Module[{terms, out = {}},
     terms = If[Head[#] === Plus, List @@ #, {#}] &[Expand[expr]];
-    Do[Module[{ex = Global`fcuAtomExponents[t, vars], letters, sets = <||>, whose = <||>},
+    Do[Module[{ex = Global`fcuAtomExponents[t, vars], letters, sets = <||>, whose = <||>, vs},
        letters = DeleteDuplicates[Cases[t, Power[b_, p_] /; ! Global`fcuAtomQ[b, vars] && ! FreeQ[b, Alternatives @@ vars] &&
            IntegerQ[Simplify[p /. eps -> 0]] && (p /. eps -> 0) <= -1 :> {b, -(p /. eps -> 0)}, {0, Infinity}]];
-       Do[Do[sets[S] = Lookup[sets, Key[S], 0] + L[[2]]; whose[S] = Append[Lookup[whose, Key[S], {}], L[[1]]],
-          {S, Global`fcuVanishingSets[L[[1]], vars]}], {L, letters}];
+       Do[vs = Global`fcuVanishingSets[L[[1]], vars];
+          If[MissingQ[vs], Throw[Missing["Incomplete"], "fcuCorners"]];
+          Do[sets[S] = Lookup[sets, Key[S], 0] + L[[2]]; whose[S] = Append[Lookup[whose, Key[S], {}], L[[1]]],
+          {S, vs}], {L, letters}];
        Do[Module[{A = 0},
           Do[Module[{atom = If[r[[2]] === 0, r[[1]], 1 - r[[1]]], a},
              a = Simplify[Lookup[ex, atom, 0] /. eps -> 0]; A += a + 1], {r, S}];
           If[A <= sets[S], out = Join[out, whose[S]]]], {S, Keys[sets]}]], {t, terms}];
-    DeleteDuplicates[out]];
-  (* a minimal set of (variable -> side) whose joint substitution kills the letter exactly; None if the letter does not
-     vanish on the closed cube (sizes 2, 3, 4 tried; size 1 would be a face factor, which normalisation has pulled out) *)
-  Global`fcuVanishingSets[P_, vars_] := Module[{cands, found = {}},
-    cands = Flatten[Table[{v -> 0, v -> 1}, {v, vars}], 1];
-    Do[found = Select[Subsets[cands, {n}], DuplicateFreeQ[First /@ #] && Expand[P /. #] === 0 &];
-       If[found =!= {}, Break[]], {n, 2, Min[4, Length[vars]]}];
-    found];
-  Global`fcuVanishingSet[P_, vars_] := With[{s = Global`fcuVanishingSets[P, vars]}, If[s === {}, None, First[s]]];
+    DeleteDuplicates[out]], "fcuCorners"];
+  (* the inclusion-minimal sets of (variable -> side), of two or more variables, whose joint substitution kills the
+     letter exactly (size 1 would be a face factor, which normalisation has pulled out).  Every size is searched, and a
+     superset of a set already found is skipped instead of ending the search: stopping at the first size with a set,
+     and at size 4, missed {y, z, w} -> 0 of x y + x z + x w + y z w and the origin of x + y + z + w + v (audit of
+     2026-11-09).  When the search would need more than $fcuVanishingBudget substitutions, the result is
+     Missing["Incomplete", found], never a list that could be read as "no corner" *)
+  If[! IntegerQ[Global`$fcuVanishingBudget], Global`$fcuVanishingBudget = 200000];
+  (* breadth first, size by size: every set of size n + 1 extends a set of size n by a variable of a later position,
+     with the substituted polynomial of the shorter set carried along, so that each step substitutes one variable *)
+  Global`fcuVanishingSets[P_, vars_] := Module[{found = {}, count = 0, level, next, nv = Length[vars]},
+    Catch[
+      level = Flatten[Table[{{j}, {vars[[j]] -> a}, Expand[P /. vars[[j]] -> a]}, {j, nv}, {a, {0, 1}}], 1];
+      count = Length[level];
+      Do[
+        next = {};
+        Do[Module[{last = Last[node[[1]]]},
+            Do[Module[{S = Append[node[[2]], vars[[j]] -> a], Q},
+                If[AnyTrue[found, SubsetQ[S, #] &], Continue[]];
+                count++;
+                If[count > Global`$fcuVanishingBudget, Throw[Missing["Incomplete", found], "fcuVanishing"]];
+                Q = Expand[node[[3]] /. vars[[j]] -> a];
+                If[Q === 0, AppendTo[found, S], AppendTo[next, {Append[node[[1]], j], S, Q}]]],
+              {j, last + 1, nv}, {a, {0, 1}}]],
+          {node, level}];
+        level = next,
+        {n, 2, nv}];
+      found, "fcuVanishing"]];
+  Global`fcuVanishingSet[P_, vars_] := With[{s = Global`fcuVanishingSets[P, vars]},
+    Which[MissingQ[s], s, s === {}, None, True, First[s]]];
   (* a corner variable is DOUBLE-ENDED in an expression when it also carries a pole face at its other end *)
   Global`fcuDoubleEndedQ[expr_, r_Rule, eps_] := With[{v = r[[1]], side = r[[2]]},
     ! FreeQ[expr, Power[If[side === 0, 1 - v, v], p_] /; IntegerQ[Simplify[p /. eps -> 0]] && (p /. eps -> 0) <= -1]];
@@ -833,14 +862,15 @@ Module[{},
         Global`fcu$fail["blow-up: more than " <> ToString[Global`$fcuMaxSectors] <> " sectors"]];
       sec = First[queue]; queue = Rest[queue];
       corners = Global`fcuCornerLetters[sec[[1]], sec[[2]], eps];
+      If[MissingQ[corners], Global`fcu$fail["blow-up: the corner search of a sector is incomplete"]];
       If[corners === {}, AppendTo[done, sec]; Continue[]];
       P = First[corners];
       (* among the minimal vanishing sets of the corner, prefer one whose variables carry no pole face at their other
          end: substituting such a variable cannot turn its far face into a new corner (1 - x_j t_i), which is what
          made the decomposition cascade on MB9's residue 18 (52 corners, then a cap) *)
       Module[{sets = Global`fcuVanishingSets[P, sec[[2]]]},
-        If[sets === {}, Global`fcu$fail["blow-up: no vanishing set for " <> ToString[P, InputForm]]];
-        S = First[SortBy[sets, Count[#, r_ /; Global`fcuDoubleEndedQ[sec[[1]], r, eps]] &]]];
+        If[MissingQ[sets] || sets === {}, Global`fcu$fail["blow-up: no vanishing set for " <> ToString[P, InputForm]]];
+        S = First[SortBy[sets, {Count[#, r_ /; Global`fcuDoubleEndedQ[sec[[1]], r, eps]] &, Length}]]];
       (* if every minimal set still has a double-ended variable, that variable is split at 1/2 first, so that each
          half is singular at one end only *)
       Module[{dbl = Select[S, Global`fcuDoubleEndedQ[sec[[1]], #, eps] &]},
@@ -898,7 +928,8 @@ Module[{},
                True,
                  nrm = Catch[Global`fcuNormalize[try["Cube"], try["Vars"], eps], Global`fcu$tag];
                  If[AssociationQ[nrm], AppendTo[log, {rules, ord, pl} -> ("normalisation: " <> nrm["Reason"])],
-                   nc = If[TrueQ[Global`$fcuBlowUp], Length[Global`fcuCornerLetters[nrm, try["Vars"], eps]], 0];
+                   nc = If[TrueQ[Global`$fcuBlowUp], With[{cl = Global`fcuCornerLetters[nrm, try["Vars"], eps]},
+                     If[MissingQ[cl], Infinity, Length[cl]]], 0];
                    AppendTo[log, {rules, ord, pl} -> ("ok, " <> ToString[nc] <> " corner letter(s)")];
                    ntried++;
                    AppendTo[cands, <|"Inv" -> try, "Norm" -> nrm, "Corners" -> nc, "Rules" -> rules, "Trace" -> Global`$fcuTrace|>];
@@ -1007,7 +1038,10 @@ Module[{},
     bankDir = FileNameJoin[{Global`$MBStandardCacheDir, "fcu"}]; Quiet@CreateDirectory[bankDir, CreateIntermediateDirectories -> True];
     (* the bank key carries the sector structure: a blown-up cube must not read the coefficients banked before the blow-up *)
     (* a cube that needed no sector (one sector = the cube itself) keeps the pre-blow-up key: its pieces are identical *)
-    key = IntegerString[Hash[If[Length[sectors] > 1, {norm, vars, rulesUsed, {"blow-up", Length[sectors], sectors[[All, 2]]}}, {norm, vars, rulesUsed}], "SHA256"], 16, 16];
+    (* the key also carries the native integrators: a bank written by an earlier build (one that dropped the factors that
+       are not linear in the integration variable, audit of 2026-11-09) must not be read by a rebuilt one *)
+    key = IntegerString[Hash[If[Length[sectors] > 1, {norm, vars, rulesUsed, {"blow-up", Length[sectors], sectors[[All, 2]]}, Global`fcuNativeState[]},
+      {norm, vars, rulesUsed, Global`fcuNativeState[]}], "SHA256"], 16, 16];
     (* enumerate the structural pieces of every order first (cheap), so that the worker count matches the work *)
     Module[{needK = {}, jobsBank},
       (* the enumeration itself is banked per cube order (2026-09-11: a 3-fold residue's enumeration to order 4 costs

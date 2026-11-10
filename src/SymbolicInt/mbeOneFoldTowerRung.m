@@ -444,7 +444,9 @@ Module[{dv, pos, sym, n},
          a coefficient.  Read plain constants/polynomials by Coefficient, as in the faithful-cube rung. *)
       out = Table[If[Head[ser] === SeriesData, SeriesCoefficient[ser, k],
           Coefficient[Expand[ser], eps, k]], {k, ordMin, ordMax}] + multi;
-      If[! FreeQ[out, Indeterminate | ComplexInfinity | DirectedInfinity | $Failed | SeriesCoefficient | HypergeometricPFQ | HypExp`HypExp],
+      (* a Laurent coefficient is free of the regulator and of unfinished series (audit of 2026-11-09) *)
+      If[! FreeQ[out, Indeterminate | ComplexInfinity | DirectedInfinity | $Failed | SeriesCoefficient | HypergeometricPFQ | HypExp`HypExp] ||
+          ! FreeQ[out, eps] || ! FreeQ[out, SeriesData | Series],
         If[verbose, Print["  tower family: assembly is not a clean Laurent expansion"]];
         Message[MBresolveToMPL::ofcfail, -1]; Throw[$Failed, Global`oftTag]];
       out = Table[Module[{cc = out[[j]], sc},

@@ -246,13 +246,104 @@ contourDecayCertificate[ig_, vars_, dom_] := Module[
   If[positive === {} || MatrixRank[positive] =!= Length[vars], Return[None, Module]];
   <|"StrictExponentialDecay" -> True, "Directions" -> unique, "Weights" -> net|>];
 
+(* A second sufficient Stirling bound: when, for every MB variable z_k, the numerator legs in z_k alone outweigh all
+   reciprocal legs together (each counted with its power times the modulus of its coefficient of z_k), the integrand
+   decays exponentially in every direction.  Numerator legs of several variables only add decay, and polygamma and
+   rational factors grow at most polynomially *)
+coordinateDecayCertificate[ig_, vars_, dom_] := Module[
+  {kin, own = ConstantArray[0, Length[vars]], against = ConstantArray[0, Length[vars]], leg, multiplicity, vector},
+  kin = Select[factors[ig], MatchQ[#, _Power] && !FreeQ[#[[2]], Alternatives @@ vars] &];
+  If[!AllTrue[kin, FreeQ[#[[1]], Alternatives @@ vars] && affineQ[#[[2]], vars] &&
+      prove[#[[1]] > 0, dom] &], Return[None, Module]];
+  Do[Which[MatchQ[f, _Gamma], leg = f[[1]]; multiplicity = 1,
+    MatchQ[f, Power[_Gamma, _Integer]], leg = f[[1, 1]]; multiplicity = f[[2]],
+    FreeQ[f, Gamma[l_] /; !FreeQ[l, Alternatives @@ vars]], Continue[],
+    True, Return[None, Module]];
+    If[FreeQ[leg, Alternatives @@ vars], Continue[]];
+    If[!affineQ[leg, vars], Return[None, Module]];
+    vector = Coefficient[leg, #] & /@ vars;
+    If[!AllTrue[vector, MatchQ[#, _Integer | _Rational] &], Return[None, Module]];
+    Which[
+      multiplicity < 0, against = against + Abs[multiplicity] Abs[vector],
+      Count[vector, Except[0]] === 1, own = own + multiplicity Abs[vector]], {f, factors[ig]}];
+  If[!AllTrue[own - against, TrueQ[# > 0] &], Return[None, Module]];
+  <|"StrictExponentialDecay" -> True, "Bound" -> "CoordinateDominance", "Own" -> own, "Against" -> against|>];
+
+(* The order of the poles that the factors with the argument l give on its hyperplanes l = 0, -1, -2, ...: each
+   Gamma[l] counts its power, each PolyGamma[m, l] counts m + 1 per power, and a reciprocal Gamma[l] counts its negative
+   power.  Missing[] when a Gamma or polygamma function is not a plain factor of the integrand (a sum, or a nested
+   argument), so that the caller keeps its stricter test *)
+legPoleOrder[ig_, l_] := Module[{order = 0},
+  Do[Which[
+    f === Gamma[l], order += 1,
+    MatchQ[f, Power[Gamma[l], _Integer]], order += f[[2]],
+    MatchQ[f, PolyGamma[_Integer, l]], order += f[[1]] + 1,
+    MatchQ[f, Power[PolyGamma[_Integer, l], _Integer?Positive]], order += f[[2]] (f[[1, 1]] + 1),
+    MatchQ[f, Gamma[_] | Power[Gamma[_], _Integer] | PolyGamma[_Integer, _] | Power[PolyGamma[_Integer, _], _Integer?Positive]], Null,
+    !FreeQ[f, Gamma | PolyGamma], Return[Missing[], Module]],
+    {f, factors[ig]}];
+  order];
+
+(* Reciprocal Gamma legs at a non-positive integer on the contour are zeros of the integrand: they do not constrain the
+   contour, but the Euler constructions and the numerical contour gate stall on them (F3(1, 1; 1, 1; eps; x, y): the
+   contour s = t = -1/2 lies on the zero line s + t = -1 of 1/Gamma(s + t), and the exact candidates of every order were
+   rejected).  The contour is moved off them along a generic direction, inside its pole chamber, every wall keeping at
+   least half of its margin, with a decay certificate for the homotopy; None when no certificate or no such point *)
+moveOffZeroLegs[ig_, ctr_, vars_, walls_, zeroLegs_, dom_] := Module[{decay, directions, bounds, tau, point},
+  decay = contourDecayCertificate[ig, vars, dom];
+  If[!AssociationQ[decay], decay = coordinateDecayCertificate[ig, vars, dom]];
+  If[!AssociationQ[decay], Return[None, Module]];
+  directions = Table[Table[1/Prime[i + j], {i, Length[vars]}], {j, 0, 5}];
+  Do[
+    bounds = Table[With[{x = w[[1]] /. ctr, gd = (Coefficient[w[[1]], #] & /@ vars) . d},
+      If[gd === 0, Infinity,
+        Min[If[w[[2]] === -Infinity, Infinity, x - w[[2]]], If[w[[3]] === Infinity, Infinity, w[[3]] - x]]/(2 Abs[gd])]],
+      {w, walls}];
+    tau = Min[Append[bounds, 1/10]];
+    point = Thread[vars -> ((vars /. ctr) + tau d)];
+    If[AllTrue[walls, TrueQ[#[[2]] < (#[[1]] /. point) < #[[3]]] &] && AllTrue[zeroLegs, !IntegerQ[# /. point] &],
+      Return[<|"OriginalContour" -> ctr, "Contour" -> point, "Walls" -> walls, "SamePoleChamber" -> True,
+        "DecayCertificate" -> decay, "ReciprocalZerosAvoided" -> zeroLegs|>, Module]],
+    {d, directions}];
+  None];
+
+(* The contour of an expanded MB integral is moved off the zero lines of its reciprocal Gamma functions before the
+   integrand is split into terms.  The sum is regular there, but a single term can have a pole on such a line: for
+   F3(1, 1; 1, 1; eps; x, y), the contour s = t = -1/2 of MBresolve lies on the line s + t = -1, on which the term
+   PolyGamma[0, s + t]^2/Gamma[s + t] of the expansion of 1/Gamma(eps + s + t) is singular.  The new contour stays
+   inside the pole chamber of the numerator Gamma functions and of the rational factors, so that the sum of the terms
+   keeps its value; the contour is returned unchanged when no reciprocal Gamma function lies on a zero line *)
+offZeroContour[integrand_, ctr_, vars_, dom_] := Module[{expanded, terms, numerator, reciprocal, rational, zeroLegs,
+    walls = {}, moved},
+  If[vars === {}, Return[ctr, Module]];
+  expanded = Expand[integrand];
+  terms = If[Head[expanded] === Plus, List @@ expanded, {expanded}];
+  numerator = DeleteDuplicates[Flatten[Map[Cases[factors[#], Gamma[l_] | Power[Gamma[l_], _Integer?Positive] :> l] &, terms]]];
+  reciprocal = DeleteDuplicates[Flatten[Map[Cases[factors[#], Power[Gamma[l_], _Integer?Negative] :> l] &, terms]]];
+  numerator = Select[numerator, !FreeQ[#, Alternatives @@ vars] &];
+  reciprocal = Select[reciprocal, !FreeQ[#, Alternatives @@ vars] &];
+  zeroLegs = Select[reciprocal, With[{x = # /. ctr}, IntegerQ[x] && x <= 0] &];
+  If[zeroLegs === {}, Return[ctr, Module]];
+  If[!AllTrue[Join[numerator, zeroLegs], affineQ[#, vars] &], Return[ctr, Module]];
+  rational = Cases[terms, Power[q_, k_Integer?Negative] /; PolynomialQ[q, vars] && !FreeQ[q, Alternatives @@ vars] :> q, {0, Infinity}];
+  rational = DeleteDuplicates@Flatten[First /@ Select[FactorList[#], !FreeQ[First[#], Alternatives @@ vars] &] & /@ rational];
+  If[!AllTrue[rational, affineQ[#, vars] &], Return[ctr, Module]];
+  Do[With[{x = l /. ctr},
+    If[!MatchQ[x, _Rational | _Integer] || (IntegerQ[x] && x <= 0), Return[ctr, Module]];
+    AppendTo[walls, {l, If[x > 0, 0, Floor[x]], If[x > 0, Infinity, Ceiling[x]]}]], {l, numerator}];
+  Do[With[{x = l /. ctr},
+    If[!MatchQ[x, _Rational | _Integer] || x === 0, Return[ctr, Module]];
+    AppendTo[walls, {l, If[x > 0, 0, -Infinity], If[x > 0, Infinity, 0]}]], {l, rational}];
+  moved = moveOffZeroLegs[First[terms], ctr, vars, walls, zeroLegs, dom];
+  If[AssociationQ[moved], moved["Contour"], ctr]];
+
 (* A numerical resolver can choose a contour arbitrarily close to a pole.
    Move only within its exact affine pole chamber, and record the proof.
    Reciprocal-Gamma zeros are also kept in their bands (a stronger condition
    than necessary). The new point is an interior convex combination, avoiding
    gratuitous integral coordinates from an LP vertex. *)
 centerParameterContour[ig_, ctr_, vars_, dom_: True] := Module[
-  {legs, rational, walls = {}, rows = {}, rhs = {}, values, margins, oldMargin,
+  {legs, rational, walls = {}, zeroLegs = {}, rows = {}, rhs = {}, values, margins, oldMargin,
    constant, gradient, sol, point, valid, decay},
   If[vars === {}, Return[None, Module]];
   legs = DeleteDuplicates@Cases[ig, Gamma[l_] :> l, {0, Infinity}];
@@ -264,11 +355,14 @@ centerParameterContour[ig_, ctr_, vars_, dom_: True] := Module[
       AllTrue[Last /@ CoefficientRules[#, vars], MatchQ[#, _Rational | _Integer] &] &], Return[None, Module]];
   Do[With[{x = l /. ctr},
     If[!MatchQ[x, _Rational | _Integer], Return[None, Module]];
+    (* a non-positive integer of a reciprocal Gamma is a zero of the integrand, not a pole *)
+    If[IntegerQ[x] && x <= 0 && TrueQ[legPoleOrder[ig, l] <= 0], AppendTo[zeroLegs, l]; Continue[]];
     If[IntegerQ[x] && x <= 0, Return[fail["Gamma or polygamma pole lies on the supplied contour."], Module]];
     AppendTo[walls, {l, If[x > 0, 0, Floor[x]], If[x > 0, Infinity, Ceiling[x]]}]], {l, legs}];
   Do[With[{x = l /. ctr},
     If[!MatchQ[x, _Rational | _Integer] || x === 0, Return[None, Module]];
     AppendTo[walls, {l, If[x > 0, 0, -Infinity], If[x > 0, Infinity, 0]}]], {l, rational}];
+  If[zeroLegs =!= {}, Return[moveOffZeroLegs[ig, ctr, vars, walls, zeroLegs, dom], Module]];
   If[walls === {}, Return[None, Module]];
   margins = Flatten[Table[With[{x = w[[1]] /. ctr},
     {If[w[[2]] === -Infinity, Infinity, x - w[[2]]], If[w[[3]] === Infinity, Infinity, w[[3]] - x]}], {w, walls}]];
@@ -452,6 +546,7 @@ resolvedExpansion[f_, ep_, c_, lo_, hi_, seconds_] := Module[
   xx = Quiet@MB`MBexpand[rr, 1, {ep, 0, hi}];
   If[!ListQ[xx] || !AllTrue[xx, MatchQ[#, MB`MBint[_, {_, _List}]] &], Return[fail["Parameter MBexpand failed."], Module]];
   Do[ctr = part[[2, 2]] /. r_Real :> SetPrecision[r, Infinity]; vars = First /@ ctr;
+    ctr = offZeroContour[part[[1]], ctr, vars, c["Assumptions"]];
     terms = If[Head[Expand[part[[1]]]] === Plus, List @@ Expand[part[[1]]], {Expand[part[[1]]]}];
     Do[power = Exponent[Numerator[Together[tm]], ep] - Exponent[Denominator[Together[tm]], ep];
       If[!IntegerQ[power], Return[fail["Noninteger Laurent order."], Module]];
