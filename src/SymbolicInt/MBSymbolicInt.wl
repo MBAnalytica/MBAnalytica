@@ -639,8 +639,10 @@ $mbtFailedPieces = {};
    pre-hardening 0-fallbacks that would otherwise be silently trusted).  v2 = the
    recovery-first / no-silent-drop hardening of 2026-06-18; v3 rejects the
    HarmonicSums-Indeterminate fast-path cache poisoning found on 2026-08-28; v4 (2026-11-09) drops every value computed
-   before the native integrators refused cubes with nonlinear factors and before the complete corner search. *)
-$mbtCacheVersion = 4;
+   before the native integrators refused cubes with nonlinear factors and before the complete corner search; v5
+   (2026-11-10) every value computed before the corner search counted the unions of the vanishing sets and the vanishing
+   orders of the letters (a corner it missed could give a cube without its pole). *)
+$mbtCacheVersion = 5;
 (* the SHA-256 hashes of the native integrators (the plain and the guarded HyperFLINT) are part of every piece key, so
    that a value computed by another build of the integrators is never reused (2026-11-09) *)
 mbtNativeFingerprint[] := mbtNativeFingerprint[] = Hash[

@@ -165,7 +165,7 @@ PSCubeCandidates[term_,ep_Symbol,pars_List]:=Module[
  SortBy[DeleteDuplicatesBy[rows,{#["Cube"],#["Variables"],#["Prefactor"]}&],{Length[#["Variables"]],LeafCount[#["Cube"]]}&]]];
 
 PSPrepareCube[r_Association,ep_Symbol,lo_Integer,hi_Integer,pars_List]:=Catch[Module[
- {pcs,pl,ps,top,series,low,logs,jobs={},jj,idx=0,minCube,prefSer},
+ {pcs,pl,ps,top,series,low,logs,jobs={},jj,idx=0,minCube,prefSer,corners},
  ps=PSGammaSeries[r["Prefactor"],ep,Max[0,hi]];If[FailureQ[ps],Throw[ps,seriesTag]];
  pl=Global`fcuLeadOrderOfSeries[ps,r["Prefactor"]];If[!IntegerQ[pl],Throw[refuse["Unresolved cube prefactor valuation"],seriesTag]];
  top=hi-pl;
@@ -175,6 +175,15 @@ PSPrepareCube[r_Association,ep_Symbol,lo_Integer,hi_Integer,pars_List]:=Catch[Mo
  series=Table[TimeConstrained[Series[Global`fcuApplyOps[p,p["R"],ep],{ep,0,Max[0,top]}],120,$Failed],{p,pcs}];
  If[!FreeQ[series,$Failed|_Series|Indeterminate|ComplexInfinity],Throw[refuse["Endpoint moment expansion refused"],seriesTag]];
  low=MapThread[Global`fcuLeadOrderOfSeries[#1,Global`fcuApplyOps[#2,#2["R"],ep]]&,{series,pcs}];
+ (* a piece whose integrand starts above the requested orders gets no coefficient job, and nothing checks its integral.
+    It is zero there only when the integral converges, which the face subtraction gives unless the cube has a dangerous
+    corner: (x+y)^(-1+ep)(x+z)^(-1+ep)(y+z)^(-1+ep) has no job below ep^0 and the pole Pi^2/(12 ep) (review of a6af3be).
+    A corner, or a corner search that is incomplete or runs out of time, refuses the cube (the corner-aware ladder
+    takes it) *)
+ If[AnyTrue[low,#===Infinity||#>top&],
+   corners=TimeConstrained[Global`fcuCornerLetters[r["Cube"],r["Variables"],ep],120,$Aborted];
+   If[corners=!={},Throw[refuse["A piece without coefficient jobs is not certified zero: the cube has a dangerous corner or an unresolved corner search",
+     <|"Corners"->corners|>],seriesTag]]];
  minCube=Min[low];If[minCube===Infinity,minCube=0];
  prefSer=PSGammaSeries[r["Prefactor"],ep,hi-minCube];If[FailureQ[prefSer],Throw[prefSer,seriesTag]];
  Do[If[low[[j]]===Infinity,Continue[]];

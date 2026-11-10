@@ -281,15 +281,23 @@ LiTaylor[Word_List, NMax_] := Module[{Blocks = {}, Count1 = 0, Nested, Inner, We
   Return[Table[If[N1 == 0, 0, (-1)^Length[Blocks] Nested[[N1]]/N1^Blocks[[1]]], {N1, 0, NMax}]]];
 
 
-(* the result and the series agree in their Taylor coefficients through Y^OneFoldHypCheckTerms, order by order *)
-TaylorCheck[Result_, Norm_, GammaList_, X_, Eps_, Lo_, Hi_] := Module[{NMax = OneFoldHypCheckTerms, Y, Good = True},
-  Do[Module[{Coef, Series1, Direct, Terms},
+(* the result and the series agree in their Taylor coefficients through Y^OneFoldHypCheckTerms, order by order.  The
+   Taylor polynomial of every word, the truncated series and its expansion in Eps through Hi are formed once per call
+   (they were formed again for every order, and LiTaylor once per Taylor coefficient, review of a6af3be); every order is
+   still compared exactly *)
+TaylorCheck[Result_, Norm_, GammaList_, X_, Eps_, Lo_, Hi_] := Module[{NMax = OneFoldHypCheckTerms, Y, Good = True, Words,
+    Powers, WordRules, Terms, Expanded},
+  Words = DeleteDuplicates[Cases[Result, GG[Word_] :> Word, {0, Infinity}]];
+  Powers = Table[Y^I1, {I1, 0, NMax}];
+  WordRules = Map[GG[#] -> LiTaylor[#, NMax] . Powers &, Words];
+  Terms = Sum[Y^N1/N1! Product[Pochhammer[Gam[[1]] + Gam[[2]] Eps, N1]^Gam[[3]], {Gam, GammaList}], {N1, 0, NMax}];
+  Expanded = Series[Norm Terms, {Eps, 0, Hi}];
+  Do[Module[{Coef, Series1, Direct},
       Coef = Expand[Coefficient[Result, Eps, Order1]];
-      Series1 = Coef /. GG[Word_] :> Sum[LiTaylor[Word, NMax][[I1 + 1]] Y^I1, {I1, 0, NMax}];
+      Series1 = Coef /. WordRules;
       Series1 = Series1 /. X -> -Y;
       Series1 = Normal[Series[Series1, {Y, 0, NMax}]];
-      Terms = Sum[Y^N1/N1! Product[Pochhammer[Gam[[1]] + Gam[[2]] Eps, N1]^Gam[[3]], {Gam, GammaList}], {N1, 0, NMax}];
-      Direct = SeriesCoefficient[Norm Terms, {Eps, 0, Order1}];
+      Direct = SeriesCoefficient[Expanded, Order1];
       Direct = Normal[Series[Direct, {Y, 0, NMax}]];
       If[Expand[Series1 - Direct] =!= 0, Good = False]],
     {Order1, Lo, Hi}];

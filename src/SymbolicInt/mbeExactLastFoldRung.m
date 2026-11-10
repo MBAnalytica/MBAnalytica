@@ -40,10 +40,13 @@ lastFoldEngine[e_String]:=e;
 lastFoldEngine[_]:=Which[StringQ[Global`$mbeLastFoldEngine],Global`$mbeLastFoldEngine,
   StringQ[Global`$MBStandardHyperFLINTBinary],Global`$MBStandardHyperFLINTBinary,
   True,FileNameJoin[{ParentDirectory[ParentDirectory[$mbeLastFoldRungDir]],"dep","IntVolFLINT","bin","hyperflint"}]];
+(* the limit of the integrator is that of its timeout process, which ends the integrator and its children at once (exit
+   code 124), and the time constraint of the kernel, 30 s later, is only the net under it: the kernel's limit came
+   first, 5 s before that of the process (review of a6af3be) *)
 engineRun[request_,engine_,seconds_]:=Module[{run},
-  run=TimeConstrained[RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[seconds+5],MBAnalytica`Portable`StackArgs[{engine,"eval-json"}]],All,ExportString[request,"RawJSON"],
-    ProcessEnvironment-><|"OMP_NUM_THREADS"->"1","HF_DIAG_NONLINEAR"->"throw","PATH"->Environment["PATH"],"HOME"->Environment["HOME"]|>],seconds,$Failed];
-  If[run===$Failed,Return[<|"Status"->"ENGINE_TIMEOUT"|>]];
+  run=TimeConstrained[RunProcess[Join[MBAnalytica`Portable`TimeoutArgs[seconds],MBAnalytica`Portable`StackArgs[{engine,"eval-json"}]],All,ExportString[request,"RawJSON"],
+    ProcessEnvironment-><|"OMP_NUM_THREADS"->"1","HF_DIAG_NONLINEAR"->"throw","PATH"->Environment["PATH"],"HOME"->Environment["HOME"]|>],seconds+30,$Failed];
+  If[run===$Failed||run["ExitCode"]===124,Return[<|"Status"->"ENGINE_TIMEOUT"|>]];
   If[StringContainsQ[run["StandardError"],"HF_DIAG_DROPPED_NONLINEAR"],Return[<|"Status"->"ENGINE_DROPPED"|>]];
   Module[{resp=Quiet@Check[ImportString[run["StandardOutput"],"RawJSON"],$Failed]},
     If[!AssociationQ[resp]||!ListQ[Lookup[resp,"result",$Failed]],

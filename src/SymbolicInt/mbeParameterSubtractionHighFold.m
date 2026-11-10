@@ -88,7 +88,19 @@ invertRow[f_, vars_, ctr_, ep_, oo_, en_, pp_, dr_, pars_, secs_] := Module[{inv
   <|"Cube" -> cube, "Variables" -> axes, "Prefactor" -> If[AssociationQ[dr], dr["Prefactor"], 1] inv["Prefactor"] cf,
     "Order" -> oo, "Plan" -> pp, "SafeEpsilon" -> en, "Dressing" -> dr, "Inversion" -> inv,
     "PositivityProofs" -> norm["PositivityProofs"], "AffineLeafProofs" -> leaf["Proof"]|>];
-corners[row_, ep_] := TimeConstrained[Length[Global`fcuCornerLetters[row["Cube"], row["Variables"], ep]], 30, Infinity];
+(* an incomplete corner search counts as infinitely many corners (Length[Missing[...]] was 1) *)
+corners[row_, ep_] := With[{c = TimeConstrained[Global`fcuCornerLetters[row["Cube"], row["Variables"], ep], 30, $Aborted]},
+  If[ListQ[c], Length[c], Infinity]];
+(* every elimination order, in a fixed scrambled order.  Up to eight variables all orders sorted by their hash, as
+   before; above, the orders of rank (a t) mod n! for t = 0, 1, ..., a a prime above n (so every order once), as many
+   as the search time allows: all permutations of ten or eleven variables were formed and hashed first (review of
+   a6af3be) *)
+searchOrders[vars_List] := Module[{n = Length[vars], total, a},
+  If[n <= 8, Return[SortBy[Permutations[vars], Hash], Module]];
+  total = Factorial[n];
+  a = NextPrime[Max[n, Floor[total/GoldenRatio]]];
+  Table[nthPermutation[vars, Mod[a t, total]], {t, 0, Min[total, $PSHSearchOrders] - 1}]];
+If[!IntegerQ[$PSHSearchOrders], $PSHSearchOrders = 20000];
 candidateSearch[term_, ep_, pars_] := Module[{f = term[[1]], ctr = term[[2, 2]], vars, gn, en, dr, score, ordered, orders,
     rows = {}, row, best, t0 = AbsoluteTime[], all},
   vars = Keys[ctr];
@@ -108,11 +120,10 @@ candidateSearch[term_, ep_, pars_] := Module[{f = term[[1]], ctr = term[[2, 2]],
     Return[SortBy[rows, {#["Corners"], Length[#["Variables"]]} &], Module]];
   (* corner-free search over every elimination order and pairing plan *)
   If[AssociationQ[dr] || dr === None,
-    all = SortBy[Permutations[vars], Hash];
     Catch[Do[If[AbsoluteTime[] - t0 > $PSHAdaptiveSeconds, Throw[Null, cf]];
       row = invertRow[f, vars, ctr, ep, oo, en, pp, dr, pars, 20];
       If[AssociationQ[row] && Length[row["Variables"]] <= 11, row = Append[row, "Corners" -> corners[row, ep]]; AppendTo[rows, row];
-        If[row["Corners"] === 0, Throw[Null, cf]]], {oo, all}, {pp, {{}, {2}, {3}}}], cf]];
+        If[row["Corners"] === 0, Throw[Null, cf]]], {oo, searchOrders[vars]}, {pp, {{}, {2}, {3}}}], cf]];
   If[rows === {}, refuse["No positive faithful cube construction"], SortBy[rows, {#["Corners"], Length[#["Variables"]]} &]]];
 
 (* ---- 5. fibration-guided integration orders (2026-09-23) ----
@@ -135,8 +146,30 @@ heurOrders[e_, vars_List, nmax_Integer] := Module[{L, deg, leaves, quad, lin},
   leaves = Select[vars, Function[v, With[{c = Select[L, !FreeQ[#, v] &]}, Length[c] === 1 && Exponent[c[[1]], v] === 1]]];
   quad = Select[vars, deg[#] >= 2 && !MemberQ[leaves, #] &];
   lin = SortBy[Complement[vars, leaves, quad], Count[L, p_ /; !FreeQ[p, #]] &];
-  <|"Orders" -> Take[Flatten[Outer[Join, Permutations[leaves], Permutations[lin], Permutations[quad], 1], 2], UpTo[nmax]],
+  <|"Orders" -> boundedOrders[{leaves, lin, quad}, nmax],
     "Structural" -> (leaves =!= {} || quad =!= {})|>];
+(* the permutation of rank r of s in the order of Permutations[s] *)
+nthPermutation[s_List, r0_Integer] := Module[{rest = s, r = r0, out = {}, f, q},
+  Do[f = Factorial[i - 1];
+    q = Quotient[r, f];
+    r = Mod[r, f];
+    AppendTo[out, rest[[q + 1]]];
+    rest = Delete[rest, q + 1],
+    {i, Length[s], 1, -1}];
+  out];
+(* the first nmax orders of Flatten[Outer[Join, Permutations /@ blocks, 1], ...], in the same order and without forming
+   the permutations: an eleven-variable block had 39916800 of them for at most 48 orders (review of a6af3be) *)
+boundedOrders[blocks_List, nmax_Integer] := Module[{sizes, total, orders = {}, r, idx},
+  sizes = Map[Factorial[Length[#]] &, blocks];
+  total = Times @@ sizes;
+  Do[r = t;
+    idx = ConstantArray[0, Length[blocks]];
+    Do[idx[[b]] = Mod[r, sizes[[b]]];
+      r = Quotient[r, sizes[[b]]],
+      {b, Length[blocks], 1, -1}];
+    AppendTo[orders, Join @@ MapThread[nthPermutation, {blocks, idx}]],
+    {t, 0, Min[nmax, total] - 1}];
+  orders];
 
 (* ---- 5. exact absolute-convergence certificate of one finite coefficient job (Nilsson-Passare interior condition;
    subtraction_syed.tex, pilot section "Exact convergence of the rational boundary candidates").  Map x -> y/(1+y) with

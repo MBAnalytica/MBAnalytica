@@ -104,6 +104,86 @@ If[StringQ[MBAnalytica`Portable`Private`FindCommand["perl"]],
     Child = Quiet[ToExpression[StringTrim[Import[PidFile, "Text"]]]];
     Res["ExitCode"] === 124 && IntegerQ[Child] && RunProcess[{"kill", "-0", ToString[Child]}, "ExitCode"] =!= 0]]];
 
+(* the review of a6af3be (2026-11-10) *)
+(* R1. the private names of the symbol protection are fresh: a user symbol of the same name, or one with a value, is
+   neither merged with a protected parameter nor read *)
+Check1["private name taken by a user symbol",
+  Simplify[MBEvaluate[(Global`z2 + Global`mbaUserSymbol0001) BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True] -
+    (Global`z2 + Global`mbaUserSymbol0001)/2] === 0];
+Check1["private name with a value", Block[{Global`mbaUserSymbol0001 = 7},
+  MBEvaluate[Global`z2 BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True] === Global`z2/2]];
+Check1["two protected parameters", Simplify[MBEvaluate[(Global`z2 + 2 Global`ln2) BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+  Complex -> True] - (Global`z2 + 2 Global`ln2)/2] === 0];
+Check1["no private name left behind", Names["Global`mbaUserSymbolx*"] === {}];
+
+(* R2. an inexact order is refused: 0.5 and 1.5 passed the exact checks and gave zero integrands *)
+Do[Check1["CosmoTreeMB refuses the inexact order " <> ToString[Nu, InputForm],
+    CosmoTreeMB[{{1, 2}}, {1, 1}, {Nu}, "Point" -> {{3, 4}, {1}}] === $Failed],
+  {Nu, {0.5, 1.5, N[1/2, 30], 0.5 - ep}}];
+Check1["CosmoTreeMB refuses a K leg of order 1.5",
+  CosmoTreeMB[{{1, 2}}, {2, 1/2}, {1/2}, "Energies" -> {{k2, k3}, {k3}}, "KLegs" -> {{1, k1, 1.5}}, "Point" -> {{9/10, 4/5}, {4/5}, {1}}] === $Failed];
+
+(* R3. an output name never denotes two things *)
+Check1["CosmoTreeMB refuses the variable name z",
+  CosmoTreeMB[{{1, 2}}, {1, 1}, {1/2}, "Point" -> {{3, 4}, {1}}, "VariableName" -> "z"] === $Failed];
+Check1["CosmoTreeMB refuses energies named u1, u2",
+  CosmoTreeMB[{{1, 2}}, {1, 1}, {1/2}, "Energies" -> {{u1, u2}, {u3}}, "Point" -> {{3, 4}, {1}}] === $Failed];
+Check1["CosmoTreeMB with energies u1, u2 and the variable name v", With[{R = CosmoTreeMB[{{1, 2}}, {1, 1}, {1/2},
+    "Energies" -> {{u1, u2}, {u3}}, "Point" -> {{3, 4}, {1}}, "VariableName" -> "v"]},
+  ListQ[R] && Length[R] === 2 && Sort[R[[1, "Variables", All, 1]]] === {Global`v1, Global`v2} &&
+    (R[[1, "Integrand"]] /. Thread[R[[1, "Variables", All, 1]] -> Reference5[[1, "Variables", All, 1]]]) === Reference5[[1, "Integrand"]]]];
+
+(* R4. the depth of the endpoint expansion comes from the functions, not from their sum at 1 *)
+Check1["limit with cancelling functions", With[{Y = MBAnalytica`SymbolicSum`Private`MBCHVarY},
+  MBAnalytica`SymbolicSum`Private`LimitToOne[(HarmonicSums`H[1, 2, 3, 4, 1 - Y] - HarmonicSums`H[1, 2, 3, 5, 1 - Y])/(1 - Y)^4] === 1/2880]];
+
+(* R5. a coefficient is taken only from a Laurent polynomial in the regulator *)
+Check1["Laurent guard: Gamma[ep]", NotEvaluatedQ[MBAnalytica`Private`LaurentCoefficient[Gamma[ep], ep, 1, "test"]]];
+Check1["Laurent guard: 1/ep + Gamma[ep]", NotEvaluatedQ[MBAnalytica`Private`LaurentCoefficient[1/ep + Gamma[ep], ep, -1, "test"]]];
+Check1["Laurent guard: a Laurent polynomial", MBAnalytica`Private`LaurentCoefficient[1/ep^2 + 3 - Log[2] ep, ep, 1, "test"] === -Log[2]];
+
+(* R6b. the exact Taylor check of the one-fold series, once per call: Sum_n (-x)^n/(n + e) *)
+Check1["one-fold series through e^3", MBAnalytica`OneFoldHyp`OneFoldHypExpand[Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] x^z, e, {-1, 3}] ===
+  <|-1 -> 1, 0 -> -PolyLogTools`G[1, -x], 1 -> PolyLogTools`G[0, 1, -x], 2 -> -PolyLogTools`G[0, 0, 1, -x], 3 -> PolyLogTools`G[0, 0, 0, 1, -x]|>];
+
+(* perf C of the review: the scan of the System symbols is kept under a hash of their rules, and a rule of the summation
+   packages added or removed afterwards is seen *)
+Check1["rule scan kept and renewed", Module[{First1, Second1, Added, Removed, T1, T2},
+  {T1, First1} = AbsoluteTiming[MBAnalytica`Private`SymbolicSumRules[]];
+  {T2, Second1} = AbsoluteTiming[MBAnalytica`Private`SymbolicSumRules[]];
+  Unprotect[System`Erfc];
+  System`Erfc[HarmonicSums`Private`mbaRegressionProbe] := 1;
+  Added = MBAnalytica`Private`SymbolicSumRules[];
+  System`Erfc[HarmonicSums`Private`mbaRegressionProbe] =.;
+  Protect[System`Erfc];
+  Removed = MBAnalytica`Private`SymbolicSumRules[];
+  First1 =!= <||> && Second1 === First1 && KeyExistsQ[Added, "Erfc"] && ! KeyExistsQ[First1, "Erfc"] && Removed === First1]];
+
+(* R7. the Perl supervisor waits for its limit on a high-resolution clock and cleans up when it is stopped *)
+If[StringQ[MBAnalytica`Portable`Private`FindCommand["perl"]],
+  Check1["Perl supervisor keeps a command within its limit", Count[Table[RunProcess[{MBAnalytica`Portable`Private`FindCommand["perl"], "-e",
+    MBAnalytica`Portable`Private`PerlSupervisor, "1", "/bin/sh", "-c", "sleep 0.5"}, "ExitCode"], {6}], 0] === 6];
+  Check1["Perl supervisor stopped by TERM", Module[{Dir = CreateDirectory[], PidFile, P, Child},
+    PidFile = FileNameJoin[{Dir, "child"}];
+    P = StartProcess[{MBAnalytica`Portable`Private`FindCommand["perl"], "-e", MBAnalytica`Portable`Private`PerlSupervisor, "30",
+      "/bin/sh", "-c", "sleep 60 & echo $! > '" <> PidFile <> "'; sleep 60"}];
+    Pause[1.5];
+    RunProcess[{"kill", "-TERM", ToString[P["PID"]]}];
+    Pause[1.5];
+    Child = Quiet[ToExpression[StringTrim[Import[PidFile, "Text"]]]];
+    IntegerQ[Child] && RunProcess[{"kill", "-0", ToString[Child]}, "ExitCode"] =!= 0]];
+  (* an aborted RunProcess kills the supervisor's group with KILL; its watcher then kills the command's group *)
+  Check1["Perl supervisor of an aborted RunProcess", Module[{Dir = CreateDirectory[], ShFile, PidFile, R, Sh, Child},
+    ShFile = FileNameJoin[{Dir, "sh"}];
+    PidFile = FileNameJoin[{Dir, "child"}];
+    R = TimeConstrained[RunProcess[{MBAnalytica`Portable`Private`FindCommand["perl"], "-e", MBAnalytica`Portable`Private`PerlSupervisor, "30",
+      "/bin/sh", "-c", "echo $$ > '" <> ShFile <> "'; sleep 60 & echo $! > '" <> PidFile <> "'; sleep 60"}], 2, "aborted"];
+    Pause[2];
+    Sh = Quiet[ToExpression[StringTrim[Import[ShFile, "Text"]]]];
+    Child = Quiet[ToExpression[StringTrim[Import[PidFile, "Text"]]]];
+    R === "aborted" && IntegerQ[Sh] && IntegerQ[Child] && RunProcess[{"kill", "-0", ToString[Sh]}, "ExitCode"] =!= 0 &&
+      RunProcess[{"kill", "-0", ToString[Child]}, "ExitCode"] =!= 0]]];
+
 (* 3. and 6. need the integration engine *)
 If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
   MBAnalytica`Private`WithoutUserValues[MBAnalytica`Private`LoadSymbolicInt[]];
@@ -125,6 +205,31 @@ If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
     Global`fcuCornerLetters[x^2 (x y + x z + x w + y z w)^(-3 + ep), {x, y, z, w}, ep] =!= {}];
   Check1["corner letters: the origin of five variables",
     Global`fcuCornerLetters[(x + y + z + w + v)^(-5 + ep), {x, y, z, w, v}, ep] =!= {}];
+  (* R6. corners of several letters, and of a letter that vanishes to a higher order (review of a6af3be) *)
+  Check1["corner letters: three letters at the origin", Sort[Global`fcuCornerLetters[(x + y)^(-1 + ep) (x + z)^(-1 + ep) (y + z)^(-1 + ep),
+    {x, y, z}, ep]] === Sort[{x + y, x + z, y + z}]];
+  Check1["corner letters: a double zero", Global`fcuCornerLetters[(x^2 + y^2)^(-1 + ep), {x, y}, ep] === {x^2 + y^2}];
+  Check1["corner letters: a weighted direction", Global`fcuCornerLetters[y (x + y^2)^(-2 + ep), {x, y}, ep] === {x + y^2}];
+  Check1["corner letters: a union with a pole face", Global`fcuCornerLetters[z^(-1 + ep) (x + y + z)^(-1 + ep) (x + y)^(-1 + ep), {x, y, z}, ep] =!= {}];
+  Check1["corner letters: convergent corners", Global`fcuCornerLetters[(x + y)^(-1 + ep) (y + z)^(-1 + ep), {x, y, z}, ep] === {} &&
+    Global`fcuCornerLetters[y^2 (x + y^2)^(-2 + ep), {x, y}, ep] === {}];
+  Check1["corner letters: an exponent that is no number", MissingQ[Global`fcuCornerLetters[(x + y)^(a + ep), {x, y}, ep]]];
+  Check1["blow-up of three letters at the origin", With[{S = Catch[Global`fcuBlowUp[(x + y)^(-1 + ep) (x + z)^(-1 + ep) (y + z)^(-1 + ep),
+      {x, y, z}, ep, False], Global`fcu$tag]},
+    ListQ[S] && Length[S] >= 3 && AllTrue[S, Global`fcuCornerLetters[#[[1]], #[[2]], ep] === {} &]]];
+  Check1["cube without jobs below its pole refused", FailureQ[MBAnalytica`Private`WithoutSymbolicSumRules[MBParameterSubtraction`PSPrepareCube[
+    <|"Cube" -> (x + y)^(-1 + ep) (x + z)^(-1 + ep) (y + z)^(-1 + ep), "Variables" -> {x, y, z}, "Prefactor" -> 1|>, ep, -1, -1, {}]]]];
+  If[MethodQ["Subtraction"],
+    Check1["three-fold integral with that corner", With[{T = Gamma[-s] Gamma[1 - ep + s] Gamma[-t] Gamma[1 - ep + t] Gamma[-u] Gamma[1 - ep + u]/Gamma[1 - ep]^3*
+        Gamma[-1 + 2 ep - s - t]/Gamma[2 ep - s - t] Gamma[ep + s - u]/Gamma[1 + ep + s - u] Gamma[1 + t + u]/Gamma[2 + t + u]},
+      Simplify[MBEvaluate[T, {ep, -1}, Method -> "Subtraction", Complex -> True] - Pi^2/(12 ep)] === 0]]];
+  (* perf A of the review: the orders of a large block are formed without its permutations *)
+  Check1["integration orders of eleven variables", With[{Vs = Array[Symbol["Global`axis" <> ToString[#]] &, 11]},
+    With[{T = AbsoluteTiming[MBParameterSubtractionHF`Private`heurOrders[Times @@ (1/(1 + #) & /@ Vs), Vs, 48]]},
+      T[[1]] < 30 && AssociationQ[T[[2]]] && Length[T[[2]]["Orders"]] === 48 && DuplicateFreeQ[T[[2]]["Orders"]]]]];
+  Check1["integration orders as before", With[{B = {{a1, a2}, {b1, b2, b3}, {c1}}},
+    MBParameterSubtractionHF`Private`boundedOrders[B, 20] === Take[Flatten[Outer[Join, Permutations[B[[1]]], Permutations[B[[2]]],
+      Permutations[B[[3]]], 1], 2], UpTo[20]]]];
   Check1["native integrator: two-dimensional cube", With[{R = Block[{Global`$ivfChartThreads = 1, Global`$ivfChartPerChart = 1},
       Global`ivfExactCube[1/(1 + x + y^2), {x, y}, 30, "OrderHint" -> {x, y}]]},
     R === $Failed || Abs[N[R, 30] - N[Log[3/2] + 2 Sqrt[2] ArcTan[1/Sqrt[2]] - Pi/2, 30]] < 10^-20]];

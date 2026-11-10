@@ -793,22 +793,139 @@ Module[{},
      of the coefficient banks *)
   Global`fcuNativeState[] := Global`fcuNativeState[] = Hash[Map[If[StringQ[#] && FileExistsQ[#], FileHash[#, "SHA256"], None] &,
     {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary, Global`$ivfBin}], "SHA256"];
-  (* Missing["Incomplete"] when the vanishing sets of a letter could not all be found: an unknown corner structure is not
-     an absence of corners *)
-  Global`fcuCornerLetters[expr_, vars_, eps_] := Catch[Module[{terms, out = {}},
-    terms = If[Head[#] === Plus, List @@ #, {#}] &[Expand[expr]];
-    Do[Module[{ex = Global`fcuAtomExponents[t, vars], letters, sets = <||>, whose = <||>, vs},
-       letters = DeleteDuplicates[Cases[t, Power[b_, p_] /; ! Global`fcuAtomQ[b, vars] && ! FreeQ[b, Alternatives @@ vars] &&
-           IntegerQ[Simplify[p /. eps -> 0]] && (p /. eps -> 0) <= -1 :> {b, -(p /. eps -> 0)}, {0, Infinity}]];
-       Do[vs = Global`fcuVanishingSets[L[[1]], vars];
-          If[MissingQ[vs], Throw[Missing["Incomplete"], "fcuCorners"]];
-          Do[sets[S] = Lookup[sets, Key[S], 0] + L[[2]]; whose[S] = Append[Lookup[whose, Key[S], {}], L[[1]]],
-          {S, vs}], {L, letters}];
-       Do[Module[{A = 0},
-          Do[Module[{atom = If[r[[2]] === 0, r[[1]], 1 - r[[1]]], a},
-             a = Simplify[Lookup[ex, atom, 0] /. eps -> 0]; A += a + 1], {r, S}];
-          If[A <= sets[S], out = Join[out, whose[S]]]], {S, Keys[sets]}]], {t, terms}];
-    DeleteDuplicates[out]], "fcuCorners"];
+  (* the corners of 2026-11-10 (review of a6af3be).  The detector compared the letters that share ONE minimal vanishing
+     set and counted every pole once.  It missed a corner where several letters vanish together on the union of their
+     sets ((x+y)(x+z)(y+z) at the origin: the cube (x+y)^(-1+eps)(x+z)^(-1+eps)(y+z)^(-1+eps) has the pole
+     Pi^2/(12 eps)), and a letter that vanishes to a higher order (x^2+y^2 at the origin, a logarithmic divergence).  Now
+     every compatible union of the minimal vanishing sets of the letters of a term (no variable at both of its ends) is a
+     candidate corner S, and n_S = sum_j n_j ord_S(P_j) over all letters, ord_S(P) the smallest degree of the monomials
+     of P in the local coordinates of S (x at the end 0, 1 - x at the end 1).  On a maximal corner without a pole face the
+     power counting is also checked along every weighted direction t_i = rho^(w_i) tau_i (the Newton polyhedron
+     condition, one exact linear program): y (x + y^2)^-2 converges along the diagonal and diverges along x ~ y^2.  A pole
+     face is counted with its own exponent along the diagonal only, as before (the face subtraction changes its power
+     along the other directions).  An incomplete search is Missing["Incomplete"], never "no corner". *)
+  If[! IntegerQ[Global`$fcuCornerBudget], Global`$fcuCornerBudget = 4096];
+  If[! AssociationQ[Global`$fcuNewtonMemo], Global`$fcuNewtonMemo = <||>];
+  (* the minimal vanishing sets and the local supports of a letter, kept for the terms of one call *)
+  SetAttributes[Global`fcuCornerMemo, HoldRest];
+  Global`fcuCornerMemo[key_, value_] := If[AssociationQ[Global`$fcuCornerCache] && KeyExistsQ[Global`$fcuCornerCache, key],
+    Global`$fcuCornerCache[key],
+    With[{v = value}, If[AssociationQ[Global`$fcuCornerCache], Global`$fcuCornerCache[key] = v]; v]];
+  (* the letters of a term: {base, pole order} for every base of the integration variables (not an atom) whose exponent
+     is negative at eps = 0; an exponent that is not a number there, on a base that vanishes on the boundary, is an
+     unknown corner structure *)
+  Global`fcuTermLetters[t_, vars_, eps_] := Module[{pows, out = {}},
+    pows = DeleteDuplicates[Cases[t, Power[b_, p_] /; ! Global`fcuAtomQ[b, vars] && ! FreeQ[b, Alternatives @@ vars], {0, Infinity}]];
+    Do[Module[{c = Simplify[pw[[2]] /. eps -> 0]},
+        Which[
+          MatchQ[c, _Integer | _Rational], If[c < 0, AppendTo[out, {pw[[1]], -c}]],
+          Global`fcuCornerMemo[{"sets", pw[[1]], vars}, Global`fcuVanishingSets[pw[[1]], vars]] =!= {},
+            Throw[Missing["Incomplete"], "fcuCorners"]]],
+      {pw, pows}];
+    out];
+  (* the exponent vectors of the polynomial P in the local coordinates of a corner whose variables flips are at the end 1 *)
+  Global`fcuLocalSupport[P_, vars_, flips_List] := Module[{Q},
+    Q = Expand[P /. Map[# -> 1 - # &, flips]];
+    If[! PolynomialQ[Q, vars], Throw[Missing["Incomplete"], "fcuCorners"]];
+    First /@ CoefficientRules[Q, vars]];
+  Global`fcuCompatibleQ[A_, B_] := ! AnyTrue[A, MemberQ[B, #[[1]] -> 1 - #[[2]]] &];
+  (* the minimal sets first, in their own order, then their compatible unions; every set in the order of the variables *)
+  Global`fcuCornerCandidates[minimal_List, vars_] := Module[{pos, canon, gens, all, fresh, next, seen},
+    pos = AssociationThread[vars -> Range[Length[vars]]];
+    canon[S_] := SortBy[DeleteDuplicates[S], pos[#[[1]]] &];
+    gens = DeleteDuplicates[canon /@ minimal];
+    seen = AssociationThread[gens -> True];
+    all = gens;
+    fresh = gens;
+    While[fresh =!= {},
+      next = {};
+      Do[Do[If[Global`fcuCompatibleQ[A, B],
+            Module[{U = canon[Join[A, B]]},
+              If[! KeyExistsQ[seen, U],
+                seen[U] = True;
+                AppendTo[next, U];
+                If[Length[seen] > Global`$fcuCornerBudget, Throw[Missing["Incomplete"], "fcuCorners"]]]]],
+          {B, gens}],
+        {A, fresh}];
+      all = Join[all, next];
+      fresh = next];
+    all];
+  (* the Newton polyhedron test of a corner without a pole face: is there a weight w >= 0 on its variables with
+     sum_r w_r (a_r + 1) <= sum_j n_j min_m <w, m> (m over the monomials of the letter P_j)?  Minimise <w, a + 1> subject
+     to s_j <= <w, m> for every monomial m of P_j and sum_j n_j s_j >= 1: the corner diverges when the minimum is <= 1 *)
+  Global`fcuNewtonDangerQ[cost_List, supports_List, poles_List] := Module[{key, nw, ns, rows = {}, rhs = {}, obj, sol, value},
+    key = Hash[{cost, supports, poles}];
+    If[KeyExistsQ[Global`$fcuNewtonMemo, key], Return[Global`$fcuNewtonMemo[key], Module]];
+    If[! FreeQ[{cost, supports, poles}, _Real], Throw[Missing["Incomplete"], "fcuCorners"]];
+    nw = Length[cost];
+    ns = Length[supports];
+    Do[Do[AppendTo[rows, Join[m, -UnitVector[ns, j]]];
+        AppendTo[rhs, 0],
+        {m, supports[[j]]}],
+      {j, ns}];
+    AppendTo[rows, Join[ConstantArray[0, nw], poles]];
+    AppendTo[rhs, 1];
+    obj = Join[cost, ConstantArray[0, ns]];
+    sol = Quiet[LinearProgramming[obj, rows, rhs]];
+    If[! VectorQ[sol, MatchQ[#, _Integer | _Rational] &], Throw[Missing["Incomplete"], "fcuCorners"]];
+    value = obj . sol <= 1;
+    If[Length[Global`$fcuNewtonMemo] > 20000, Global`$fcuNewtonMemo = <||>];
+    Global`$fcuNewtonMemo[key] = value;
+    value];
+  (* the dangerous corners of one term: <|"Set" -> S, "Letters" -> the letters that vanish on S|>, the letters whose
+     minimal set S is first, as the detector returned them before *)
+  Global`fcuTermCorners[t_, vars_, eps_] := Module[{letters, owners = <||>, minimal, cands, ex, cost, pos, flipsOf,
+      support, orders, flagged = {}, out = {}, faceFree, maximal},
+    letters = Global`fcuTermLetters[t, vars, eps];
+    If[letters === {}, Return[{}, Module]];
+    Do[Module[{vs = Global`fcuCornerMemo[{"sets", L[[1]], vars}, Global`fcuVanishingSets[L[[1]], vars]]},
+        If[MissingQ[vs], Throw[Missing["Incomplete"], "fcuCorners"]];
+        Do[owners[S] = Append[Lookup[owners, Key[S], {}], L[[1]]], {S, vs}]],
+      {L, letters}];
+    minimal = Keys[owners];
+    If[minimal === {}, Return[{}, Module]];
+    cands = Global`fcuCornerMemo[{"candidates", minimal, vars}, Global`fcuCornerCandidates[minimal, vars]];
+    ex = Global`fcuAtomExponents[t, vars];
+    (* a + 1 for the atom of a corner variable, a its exponent at eps = 0 *)
+    cost[r_] := Module[{a},
+      a = Simplify[Lookup[ex, If[r[[2]] === 0, r[[1]], 1 - r[[1]]], 0] /. eps -> 0];
+      If[! MatchQ[a, _Integer | _Rational], Throw[Missing["Incomplete"], "fcuCorners"]];
+      a + 1];
+    pos = AssociationThread[vars -> Range[Length[vars]]];
+    flipsOf[S_] := Sort[Cases[S, (v_ -> 1) :> v]];
+    support[j_, S_] := Global`fcuCornerMemo[{"support", letters[[j, 1]], vars, flipsOf[S]},
+      Global`fcuLocalSupport[letters[[j, 1]], vars, flipsOf[S]]];
+    (* the vanishing order of every letter on the corner S *)
+    orders[S_] := Module[{idx = Lookup[pos, S[[All, 1]]]},
+      Table[Min[Map[Total[#[[idx]]] &, support[j, S]]], {j, Length[letters]}]];
+    Do[Module[{ords = orders[S], A, N1},
+        A = Total[Map[cost, S]];
+        N1 = Total[ords letters[[All, 2]]];
+        If[N1 > 0 && A <= N1,
+          AppendTo[flagged, S];
+          AppendTo[out, <|"Set" -> S, "Letters" -> DeleteDuplicates[Join[Lookup[owners, Key[S], {}],
+            Pick[letters[[All, 1]], Map[Positive, ords]]]]|>]]],
+      {S, cands}];
+    faceFree = Select[cands, AllTrue[#, cost[#] > 0 &] &];
+    maximal = Select[faceFree, Function[S, ! AnyTrue[faceFree, Function[T, T =!= S && SubsetQ[T, S]]]]];
+    Do[Module[{ords, vanish, idx, supports},
+        If[AnyTrue[flagged, SubsetQ[S, #] &], Continue[]];
+        ords = orders[S];
+        vanish = Flatten[Position[ords, _?Positive, {1}]];
+        If[vanish === {}, Continue[]];
+        idx = Lookup[pos, S[[All, 1]]];
+        supports = Table[DeleteDuplicates[Map[#[[idx]] &, support[j, S]]], {j, vanish}];
+        If[Global`fcuNewtonDangerQ[Map[cost, S], supports, letters[[vanish, 2]]],
+          AppendTo[out, <|"Set" -> S, "Letters" -> letters[[vanish, 1]]|>]]],
+      {S, maximal}];
+    out];
+  Global`fcuCornerSets[expr_, vars_, eps_] := Block[{Global`$fcuCornerCache = <||>},
+    Catch[Module[{terms, out = {}},
+      terms = If[Head[#] === Plus, List @@ #, {#}] &[Expand[expr]];
+      Do[out = Join[out, Global`fcuTermCorners[t, vars, eps]], {t, terms}];
+      out], "fcuCorners"]];
+  Global`fcuCornerLetters[expr_, vars_, eps_] := With[{c = Global`fcuCornerSets[expr, vars, eps]},
+    If[MissingQ[c], c, DeleteDuplicates[Join @@ Map[#["Letters"] &, c]]]];
   (* the inclusion-minimal sets of (variable -> side), of two or more variables, whose joint substitution kills the
      letter exactly (size 1 would be a face factor, which normalisation has pulled out).  Every size is searched, and a
      superset of a set already found is skipped instead of ending the search: stopping at the first size with a set,
@@ -861,16 +978,19 @@ Module[{},
       guard++; If[guard > 4 Global`$fcuMaxSectors || Length[done] + Length[queue] > Global`$fcuMaxSectors,
         Global`fcu$fail["blow-up: more than " <> ToString[Global`$fcuMaxSectors] <> " sectors"]];
       sec = First[queue]; queue = Rest[queue];
-      corners = Global`fcuCornerLetters[sec[[1]], sec[[2]], eps];
+      corners = Global`fcuCornerSets[sec[[1]], sec[[2]], eps];
       If[MissingQ[corners], Global`fcu$fail["blow-up: the corner search of a sector is incomplete"]];
       If[corners === {}, AppendTo[done, sec]; Continue[]];
-      P = First[corners];
+      P = First[corners[[1]]["Letters"]];
       (* among the minimal vanishing sets of the corner, prefer one whose variables carry no pole face at their other
          end: substituting such a variable cannot turn its far face into a new corner (1 - x_j t_i), which is what
-         made the decomposition cascade on MB9's residue 18 (52 corners, then a cap) *)
+         made the decomposition cascade on MB9's residue 18 (52 corners, then a cap).  A corner that is no minimal set
+         of its first letter (several letters vanishing together, review of a6af3be) is blown up as it is. *)
       Module[{sets = Global`fcuVanishingSets[P, sec[[2]]]},
         If[MissingQ[sets] || sets === {}, Global`fcu$fail["blow-up: no vanishing set for " <> ToString[P, InputForm]]];
-        S = First[SortBy[sets, {Count[#, r_ /; Global`fcuDoubleEndedQ[sec[[1]], r, eps]] &, Length}]]];
+        S = If[MemberQ[sets, corners[[1]]["Set"]],
+          First[SortBy[sets, {Count[#, r_ /; Global`fcuDoubleEndedQ[sec[[1]], r, eps]] &, Length}]],
+          corners[[1]]["Set"]]];
       (* if every minimal set still has a double-ended variable, that variable is split at 1/2 first, so that each
          half is singular at one end only *)
       Module[{dbl = Select[S, Global`fcuDoubleEndedQ[sec[[1]], #, eps] &]},
@@ -889,7 +1009,7 @@ Module[{},
 
   (* the handler: an MBresolve residue term -> exact Laurent coefficients ordMin..ordMax, or $Failed *)
   Global`fcuResidueLaurent[term_, eps_, ordMin_Integer, ordMax_Integer, verbose_] := Catch[Module[
-    {f, ctr, zs, ctrR, eN = eps -> -1/40, inv = None, cube, vars, pref, norm, pser, p0, kmaxCube, key,
+    {f, ctr, zs, ctrR, eN = eps -> -1/40, inv = None, cube, vars, pref, norm, pser, p0, kmaxCube, key, cornerFree,
      bankDir, coefs = <||>, ks = {}, t0 = AbsoluteTime[], log = {}, pieces, slogs, kmin, orderJobs = <||>, pieceJobs = <||>, psers = {}, nMax, rulesUsed, sectors,
      dress, fK, tsearch, ntried, invCorners = Infinity, cands = {}, invTrace = {}, classReduction, classValue},
     (* An upstream resolution failure is not a zero integral. Validate the
@@ -1007,6 +1127,10 @@ Module[{},
     (* 2026-09-11: compound corners are blown up into sectors first; the face pieces are then formed per sector *)
     sectors = Catch[Global`fcuBlowUp[norm, vars, eps, verbose], Global`fcu$tag];
     If[AssociationQ[sectors], If[verbose, Print["    [faithful cube] blow-up failed: ", sectors["Reason"]]]; Throw[$Failed, Global`fcu$tag]];
+    (* a cube order without a coefficient job is zero only for a cube without a dangerous corner: a corner divergence
+       starts the integral below its integrand (review of a6af3be).  The blow-up certifies it, and with the blow-up
+       switched off the cube is checked here *)
+    cornerFree = TrueQ[Global`$fcuBlowUp] || Global`fcuCornerLetters[norm, vars, eps] === {};
     pieces = Catch[Join @@ Table[Global`fcuFacePieces[sc[[1]], sc[[2]], eps], {sc, sectors}], Global`fcu$tag];
     If[AssociationQ[pieces], If[verbose, Print["    [faithful cube] face decomposition failed: ", pieces["Reason"]]]; Throw[$Failed, Global`fcu$tag]];
     (* the structural logs: the merged variables and every sector atom (the blow-up renames variables) *)
@@ -1034,6 +1158,7 @@ Module[{},
       " needed for eps^", ordMin, "..eps^", ordMax]];
     Global`$fcuLastRun = <|"Cube" -> norm, "Vars" -> vars, "Prefactor" -> pref, "Order" -> inv["Order"], "Rules" -> rulesUsed,
       "Pieces" -> pieces, "StructuralLogs" -> slogs, "Merged" -> inv["Merged"]|>;
+    If[kmaxCube < kmin && ! cornerFree, If[verbose, Print["    [faithful cube] no coefficient job, and the cube has a dangerous corner"]]; Throw[$Failed, Global`fcu$tag]];
     If[kmaxCube < kmin, Throw[ConstantArray[0, ordMax - ordMin + 1], Global`fcu$tag]];
     bankDir = FileNameJoin[{Global`$MBStandardCacheDir, "fcu"}]; Quiet@CreateDirectory[bankDir, CreateIntermediateDirectories -> True];
     (* the bank key carries the sector structure: a blown-up cube must not read the coefficients banked before the blow-up *)
@@ -1077,6 +1202,7 @@ Module[{},
       If[KeyExistsQ[coefs, k], If[verbose, Print["    [faithful cube] cube eps^", k, " from the bank"]]; Continue[]];
       taggedJobs = SortBy[Global`fcuTagSourceJobs[pieceJobs[k]], -LeafCount[#[[1]]] &];
       jobs = (Take[#, 2] &) /@ taggedJobs;
+      If[jobs === {} && ! cornerFree, If[verbose, Print["    [faithful cube] no coefficient job at eps^", k, ", and the cube has a dangerous corner"]]; Throw[$Failed, Global`fcu$tag]];
       If[jobs === {}, coefs[k] = 0; Put[0, bank]; Continue[]];
       If[ks === {}, ks = Global`fcuLaunchWorkers[verbose, nMax]];
       (* oversized pieces are re-split into chunks before any integration (their structural pieces re-expanded, the

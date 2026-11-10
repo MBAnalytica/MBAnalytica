@@ -114,13 +114,26 @@ NameSymbolicSumRules[Name_String] := Module[{Lists1},
   Return[Map[Select[#, SymbolicSumRuleQ] &, Lists1]]];
 
 
-(* the rules of these packages in System symbols, by name of the symbol; none while no package of theirs is loaded *)
-SymbolicSumRules[] := Module[{Loaded, Names1, Rules1},
+(* a hash of every rule of a System symbol *)
+RuleListsHash[Name_String] := Quiet[ToExpression["System`" <> Name, InputForm,
+  Function[Sym, Hash[{DownValues[Sym], UpValues[Sym], SubValues[Sym], NValues[Sym]}], HoldAll]]];
+
+
+(* the rules of these packages in System symbols, by name of the symbol; none while no package of theirs is loaded.  The
+   scan of the 7700 System symbols took 0.45 s, three times per call of MBEvaluate; it is kept under a hash of all their
+   rules, which takes 0.05 s, so that a rule added, changed or removed since gives a new scan (review of a6af3be).  A few
+   states are kept, since a call inside WithoutSymbolicSumRules sees the rules set aside *)
+SymbolicSumRulesCache = <||>;
+SymbolicSumRules[] := Module[{Loaded, Names1, Key1, Rules1},
   Loaded = Select[$Packages, StringStartsQ[#, SymbolicSumContexts] &];
   If[Loaded === {}, Return[<||>]];
   Names1 = Select[Names["System`*"], ! StringStartsQ[#, "$"] &];
+  Key1 = Hash[{Loaded, Names1, Map[RuleListsHash, Names1]}];
+  If[KeyExistsQ[SymbolicSumRulesCache, Key1], Return[SymbolicSumRulesCache[Key1]]];
   Rules1 = Association[Map[# -> NameSymbolicSumRules[#] &, Names1]];
   Rules1 = Select[Rules1, Total[Map[Length, #]] > 0 &];
+  If[Length[SymbolicSumRulesCache] >= 8, SymbolicSumRulesCache = <||>];
+  SymbolicSumRulesCache[Key1] = Rules1;
   Return[Rules1]];
 
 
@@ -410,7 +423,18 @@ EngineRoute["Subtraction"] = "Subtraction";
 
 (* the coefficient of Eps^K1 of an expanded Laurent polynomial in Eps, or NotEvaluated when it still depends on Eps: an
    expression such as Gamma[Eps] or a nested SeriesData left in the result is not a Laurent coefficient *)
+(* True when every term of the expanded expression is a factor free of Eps times an integer power of Eps.  The check
+   comes before Coefficient, which drops what is not a power of Eps: Gamma[ep] has the "coefficient" 0 of ep^1, and
+   1/ep + Gamma[ep] the coefficient 1 of 1/ep (review of a6af3be) *)
+LaurentPolynomialQ[Expanded_, Eps_] := Module[{Terms},
+  Terms = If[Head[Expanded] === Plus, List @@ Expanded, {Expanded}];
+  Return[AllTrue[Terms, Function[T1, Module[{K1 = Quiet[Exponent[T1, Eps]]},
+    T1 === 0 || (IntegerQ[K1] && FreeQ[T1 Eps^(-K1), Eps])]]]]];
+
+
 LaurentCoefficient[Expanded_, Eps_, K1_, Method1_] := Module[{Coef},
+  If[! LaurentPolynomialQ[Expanded, Eps],
+    Return[NotEvaluated[{Method1, "the result is not a Laurent polynomial in the regulator"}]]];
   Coef = Coefficient[Expanded, Eps, K1];
   If[! FreeQ[Coef, Eps], Return[NotEvaluated[{Method1, "the coefficient still depends on the regulator"}]]];
   Return[Coef]];
@@ -490,20 +514,37 @@ DependencyNameQ[S1_Symbol] := Module[{Name},
   Return[StringMatchQ[Name, RegularExpression["(z|ln|Log|li|et)[0-9].*"]] || MemberQ[{"S", "H", "G"}, Name]]];
 
 
-UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration},
+(* a prefix of the private names that no symbol of the session, in any context, starts with, so that a private name is
+   neither a symbol of the input nor a symbol with a value: the fixed names Global`mbaUserSymbol0001, ... merged z2 with
+   an input symbol of that name, and a value given to that name entered the result (review of a6af3be).  The numbers
+   keep the canonical order of the original symbols *)
+FreshPrefix[] := Module[{Prefix},
+  Prefix = "mbaUserSymbol";
+  While[Names["*`" <> Prefix <> "*"] =!= {}, Prefix = Prefix <> "x"];
+  Return[Prefix]];
+
+
+UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration, Prefix},
   Symbols = Cases[{MBInt, If[MBVar === Automatic, {}, MBVar]}, S1_Symbol /; Context[S1] =!= "System`" && S1 =!= Eps,
     {0, Infinity}];
   Integration = Cases[Cases[MBInt, (Gamma | PolyGamma)[A__] :> {A}, {0, Infinity}], S1_Symbol, {0, Infinity}];
   Symbols = Select[Sort[DeleteDuplicates[Symbols]], DependencyNameQ[#] && ! MemberQ[Integration, #] &];
-  Return[MapIndexed[#1 -> Symbol["Global`mbaUserSymbol" <> IntegerString[First[#2], 10, 4]] &, Symbols]]];
+  If[Symbols === {}, Return[{}]];
+  Prefix = FreshPrefix[];
+  Return[MapIndexed[#1 -> Symbol["Global`" <> Prefix <> IntegerString[First[#2], 10, 4]] &, Symbols]]];
 
 
-MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] := Module[{Rules1, Back, Result},
+(* the private symbols are removed after the call, by their names (they have no values), so that the next call finds
+   the same prefix *)
+MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] := Module[{Rules1, Back, Private1, Result},
   Rules1 = UserSymbolRules[MBInt, MBVar, Eps];
   Back = Map[Reverse, Rules1];
+  Private1 = Map[Context[#] <> SymbolName[#] &, Map[Last, Rules1]];
   Result = Block[{MBEvaluateBackRules = Back},
     MBEvaluatePrivate[MBInt /. Rules1, If[MBVar === Automatic, Automatic, MBVar /. Rules1], {Eps, Ord}, Opts]];
-  Return[Result /. Back]];
+  Result = Result /. Back;
+  If[Private1 =!= {}, Quiet[Remove @@ Private1]];
+  Return[Result]];
 
 
 (* the rules back to the user's symbols, for the messages and the progress lines of the call *)

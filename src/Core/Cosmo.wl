@@ -135,7 +135,8 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
   ConstantArray[None, Length[Edges] + Length[KLegs]]];
 CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_List, KLegs_List, XX_List, YY_List,
   VarName_String, Splits_List] := Module[{NL, NK, NV, MJ, M, J, Xi, Ww, Uu, Zl, Zm, MuL, MuK, AV, AA, Q, ToXi, MQ, Weights, C0,
-    Cs, Scale, Kept, VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand, Constants, Merged, Names1},
+    Cs, Scale, Kept, VertexU, Mons, Lines, KLines, Spec, Earlier, Ex, URules, Integrand, Constants, Merged, Names1,
+    OutNames, InNames, Clash},
   NL = Length[Edges];
   NK = Length[KLegs];
   NV = Length[RV];
@@ -200,6 +201,13 @@ CosmoOrientation[Edges_List, Later_List, Push_List, BaseV_Integer, RV_List, NuL_
     MapIndexed[#1 -> "z" <> FromCharacterCode[96 + First[#2]] &, Zl],
     MapIndexed[#1 -> "z" <> ToString[First[#2]] &, Zm]];
   Names1 = Select[Names1, ! FreeQ[{Integrand, URules}, First[#]] &];
+  (* the names of the result differ from each other and from the symbols of the input: "VariableName" -> "z" gave the
+     kinematic variables the names of the folds, z1^z1, and energies named u1, u2 met the default names (review of
+     a6af3be).  A clash is refused, since a renaming the user did not ask for would be as confusing *)
+  OutNames = Map[Last, Names1];
+  InNames = DeleteDuplicates[Map[SymbolName, Cases[{XX, YY, KLegs, RV, NuL}, S1_Symbol /; Context[S1] =!= "System`", {0, Infinity}]]];
+  Clash = Union[Select[Tally[OutNames], Last[#] > 1 &][[All, 1]], Intersection[OutNames, InNames]];
+  If[Clash =!= {}, Message[CosmoTreeMB::names, Clash]; Throw[$Failed, CosmoNameTag]];
   Names1 = Map[First[#] -> CosmoOutputSymbol[Last[#]] &, Names1];
   Integrand = Integrand /. Names1;
   URules = Map[(First[#] /. Names1) -> Last[#] &, URules];
@@ -237,6 +245,8 @@ CosmoTreeMB::tree = "The lines `1` do not form a tree on the vertices 1, ..., `2
 CosmoTreeMB::taken = "The symbol `1` has a value, which is left unchanged; the result uses `2` instead (\"VariableName\" chooses other names for the kinematic variables).";
 CosmoTreeMB::exact = "The Bessel order `1` is an exact half-integer n + 1/2 with an integer n != 0, for which the Poisson representation degenerates (its folds pinch and 1/Gamma[-n] vanishes); use a regulated order such as `1` - \[Delta] and expand in \[Delta].";
 CosmoTreeMB::order = "The Bessel order `1` is below -1/2, where the Poisson integrals of the representation do not converge.";
+CosmoTreeMB::inexact = "The exponent or Bessel order `1` contains an inexact number, and the Mellin-Barnes representation needs exact numbers, such as 1/2 instead of 0.5.";
+CosmoTreeMB::names = "The names `1` would denote two different things in the result (kinematic variables, integration variables or symbols of the input), so choose another \"VariableName\" or rename the energies.";
 CosmoTreeMB::unit = "At the given point, the kinematic variables `1` of the orientation with later vertices `2` are not all in the unit interval (values `3`), so the closed forms of MBEvaluate are continued analytically to this point.";
 
 
@@ -250,6 +260,10 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
    Energies = {Table[Symbol["Global`x" <> ToString[V]], {V, NV}], Table[Symbol["Global`y" <> ToString[L1]], {L1, NL}]}];
   {XX, YY} = Energies;
   KLegs = OptionValue["KLegs"];
+  (* an inexact exponent or order is refused: 0.5 and 1.5 passed the exact checks below and gave a zero integrand for
+     every orientation, and the representation is exact (review of a6af3be) *)
+  Do[If[! FreeQ[V1, _?InexactNumberQ], Message[CosmoTreeMB::inexact, V1]; Return[$Failed, Module]],
+    {V1, Join[RV, NuL, If[MatrixQ[KLegs] || ListQ[KLegs], Map[Last, KLegs], {}]]}];
   (* an exact order n + 1/2 with n != 0 gave a zero integrand for every orientation (audit of 2026-11-09) *)
   Do[If[NumericQ[Nu1],
       Which[
@@ -267,7 +281,8 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
   Orients = OptionValue["Orientations"];
   If[Orients === All, Orients = Tuples[Edges]];
   If[CosmoTreeM[Edges, First[Orients], NV] === $Failed, Message[CosmoTreeMB::tree, Edges, NV]; Return[$Failed]];
-  Results = Map[Function[Later, Module[{Pushes, Push, Cs, Free, BaseV, Choices, Terms1},
+  (* a clash of the names of the result (CosmoOrientation) ends the whole call *)
+  Results = Catch[Map[Function[Later, Module[{Pushes, Push, Cs, Free, BaseV, Choices, Terms1},
       Pushes = CosmoPushChoices[Edges, Later, XP, YP, KP, XX, YY, KLegs];
       If[Pushes === {}, Message[CosmoTreeMB::nopush, Later]; Return[$Failed, Module]];
       (* "PushChoice" -> n takes the n-th valid push (fewest pushes first; the last one if fewer exist): the MB of a hard
@@ -286,7 +301,8 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
       If[OptionValue["Terms"] =!= All,
         Terms1 = Select[Terms1, MemberQ[OptionValue["Terms"], Map[If[# === None, None, #[[2]]] &, #]] &]];
       Map[CosmoOrientation[Edges, Later, Push, BaseV, RV, NuL, KLegs, XX, YY, OptionValue["VariableName"], #] &, Terms1]]],
-    Orients];
+    Orients], CosmoNameTag];
+  If[Results === $Failed, Return[$Failed]];
   Results = Flatten[Results];
   (* the positive rewriting makes the kinematic variables positive at the point; that they are also below 1, as
      MBEvaluate assumes, is checked here *)

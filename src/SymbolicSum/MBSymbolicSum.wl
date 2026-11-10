@@ -1161,7 +1161,10 @@ LimitToOne[Expr_] := Module[{Res, Hs, TrH, Sub, Rules, Ans, Pows, NN},
   Sub = Expand[TrH /. MBCHVarY -> 1 - MBCHSmallT];
   (* the series of the H functions must reach the deepest pole of their coefficients, so that the constant term is
      exact; a fixed depth of 3 lost the terms of a fourth-order pole (audit of 2026-11-09) *)
-  NN = Max[3, PoleOrderAt[Sub /. H[__, MBCHSmallT] -> 1, MBCHSmallT, 0]];
+  (* every H function becomes its own inert placeholder for the pole order: with 1 for all of them distinct H functions
+     cancelled, and (H(1,2,3,4; 1-y) - H(1,2,3,5; 1-y))/(1-y)^4 got the depth 3 and the limit 0 instead of 1/2880 (review
+     of a6af3be) *)
+  NN = Max[3, PoleOrderAt[Sub /. H[A__, MBCHSmallT] :> MBCHHPlaceholder[{A}], MBCHSmallT, 0]];
   If[! IntegerQ[NN], Return[$Failed]];
   Sub = Sub /. H[A__, MBCHSmallT] :> HPLSeries[{A}, NN, MBCHSmallT, MBCHLogT];
   If[! FreeQ[Sub, $Failed], Return[$Failed]];

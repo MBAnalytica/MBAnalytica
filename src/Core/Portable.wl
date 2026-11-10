@@ -87,16 +87,30 @@ PrlimitTool[] := PrlimitTool[] = FindCommand["prlimit"];
 (* the Perl fallback of timeout(1): a supervisor that starts the command as the leader of a new process group, waits for
    it, and at the limit sends TERM to the whole group, KILL to whatever is left after five seconds, reaps the command
    and exits with 124, as GNU timeout does.  "alarm; exec" killed only the command itself, and its children kept
-   running (audit of 2026-11-09).  The script contains no single quote, so that ShellQuote can quote it *)
+   running (audit of 2026-11-09).  The clock is the high-resolution one of Time::HiRes, since the integer seconds of
+   time() ended a 1 s limit after as little as 0.3 s, and TERM, INT or HUP sent to the supervisor stops the command's
+   group the same way before the supervisor exits, since its command and their children kept running (review of
+   a6af3be).  An aborted RunProcess kills the process group of the supervisor with KILL, which no handler sees, so the
+   command's group also holds a watcher that waits on a pipe whose only writer is the supervisor: when the supervisor
+   ends, for whatever reason, the watcher kills the command's group (an aborted TimeConstrained left the command and
+   its children running).  The script contains no single quote, so that ShellQuote can quote it *)
 PerlSupervisor = StringJoin[
-  "use POSIX \":sys_wait_h\"; my $limit = shift @ARGV; my $pid = fork(); die \"fork: $!\\n\" unless defined $pid; ",
-  "if (!$pid) { setpgrp(0, 0); exec { $ARGV[0] } @ARGV; POSIX::_exit(127); } ",
+  "use POSIX \":sys_wait_h\"; use Time::HiRes qw(time sleep); my $limit = shift @ARGV; ",
+  "pipe(my $rd, my $wr) or die \"pipe: $!\\n\"; ",
+  "my $pid = fork(); die \"fork: $!\\n\" unless defined $pid; ",
+  "if (!$pid) { setpgrp(0, 0); my $watch = fork(); ",
+  "if (defined $watch && !$watch) { $SIG{TERM} = $SIG{INT} = $SIG{HUP} = \"IGNORE\"; close($wr); my $b; ",
+  "while (1) { my $n = sysread($rd, $b, 1); if (defined $n) { last if $n == 0; } else { last unless $!{EINTR}; } } ",
+  "kill \"KILL\", -getpgrp(); POSIX::_exit(0); } ",
+  "close($rd); close($wr); exec { $ARGV[0] } @ARGV; POSIX::_exit(127); } ",
+  "setpgrp($pid, $pid); close($rd); ",
+  "my $stop = sub { my $code = shift; kill \"TERM\", -$pid; my $t = time; ",
+  "while (time - $t < 5) { last if waitpid($pid, WNOHANG) == $pid; sleep 0.1; } ",
+  "kill \"KILL\", -$pid; waitpid($pid, 0); exit $code; }; ",
+  "$SIG{TERM} = sub { $stop->(143) }; $SIG{INT} = sub { $stop->(130) }; $SIG{HUP} = sub { $stop->(129) }; ",
   "my $start = time; my $status; ",
   "while (1) { my $r = waitpid($pid, WNOHANG); if ($r == $pid) { $status = $?; last; } ",
-  "if (time - $start >= $limit) { kill \"TERM\", -$pid; my $t = time; ",
-  "while (time - $t < 5) { last if waitpid($pid, WNOHANG) == $pid; select(undef, undef, undef, 0.1); } ",
-  "kill \"KILL\", -$pid; waitpid($pid, 0); exit 124; } ",
-  "select(undef, undef, undef, 0.1); } ",
+  "if (time - $start >= $limit) { $stop->(124); } sleep 0.1; } ",
   "exit($status & 127 ? 128 + ($status & 127) : $status >> 8);"];
 
 
