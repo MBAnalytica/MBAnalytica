@@ -88,7 +88,9 @@ If[Environment["MBE_RESOLVE_LP"] =!= "0" && DownValues[MB`Private`MBfindResidues
   Clear[MB`Private`MBfindResidues];
   MB`Private`MBfindResidues[{vars_, integrand_, conf_}, LimVars_, {min_, max_}, FixedPoint_, options___Rule] := Module[
     {newpoint, function, point, badpoints, i, res, step, temp, opt = MB`Private`ParseOptions[MB`Private`MBfindResidues, options], verbose},
-    verbose = MB`Verbose /. opt;
+    (* the option Verbose of MB.m by its name: MB`Verbose before Mathematica 15, System`Verbose since 15.0, where an
+       explicit MB`Verbose was a new symbol (Verbose::shdw in every session) that no option matched *)
+    verbose = TrueQ[Last[SelectFirst[opt, MatchQ[First[#], _Symbol] && SymbolName[First[#]] === "Verbose" &, {None, False}]]];
     If[verbose, Print["Level: ", Length[vars]]];
     If[verbose, Print[conf]];
     If[FixedPoint === False,
