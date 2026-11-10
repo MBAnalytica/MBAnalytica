@@ -8,7 +8,8 @@
 #                   asking)
 #   make install    build everything (as make) and put this folder on Mathematica's $Path (one line in init.m);
 #                   make uninstall removes that line
-#   make test       run the installation test (a few minutes): the package loaded by name, two examples with every method
+#   make test       run the installation test (a few minutes): the package loaded by name, two examples with every method,
+#                   and the full output in a log file
 #   make benchmark  the MB1-MB14 benchmarks of the paper (hours)
 #   make clean      remove the build, the Python environment, the downloaded packages and the downloaded tables
 #
@@ -310,9 +311,13 @@ config: python
 
 # ---- tests -------------------------------------------------------------------------------------------------------
 
+# the lines of the test (stderr) go to the terminal, and the output of the methods and of their dependencies (stdout)
+# to a log file, whose name is printed at the end
 test:
 	@if [ -z "$(WOLFRAMSCRIPT)" ]; then echo "wolframscript not found; set WOLFRAMSCRIPT=/path/to/wolframscript"; exit 1; fi
-	"$(WOLFRAMSCRIPT)" -file "$(ROOT)/tests/InstallTest.wls"
+	@tmp="$${TMPDIR:-/tmp}"; log="$${tmp%/}/mbanalytica_install_test.log"; \
+	"$(WOLFRAMSCRIPT)" -file "$(ROOT)/tests/InstallTest.wls" 2>&1 > "$$log"; status=$$?; \
+	echo "(the full output of the test is in $$log)"; exit $$status
 
 # the regression tests of the defects found in the audit of 2026-11-09 (exact results or controlled refusals), and the
 # tests of the native job caches; a nonzero exit code when any test fails
