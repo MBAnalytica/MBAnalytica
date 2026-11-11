@@ -69,16 +69,35 @@ CosmoPushed[Edges_List, Push_List, C0_List] := Module[{Cs, Prev, Earlier},
 
 (* every push map (each vertex keeps its coefficient or pushes it along a line on which it is the later end) with every
    coefficient either identically zero in the energies (its monomial is dropped, as at the boundary x_i = y_i of a
-   mixing vertex) or positive at the point, fewest pushes first *)
-CosmoPushChoices[Edges_List, Later_List, XP_List, YP_List, KP_List, XX_List, YY_List, KLegs_List] := Module[{NV, Options1,
-    C0, CS, Good},
+   mixing vertex) or positive at the point, fewest pushes first, then in canonical order.  The maps are formed one
+   number of pushes at a time and the search stops after Wanted valid ones: all Tuples of the options were formed and
+   tested before, while the call needs the first one or the "PushChoice"-th (review of e4f55bd) *)
+CosmoPushChoices[Edges_List, Later_List, XP_List, YP_List, KP_List, XX_List, YY_List, KLegs_List, Wanted_ : Infinity] :=
+ Module[{NV, Options1, C0, CS, ValidQ, Good = {}, Level},
   NV = Length[XP];
   Options1 = Table[Join[{0}, Select[Range[Length[Edges]], Later[[#]] === V &]], {V, NV}];
   C0 = CosmoVertexCoefficients[Edges, Later, XP, YP, KP];
   CS = CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs];
-  Good = Select[Tuples[Options1], Function[Push, Module[{Cn = CosmoPushed[Edges, Push, C0], Cs = CosmoPushed[Edges, Push, CS]},
-      AllTrue[Range[NV], PossibleZeroQ[Cs[[#]]] || TrueQ[Cn[[#]] > 0] &] && ! AllTrue[Cs, PossibleZeroQ]]]];
-  Return[SortBy[Good, {Count[#, Except[0]] &, Identity}]]];
+  ValidQ[Push_] := Module[{Cn = CosmoPushed[Edges, Push, C0], Cs = CosmoPushed[Edges, Push, CS]},
+    AllTrue[Range[NV], PossibleZeroQ[Cs[[#]]] || TrueQ[Cn[[#]] > 0] &] && ! AllTrue[Cs, PossibleZeroQ]];
+  Do[
+   Level = Sort[CosmoPushLevel[Options1, K1]];
+   Do[If[ValidQ[P1],
+      AppendTo[Good, P1];
+      If[Length[Good] >= Wanted, Break[]]],
+    {P1, Level}];
+   If[Length[Good] >= Wanted, Break[]],
+   {K1, 0, NV}];
+  Return[Good]];
+
+
+(* the push maps with exactly K1 pushes: K1 vertices push along one of their lines, the others keep their coefficient *)
+CosmoPushLevel[Options1_List, K1_Integer] := Module[{NV, Moves},
+  NV = Length[Options1];
+  Moves = Map[DeleteCases[#, 0] &, Options1];
+  Return[Flatten[Map[Function[Set1, Map[Function[Pick1, ReplacePart[ConstantArray[0, NV], Thread[Set1 -> Pick1]]],
+      Tuples[Moves[[Set1]]]]],
+    Subsets[Range[NV], {K1}]], 1]]];
 
 
 (* ::Section:: *)
@@ -283,7 +302,7 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
   If[CosmoTreeM[Edges, First[Orients], NV] === $Failed, Message[CosmoTreeMB::tree, Edges, NV]; Return[$Failed]];
   (* a clash of the names of the result (CosmoOrientation) ends the whole call *)
   Results = Catch[Map[Function[Later, Module[{Pushes, Push, Cs, Free, BaseV, Choices, Terms1},
-      Pushes = CosmoPushChoices[Edges, Later, XP, YP, KP, XX, YY, KLegs];
+      Pushes = CosmoPushChoices[Edges, Later, XP, YP, KP, XX, YY, KLegs, OptionValue["PushChoice"]];
       If[Pushes === {}, Message[CosmoTreeMB::nopush, Later]; Return[$Failed, Module]];
       (* "PushChoice" -> n takes the n-th valid push (fewest pushes first; the last one if fewer exist): the MB of a hard
          orientation can close under another push *)

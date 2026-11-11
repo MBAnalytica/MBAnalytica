@@ -771,6 +771,19 @@ Module[{},
   Global`fcuOrderBankPath[bankDir_, key_, k_] := FileNameJoin[{bankDir,
     "fcu_" <> key <> "_e" <> ToString[k] <> "_" <> Global`$fcuOrderBankVersion <> ".m"}];
   If[! ValueQ[Global`$fcuInversionSeconds], Global`$fcuInversionSeconds = 240];
+  (* the search for a first inversion: the time limit above applied only once an inversion had succeeded, so a cube no
+     order inverts ran through every variable order and kernel plan without a limit (review of e4f55bd) *)
+  If[! NumericQ[Global`$fcuInversionSearchSeconds], Global`$fcuInversionSearchSeconds = 1800];
+  (* the k-th permutation of a list in the order of Permutations (the Lehmer code of k - 1), so that the variable orders
+     are formed one at a time instead of all n! at once *)
+  Global`fcuNthPermutation[list_List, k_Integer] := Module[{rest = list, j = k - 1, out = {}, f, i},
+    Do[f = (Length[rest] - 1)!;
+      i = Quotient[j, f];
+      j = Mod[j, f];
+      AppendTo[out, rest[[i + 1]]];
+      rest = Delete[rest, i + 1],
+      {Length[list]}];
+    out];
   (* powers of products/polynomials with monomial factors -> products of atom powers (all bases positive on the cube) *)
   Global`fcuSplitPowers[expr_, vars_] := expr //. {
     Power[b_Times, p_] :> Times @@ (Power[#, p] & /@ (List @@ b)),
@@ -872,10 +885,48 @@ Module[{},
     If[Length[Global`$fcuNewtonMemo] > 20000, Global`$fcuNewtonMemo = <||>];
     Global`$fcuNewtonMemo[key] = value;
     value];
+  (* a corner with a pole face: the face subtraction removes the Taylor terms of the face variable at its end, which lowers
+     the power of the remainder only where that variable is small against every vanishing letter (no monomial with it
+     is minimal there).  Along a direction where a monomial with the face variable is minimal in a vanishing letter the
+     raw integrand counts, and the subtracted terms are no larger on the closure of that cone.  x^(-1+eps) y^3
+     (x+y^2)^(-2+eps) diverges along x ~ y^2, where x is active in x + y^2, and the detector, which ran the linear
+     program on face-free corners only, found no corner there (review of e4f55bd).  One linear program per choice of an
+     active monomial for every face variable: the minimum <= 1, or an unbounded program, is a divergence; an infeasible
+     program has no such direction *)
+  Global`fcuActiveFaceDangerQ[cost_List, supports_List, poles_List, faces_List] := Module[{key, opts, nw, ns, value},
+    key = Hash[{"face", cost, supports, poles, faces}];
+    If[KeyExistsQ[Global`$fcuNewtonMemo, key], Return[Global`$fcuNewtonMemo[key], Module]];
+    If[! FreeQ[{cost, supports, poles}, _Real], Throw[Missing["Incomplete"], "fcuCorners"]];
+    nw = Length[cost];
+    ns = Length[supports];
+    opts = Map[Function[f, Flatten[Table[If[m[[f]] > 0, {{j, m}}, {}], {j, ns}, {m, supports[[j]]}], 2]], faces];
+    If[MemberQ[opts, {}] || Times @@ Map[Length, opts] > Global`$fcuCornerBudget, Throw[Missing["Incomplete"], "fcuCorners"]];
+    value = AnyTrue[Tuples[opts], Function[choice, Module[{rows = {}, rhs = {}, obj, sol},
+        Do[Do[AppendTo[rows, Join[m, -UnitVector[ns, j]]];
+            AppendTo[rhs, 0],
+            {m, supports[[j]]}],
+          {j, ns}];
+        AppendTo[rows, Join[ConstantArray[0, nw], poles]];
+        AppendTo[rhs, 1];
+        Do[Do[AppendTo[rows, Join[m2 - ch[[2]], ConstantArray[0, ns]]];
+            AppendTo[rhs, 0],
+            {m2, supports[[ch[[1]]]]}],
+          {ch, choice}];
+        obj = Join[cost, ConstantArray[0, ns]];
+        sol = Quiet[Check[Check[LinearProgramming[obj, rows, rhs], "Unbounded", LinearProgramming::lpsub], "Infeasible",
+          LinearProgramming::lpsnf]];
+        Which[
+          sol === "Unbounded", True,
+          sol === "Infeasible", False,
+          VectorQ[sol, MatchQ[#, _Integer | _Rational] &], obj . sol <= 1,
+          True, Throw[Missing["Incomplete"], "fcuCorners"]]]]];
+    If[Length[Global`$fcuNewtonMemo] > 20000, Global`$fcuNewtonMemo = <||>];
+    Global`$fcuNewtonMemo[key] = value;
+    value];
   (* the dangerous corners of one term: <|"Set" -> S, "Letters" -> the letters that vanish on S|>, the letters whose
      minimal set S is first, as the detector returned them before *)
   Global`fcuTermCorners[t_, vars_, eps_] := Module[{letters, owners = <||>, minimal, cands, ex, cost, pos, flipsOf,
-      support, orders, flagged = {}, out = {}, faceFree, maximal},
+      support, orders, flagged = {}, out = {}, faceFree, maximal, faced},
     letters = Global`fcuTermLetters[t, vars, eps];
     If[letters === {}, Return[{}, Module]];
     Do[Module[{vs = Global`fcuCornerMemo[{"sets", L[[1]], vars}, Global`fcuVanishingSets[L[[1]], vars]]},
@@ -918,6 +969,20 @@ Module[{},
         If[Global`fcuNewtonDangerQ[Map[cost, S], supports, letters[[vanish, 2]]],
           AppendTo[out, <|"Set" -> S, "Letters" -> letters[[vanish, 1]]|>]]],
       {S, maximal}];
+    (* the maximal corners with a pole face, along the directions where every face variable is active *)
+    faced = Select[cands, ! AllTrue[#, cost[#] > 0 &] &];
+    faced = Select[faced, Function[S, ! AnyTrue[faced, Function[T, T =!= S && SubsetQ[T, S]]]]];
+    Do[Module[{ords, vanish, idx, supports, faces},
+        If[AnyTrue[flagged, SubsetQ[S, #] &], Continue[]];
+        ords = orders[S];
+        vanish = Flatten[Position[ords, _?Positive, {1}]];
+        If[vanish === {}, Continue[]];
+        idx = Lookup[pos, S[[All, 1]]];
+        supports = Table[DeleteDuplicates[Map[#[[idx]] &, support[j, S]]], {j, vanish}];
+        faces = Flatten[Position[Map[cost, S], _?(# <= 0 &), {1}]];
+        If[Global`fcuActiveFaceDangerQ[Map[cost, S], supports, letters[[vanish, 2]], faces],
+          AppendTo[out, <|"Set" -> S, "Letters" -> letters[[vanish, 1]]|>]]],
+      {S, faced}];
     out];
   Global`fcuCornerSets[expr_, vars_, eps_] := Block[{Global`$fcuCornerCache = <||>},
     Catch[Module[{terms, out = {}},
@@ -1011,7 +1076,8 @@ Module[{},
   Global`fcuResidueLaurent[term_, eps_, ordMin_Integer, ordMax_Integer, verbose_] := Catch[Module[
     {f, ctr, zs, ctrR, eN = eps -> -1/40, inv = None, cube, vars, pref, norm, pser, p0, kmaxCube, key, cornerFree,
      bankDir, coefs = <||>, ks = {}, t0 = AbsoluteTime[], log = {}, pieces, slogs, kmin, orderJobs = <||>, pieceJobs = <||>, psers = {}, nMax, rulesUsed, sectors,
-     dress, fK, tsearch, ntried, invCorners = Infinity, cands = {}, invTrace = {}, classReduction, classValue},
+     dress, fK, tsearch, ntried, invCorners = Infinity, cands = {}, invTrace = {}, classReduction, classValue, allPlans,
+     passNow = 1, searchOverQ},
     (* An upstream resolution failure is not a zero integral. Validate the
        contour structure before Part/Keys or an empty loop can manufacture
        a zero coefficient vector from an unevaluated inversion. *)
@@ -1032,13 +1098,17 @@ Module[{},
        search budget the one whose normalised cube has the FEWEST compound corners is taken (2026-09-11: a corner-free
        inversion needs no blow-up), ties broken by the number of Euler variables *)
     tsearch = AbsoluteTime[]; ntried = 0;
+    (* the kernel plans are formed once, not once per variable order; the time limit is read after every attempt *)
+    allPlans = If[3^Length[zs] <= 10^5, SortBy[Tuples[Range[3], Length[zs]], Total], {ConstantArray[1, Length[zs]]}];
+    searchOverQ[] := If[inv === None, AbsoluteTime[] - tsearch > Global`$fcuInversionSearchSeconds,
+      Global`fcuRaceDoneQ[passNow, invCorners, ntried, tsearch]];
     (* 2026-09-11: the race no longer stops at the first corner-free inversion; it keeps comparing until
        $fcuInversionMinTries inversions succeeded (fewest corners, then fewest Euler variables): pass 1 over the variable
        orders with the first $fcuPlansPerOrder kernel plans each, pass 2 (only when pass 1 found nothing) over every
        plan.  MB12's residue 23: the first order gave a corner-free EIGHT-variable cube, other orders five variables. *)
-    Do[
-      Do[Do[Module[{plans = SortBy[Tuples[Range[3], Length[zs]], Total]},
-          plans = Switch[pass, 1, {ConstantArray[1, Length[zs]]}, 2, Take[plans, Min[Length[plans], Global`$fcuPlansPerOrder]], _, plans];
+    Do[passNow = pass;
+      Do[Do[Module[{ord = Global`fcuNthPermutation[zs, kOrd], plans},
+          plans = Switch[pass, 1, {ConstantArray[1, Length[zs]]}, 2, Take[allPlans, Min[Length[allPlans], Global`$fcuPlansPerOrder]], _, allPlans];
           Do[Module[{try, nrm, nc},
              If[rules === "v1" && AssociationQ[dress], Break[]];
              try = If[rules === "v1", Global`fcuInvertV1[f, zs, ctrR, eps, ord, eN, pl], Global`fcuInvertV2[fK, zs, ctrR, eps, ord, eN, pl, dress]];
@@ -1057,10 +1127,10 @@ Module[{},
                      inv = try; norm = nrm; invCorners = nc; rulesUsed = rules; invTrace = Global`$fcuTrace]]];
              If[verbose, Print["    [faithful cube] rules ", rules, ", order ", ord, ", kernel plan ", pl, ": ", Last[log][[2]],
                If[! TrueQ[try["Failed"]], "  (" <> ToString[Length[try["Vars"]]] <> " Euler variables)", ""]]];
-             If[inv =!= None && Global`fcuRaceDoneQ[pass, invCorners, ntried, tsearch], Break[]]], {pl, plans}];
-          If[inv =!= None && Global`fcuRaceDoneQ[pass, invCorners, ntried, tsearch], Break[]]], {ord, Permutations[zs]}];
-        If[inv =!= None, Break[]], {rules, If[Global`$fcuRules === "v1", {"v1"}, {"v2", "v1"}]}];
-      If[inv =!= None, Break[]], {pass, {1, 2, 3}}];
+             If[searchOverQ[], Break[]]], {pl, plans}];
+          If[searchOverQ[], Break[]]], {kOrd, Length[zs]!}];
+        If[inv =!= None || searchOverQ[], Break[]], {rules, If[Global`$fcuRules === "v1", {"v1"}, {"v2", "v1"}]}];
+      If[inv =!= None || searchOverQ[], Break[]], {pass, {1, 2, 3}}];
     If[inv === None, If[verbose, Print["    [faithful cube] inversion impossible: ", log]]; Throw[$Failed, Global`fcu$tag]];
     (* 2026-09-11: among the candidates with the fewest corners, the smallest ESTIMATED piece count decides (the
        fewest variables are only the tie-break); at most $fcuEstimateCandidates candidates are costed *)

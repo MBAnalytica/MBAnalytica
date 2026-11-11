@@ -12,9 +12,10 @@
 (*Package Initiation*)
 
 
-(* claim the parallel kernels before MBConicHulls, which would start two per core *)
+(* claim the parallel kernels before MBConicHulls, which would start two per core: at least one, since with none running
+   MBConicHulls starts its own ($KernelLaunch = 0 gave 48 subkernels on a 24-core machine, review of e4f55bd) *)
 If[$KernelCount === 0 && $KernelID === 0,
-   LaunchKernels[If[IntegerQ[$KernelLaunch], $KernelLaunch, Min[4, $ProcessorCount]]]];
+   LaunchKernels[If[IntegerQ[$KernelLaunch], Max[1, $KernelLaunch], Min[4, $ProcessorCount]]]];
 
 (* hide the front end and silence printing so the encoded packages load quietly *)
 Unprotect[Print, CellPrint, NotebookWrite, NotebookPrint];
@@ -191,6 +192,18 @@ MBCHComplex  = False;     (* set by the Complex option of MBCH2MPL: True keeps a
 MBCHScale    = {};        (* kinematic variables, set by MBCH2MPL *)
 
 
+MBCHPhase    = Global`MBSymbolicSumPhase;  (* Exp[I Pi] of a negative base, a positive symbol until the end *)
+
+
+MBCHPhaseUsed = False;    (* set by MBCH2MPL when a base of the integral is negative *)
+
+
+MBCHNegativeBases = {};   (* the bases proved negative on the domain, set by MBCH2MPL *)
+
+
+MBCHPhaseRegion = True;   (* the convergence region of the expression being continued, with the phase set to 1 *)
+
+
 MBCHParallel = True;      (* solve distinct structures on the parallel subkernels *)
 
 
@@ -232,19 +245,54 @@ MBCHLogT     = LogT;      (* Log[t], the only divergent object left *)
 VPrint[args___] := If[TrueQ[MBCHVerbose], Print[args]];
 
 
-ScaleAssum[] := Module[{Vars},
+(* the phase is positive and below 2: with MBCHPhase > 0 alone Sigma stops on every geometric term of the phase
+   ("something is wrong w.r.t. MyPower[MBSymbolicSumPhase, n]"), so that no series of a negative base was summed and
+   the analytic regulator, which then passed only for some of its slots, was the only route; P = 1 lies inside *)
+ScaleAssum[] := Module[{Vars, Assum},
   Vars = MBCHScale;
-  If[Vars === {}, Return[True]];
-  Return[And @@ Map[(0 < # < 1) &, Vars]]];
+  Assum = And @@ Map[(0 < # < 1) &, Vars];
+  If[TrueQ[MBCHPhaseUsed], Assum = Assum && 0 < MBCHPhase < 2];
+  Return[Assum]];
 
 
 ScaleFreeQ[Expr_] := Module[{Vars},
   Vars = MBCHScale;
+  If[TrueQ[MBCHPhaseUsed], Vars = Append[Vars, MBCHPhase]];
   If[Vars === {}, Return[True]];
   Return[And @@ Map[FreeQ[Expr, #] &, Vars]]];
 
 
-ProbeRule[] := Map[(# -> MBCHProbe) &, MBCHScale];
+ProbeRule[] := Module[{Rules},
+  Rules = Map[(# -> MBCHProbe) &, MBCHScale];
+  If[TrueQ[MBCHPhaseUsed], Rules = Append[Rules, MBCHPhase -> 1]];
+  Return[Rules]];
+
+
+(* the kinematic domain 0 < x < 1, without the phase *)
+ScaleDomain[] := And @@ Map[(0 < # < 1) &, MBCHScale];
+
+
+(* True when Cond holds on the domain and in Region (a convergence region of the result): Refine, then Resolve within
+   ten seconds, after Reduce has written the region as inequalities of the variables; anything else is not proved *)
+HoldsOnScalesCache = <||>;
+HoldsOnScales[Cond_, Region_] := Module[{Key1, Res},
+  Key1 = {Cond, Region, MBCHScale};
+  If[KeyExistsQ[HoldsOnScalesCache, Key1], Return[HoldsOnScalesCache[Key1]]];
+  Res = DecideOnScales[Cond, Region];
+  HoldsOnScalesCache[Key1] = Res;
+  Return[Res]];
+
+DecideOnScales[Cond_, Region_] := Module[{Assum, Reduced, Refined, Resolved},
+  Assum = ScaleDomain[] && Region;
+  If[Region =!= True && MBCHScale =!= {},
+   Reduced = Quiet[TimeConstrained[Reduce[Assum, MBCHScale, Reals], 10, $Failed]];
+   If[Reduced =!= $Failed && FreeQ[Reduced, Reduce], Assum = Reduced]];
+  If[Assum === False, Return[False]];
+  Refined = Quiet[Refine[Cond, Assum]];
+  If[Refined === True, Return[True]];
+  If[MBCHScale === {}, Return[False]];
+  Resolved = Quiet[TimeConstrained[Resolve[ForAll[MBCHScale, Assum, Cond], Reals], 10, $Failed]];
+  Return[Resolved === True]];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -295,6 +343,192 @@ DirtyQ[Val_] := Module[{Res},
   If[! FreeQ[Res, Global`sinf], Return[True]];
   If[! FreeQ[Res, S], Return[True]];
   Return[False]];
+
+
+(* ::Subsubsection::Closed:: *)
+(*Negative Bases*)
+
+
+(* X^z means Exp[z Log[X]] with the principal logarithm.  The series solutions combine and invert the bases (CanonicalMB of
+   MBConicHulls writes X^-z as (1/X)^z, MBCHInput X^(z1 - z2) as X^z1 (1/X)^z2), which holds for X > 0 only: for X < 0,
+   Log[1/X] = -Log[X] + 2 I Pi, and the real part of I Gamma[-z] Gamma[1-z] Gamma[1+z]^2 (-2x)^z came out with the
+   wrong sign for 1/2 < x < 1 (review of e4f55bd).  A base proved negative on 0 < x < 1 is therefore written as
+   (-X) MBCHPhase, with the phase a positive symbol for the whole solution and 1 at every probe, so that every step
+   solves an integral with positive bases; the result is then continued analytically along |MBCHPhase| = 1 from 1 to
+   Exp[I Pi] (PhaseContinue) and checked against the contour integral with the principal powers (PhaseOkQ).  A base
+   that is not proved positive or negative, or a complex one, is refused *)
+BaseSign[Base_] := Module[{},
+  If[! FreeQ[Base, Complex | DirectedInfinity | Indeterminate], Return[$Failed]];
+  If[NumericQ[Base], Return[Which[TrueQ[Base > 0], 1, TrueQ[Base < 0], -1, True, $Failed]]];
+  If[HoldsOnScales[Base > 0, True], Return[1]];
+  If[HoldsOnScales[Base < 0, True], Return[-1]];
+  Return[$Failed]];
+
+
+(* {c, k} for a monomial c MBCHPhase^k with c free of the phase, $Failed otherwise *)
+PhaseMonomial[A_] := Module[{Pow1, Coef1},
+  Pow1 = Quiet[Exponent[A, MBCHPhase]];
+  If[! MatchQ[Pow1, _Integer | _Rational], Return[$Failed]];
+  Coef1 = Together[A/MBCHPhase^Pow1];
+  If[! FreeQ[Coef1, MBCHPhase], Return[$Failed]];
+  Return[{Coef1, Pow1}]];
+
+
+(* {a, b, k} for a + b MBCHPhase^k with a, b free of the phase and an integer k != 0, $Failed otherwise *)
+PhaseLinear[A_] := Module[{Expanded, Terms, Free, Dep, Ks},
+  Expanded = Expand[A];
+  Terms = If[Head[Expanded] === Plus, List @@ Expanded, {Expanded}];
+  Free = Select[Terms, FreeQ[#, MBCHPhase] &];
+  Dep = Select[Terms, ! FreeQ[#, MBCHPhase] &];
+  If[Dep === {}, Return[$Failed]];
+  Ks = DeleteDuplicates[Map[Quiet[Exponent[#, MBCHPhase]] &, Dep]];
+  If[Length[Ks] =!= 1 || ! IntegerQ[First[Ks]] || First[Ks] === 0, Return[$Failed]];
+  If[! AllTrue[Dep, FreeQ[Together[#/MBCHPhase^First[Ks]], MBCHPhase] &], Return[$Failed]];
+  Return[{Total[Free], Together[Total[Dep]/MBCHPhase^First[Ks]], First[Ks]}]];
+
+
+(* the value at MBCHPhase = Exp[I Pi] of an expression known for MBCHPhase > 0, continued along |MBCHPhase| = 1, or
+   $Failed.  Rational dependence is substituted.  The power and the logarithm of a monomial c P^k are c^a Exp[I Pi k a]
+   and Log[c] + I Pi k, which hold for P > 0 and continue analytically.  Log[a + b P^k] keeps its principal value when
+   a > 0 and b^2 < a^2 on the region, since a + b P^k then stays in the right half plane.  An H continues to the H of
+   the letters c (-1)^k, with the factor (-1)^k of the convention -Sign[c] of HarmonicSums per letter, when every letter
+   c P^k is farther from the origin than the argument, so that no letter crosses the integration path; PolyLog[n, c P^k]
+   likewise with |c| < 1.  Any other dependence on the phase is not continued *)
+PhaseContinue[Expr_] := Catch[PhaseWalk[Expr], "Phase"];
+
+PhaseWalk[Expr_] := Which[
+  FreeQ[Expr, MBCHPhase], Expr,
+  Expr === MBCHPhase, -1,
+  Head[Expr] === ConditionalExpression,
+    Block[{MBCHPhaseRegion = MBCHPhaseRegion && (Expr[[2]] /. MBCHPhase -> 1)},
+     ConditionalExpression[PhaseWalk[Expr[[1]]], Expr[[2]] /. MBCHPhase -> 1]],
+  MatchQ[Expr, _Plus | _Times], Map[PhaseWalk, Expr],
+  MatchQ[Expr, Power[_, _Integer]], PhaseWalk[Expr[[1]]]^Expr[[2]],
+  MatchQ[Expr, Power[_, _]], PhasePower[Expr[[1]], Expr[[2]]],
+  MatchQ[Expr, Log[_]], PhaseLog[Expr[[1]]],
+  MatchQ[Expr, _H], PhaseH[Expr],
+  MatchQ[Expr, PolyLog[_Integer, _]], PhasePolyLog[Expr[[1]], Expr[[2]]],
+  True, Throw[$Failed, "Phase"]];
+
+PhasePower[A_, E1_] := Module[{Mono},
+  If[! FreeQ[E1, MBCHPhase], Throw[$Failed, "Phase"]];
+  Mono = PhaseMonomial[A];
+  If[Mono === $Failed, Throw[$Failed, "Phase"]];
+  Return[Mono[[1]]^E1*Exp[I Pi Mono[[2]] E1]]];
+
+PhaseLog[A_] := Module[{Mono, Lin},
+  Mono = PhaseMonomial[A];
+  If[Mono =!= $Failed, Return[Log[Mono[[1]]] + I Pi Mono[[2]]]];
+  Lin = PhaseLinear[A];
+  If[Lin === $Failed, Throw[$Failed, "Phase"]];
+  If[! HoldsOnScales[Lin[[1]] > 0, MBCHPhaseRegion] || ! HoldsOnScales[Lin[[2]]^2 < Lin[[1]]^2, MBCHPhaseRegion],
+   Throw[$Failed, "Phase"]];
+  Return[Log[Lin[[1]] + Lin[[2]] (-1)^Lin[[3]]]]];
+
+PhaseH[Hx_] := Module[{Args, Letters, Arg1, Sign1, New},
+  Args = List @@ Hx;
+  Letters = Most[Args];
+  Arg1 = Last[Args];
+  If[! FreeQ[Arg1, MBCHPhase] || AnyTrue[Letters, ListQ], Throw[$Failed, "Phase"]];
+  If[! HoldsOnScales[Arg1 > 0, MBCHPhaseRegion], Throw[$Failed, "Phase"]];
+  Sign1 = 1;
+  New = Map[Function[L1, Module[{Mono},
+      If[FreeQ[L1, MBCHPhase], Return[L1, Module]];
+      Mono = PhaseMonomial[L1];
+      If[Mono === $Failed || ! IntegerQ[Mono[[2]]], Throw[$Failed, "Phase"]];
+      If[! HoldsOnScales[Mono[[1]]^2 > Arg1^2, MBCHPhaseRegion], Throw[$Failed, "Phase"]];
+      Sign1 = Sign1*(-1)^Mono[[2]];
+      Return[Mono[[1]]*(-1)^Mono[[2]], Module]]], Letters];
+  Return[Sign1*(H @@ Append[New, Arg1])]];
+
+PhasePolyLog[N1_, A_] := Module[{Mono},
+  Mono = PhaseMonomial[A];
+  If[Mono === $Failed || ! IntegerQ[Mono[[2]]], Throw[$Failed, "Phase"]];
+  If[! HoldsOnScales[Mono[[1]]^2 < 1, MBCHPhaseRegion], Throw[$Failed, "Phase"]];
+  Return[PolyLog[N1, Mono[[1]] (-1)^Mono[[2]]]]];
+
+
+(* the power of a base for the contour: with MBCHPhaseContour the base c MBCHPhase^k gives c^z Exp[I Pi k z], the
+   principal power of the negative base, and otherwise X^z *)
+MBCHPhaseContour = False;
+BasePower[M_, Z_] := Module[{Mono},
+  If[! TrueQ[MBCHPhaseContour] || FreeQ[M, MBCHPhase], Return[M^Z]];
+  Mono = PhaseMonomial[M];
+  If[Mono === $Failed, Return[$Failed]];
+  Return[Exp[Z (Log[Mono[[1]]] + I Pi Mono[[2]])]]];
+
+
+(* the continued value against the contour integral of the structure with the principal powers, at the first two probe
+   points inside the convergence region of the value (on either side of x = 1/2 when it has no region, so that a value
+   of one chart is not taken for the other side): True, False, or $Failed when no point can be judged.  The full
+   complex value is compared, whatever Complex is *)
+PhaseOkQ[IntVar_, MBVars_, Num_, Den_, Cont_] := Module[{Cond, Val, Pts, Verdicts},
+  Cond = If[Head[Cont] === ConditionalExpression, Cont[[2]], True];
+  Val = If[Head[Cont] === ConditionalExpression, Cont[[1]], Cont];
+  Pts = Map[Function[V, Map[(# -> V) &, MBCHScale]], {3/4, 1/4, 2/3, 1/3, 5/6, 1/6}];
+  Pts = Select[Pts, (TrueQ[Quiet[N[Cond /. #]]] && NumericQ[Quiet[N[Val /. #, 20]]]) &];
+  Pts = Take[DeleteDuplicates[Pts], UpTo[2]];
+  If[Pts === {}, Return[$Failed]];
+  Verdicts = Map[Function[Pt, Module[{Ref, X},
+      Ref = SafeEval[Block[{MBCHPhaseContour = True}, ContourValue[IntVar, MBVars, Num, Den, Pt]]];
+      X = Quiet[N[Val /. Pt, 20]];
+      Which[! NumericQ[Ref] || ! NumericQ[X], $Failed, Abs[X - Ref] <= MBCHTol*Max[1, Abs[Ref]], True, True, False]]], Pts];
+  Return[Which[MemberQ[Verdicts, False], False, MemberQ[Verdicts, True], True, True, $Failed]]];
+
+
+(* the charts of a structure with the phase at probe points off the convergence boundary: a base of modulus 1 at the
+   probe (-2 x at x = 1/2) sits on the boundary of the regions of its charts, where no S-sum of argument 1 is
+   converted, and the analytic regulator, the only route left there, failed under load (review of e4f55bd).  The
+   charts are summed at the probes 3/5 and 2/5, each value in the region of its own chart, which the continuation and
+   PhaseOkQ then judge *)
+(* True when no chart of the structure converges geometrically at the probe: for every summation index the product of
+   the moduli of the bases raised to the coefficient of the index in their exponents (3^(-n) x^n is the ratio x/3) *)
+PhaseBoundaryQ[ResolveOut_, Sub_, Pr_] := Module[{Inside},
+  Inside = Catch[
+    Do[Module[{SerOut, Pows, Idx, Ratios},
+       SerOut = SeriesOf[ResolveOut, Sub, K];
+       If[! ListQ[SerOut] || Length[SerOut] < 5, Continue[]];
+       Pows = Cases[SerOut[[2]], Power[B_, E1_] /; ! FreeQ[E1, Subscript[n, _]] :> {B, E1}, Infinity];
+       Idx = DeleteDuplicates[Cases[Pows, Subscript[n, _], Infinity]];
+       Ratios = Map[Function[I1, Quiet[N[Times @@ Map[Abs[#[[1]] /. Pr]^Coefficient[#[[2]], I1] &, Pows]]]], Idx];
+       If[AllTrue[Ratios, (NumericQ[#] && # < 1 - 10^-9) &], Throw[True, "Inside"]]],
+     {K, ResolveOut[[7]]}];
+    False, "Inside"];
+  Return[! Inside]];
+
+
+MBCHInPhaseProbe = False;
+PhaseProbeSolve[IntVar_, MBVars_, Num_, Den_] := Module[{Res},
+  Res = Catch[
+    Do[Block[{MBCHProbe = Pr1, MBCHInPhaseProbe = True, MBSeriesCache = <||>},
+       Module[{Sub, Got, Val},
+        Sub = Cases[MBVars, Q_Subscript :> (Q -> 1)];
+        Got = SafeEval[MBGetSeries[IntVar, MBVars, Num, Den]];
+        If[! ListQ[Got] || Got[[3]] =!= "Single", Continue[]];
+        Do[
+         Val = SafeEval[TimeConstrained[MBSumSeries[Got[[1]], Sub, K], MBCHChartTime, $Failed]];
+         If[Val =!= $Failed && ! DirtyQ[Val], Throw[Val, "PhaseProbe"]],
+         {K, Take[Got[[2]], UpTo[2]]}]]],
+     {Pr1, {3/5, 2/5}}];
+    $Failed, "PhaseProbe"];
+  Return[Res]];
+
+
+(* the coefficient and value of one structure at the negative base; {$Failed, $Failed} when the continuation is not
+   proved or the contour contradicts it *)
+PhaseSolve[Struct_, Coef_, Val_] := Module[{CoefC, ValC, Verdict},
+  CoefC = PhaseContinue[Coef];
+  ValC = PhaseContinue[Val];
+  If[CoefC === $Failed || ValC === $Failed,
+   VPrint["        continuation to the negative base not proved"];
+   Return[{$Failed, $Failed}]];
+  If[FreeQ[Val, MBCHPhase], Return[{CoefC, ValC}]];
+  Verdict = PhaseOkQ @@ Append[Struct, ValC];
+  If[Verdict === False,
+   VPrint["        continuation to the negative base contradicts the contour"];
+   Return[{$Failed, $Failed}]];
+  VPrint["        continuation to the negative base ", If[Verdict === True, "verified against the contour", "not checked"]];
+  Return[{CoefC, ValC}]];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -431,15 +665,36 @@ SumsToMPL[Val_] := Module[{Res, Part1},
   Return[Res]];
 
 
-TidyResult[Val_] := Module[{Hs, Fwd, Bwd, Res},
+(* an H is real on 0 < x < 1 when its argument is positive and no nonzero letter c lies on the integration path:
+   c/x < 0 or c/x > 1 (c/x >= 1 for an inner letter), each proved on the domain, as RealFunctionQ of MBAnalytica *)
+HRealQ[Hx_] := Module[{Args, Letters, Arg1, Positions},
+  Args = List @@ Hx;
+  Letters = Most[Args];
+  Arg1 = Last[Args];
+  If[AnyTrue[Letters, ListQ] || ! FreeQ[Args, Complex | MBCHPhase], Return[False]];
+  If[! HoldsOnScales[Arg1 > 0, True], Return[False]];
+  Positions = Select[Range[Length[Letters]], Letters[[#]] =!= 0 &];
+  Return[AllTrue[Positions, Function[P1, HoldsOnScales[If[P1 === 1,
+      Letters[[P1]]/Arg1 < 0 || Letters[[P1]]/Arg1 > 1,
+      Letters[[P1]]/Arg1 < 0 || Letters[[P1]]/Arg1 >= 1], True]]]]];
+
+
+(* the H functions are held while the rest is simplified: those proved real as real symbols, every other one as a
+   complex symbol, so that with Complex -> False its real and imaginary parts stay explicit (Re[H[...]], Im[H[...]]).
+   Holding every H as real made TidyResult[I H[1, 2 x]] zero, while H[1, 2 x] is complex for x > 1/2 (review of
+   e4f55bd) *)
+TidyResult[Val_] := Module[{Hs, Holders, Fwd, Bwd, Complex1, Res},
   Hs = Cases[Val, _H, {0, Infinity}];
   Hs = DeleteDuplicates[Hs];
-  Fwd = MapIndexed[(#1 -> HoldH[First[#2]]) &, Hs];
-  Bwd = Map[Reverse, Fwd];
+  Holders = Map[HoldH, Range[Length[Hs]]];
+  Fwd = Thread[Hs -> Holders];
+  Bwd = Thread[Holders -> Hs];
   Res = Val /. Fwd;
   Res = FunctionExpand[Res];
-  If[! TrueQ[MBCHComplex], Res = Re[Res]];
-  Res = ComplexExpand[Res];
+  If[TrueQ[MBCHComplex],
+   Res = ComplexExpand[Res],
+   Complex1 = Pick[Holders, Map[HRealQ, Hs], False];
+   Res = ComplexExpand[Re[Res], Complex1]];
   Res = Quiet[Assuming[ScaleAssum[], Simplify[Res]]];
   Res = Res /. Bwd;
   If[LeakQ[Res] && ! LeakQ[Val], Return[Val]];
@@ -601,6 +856,7 @@ MBCHInput[Term_, IntVar_] := Module[
 
     MatchQ[Fac, Power[_, _]] && ! FreeQ[Fac[[2]], Alternatives @@ IntVar],
       Base = Fac[[1]];
+      If[MemberQ[MBCHNegativeBases, Base], Base = -Base*MBCHPhase];
       Expo = Fac[[2]];
       PreFac = PreFac*Base^(Expo /. Map[(# -> 0) &, IntVar]);
       Do[MBVars[[J]] = MBVars[[J]]*Base^Coefficient[Expo, IntVar[[J]]],
@@ -695,13 +951,22 @@ ContourValue[IntVar_, MBVars_, Num_, Den_, Pr_] := Module[
   Integrand = Times @@ Map[GammaOrPG, Num];
   Integrand = Integrand/(Times @@ Map[GammaOrPG, Den]);
   Integrand = Integrand*
-     Product[(MBVars[[J]] /. Sub)^Vars[[J]], {J, Length[Vars]}];
+     Product[BasePower[MBVars[[J]] /. Sub, Vars[[J]]], {J, Length[Vars]}];
+  If[! FreeQ[Integrand, $Failed], Return[$Failed]];
   Integrand = Integrand /. Pr;
   If[! ScaleFreeQ[Integrand], Return[$Failed]];
   Ts = Table[Unique["tq"], {Length[Vars]}];
   Integrand = Integrand /. Thread[Vars -> (Vals + I*Ts)];
   Res = TimeConstrained[
     Which[
+     (* the principal powers of a negative base grow as Exp[Pi |t|] on one side, against the Gamma functions: without the
+        symbolic preprocessing of NIntegrate, which lost all precision on them *)
+     Length[Vars] === 1 && TrueQ[MBCHPhaseContour],
+       Quiet[NIntegrate[Integrand/(2 Pi), Evaluate[{Ts[[1]], -80, 80}],
+          WorkingPrecision -> 20, MaxRecursion -> 18, Method -> {Automatic, "SymbolicProcessing" -> 0}]],
+     Length[Vars] === 2 && TrueQ[MBCHPhaseContour],
+       Quiet[NIntegrate[Integrand/(2 Pi)^2, Evaluate[{Ts[[1]], -40, 40}],
+          Evaluate[{Ts[[2]], -40, 40}], MaxRecursion -> 12, Method -> {Automatic, "SymbolicProcessing" -> 0}]],
      Length[Vars] === 1,
        Quiet[NIntegrate[Integrand/(2 Pi), Evaluate[{Ts[[1]], -80, 80}],
           WorkingPrecision -> 20, MaxRecursion -> 18]],
@@ -2026,12 +2291,12 @@ InitKernel[K_] := Module[{Ok, Vals},
        Length[DownValues[MBSolveOne]] > 0), K]]];
   Vals = {MBCHScale, MBCHVerbose, MBCHVerifyDiff, MBCHTol, MBCHSeriesTerms, MBCHNumTime, MBCHProbe,
     MBCHChartTime, MBCHChartBudget, MBCHRegTime, MBCHRegBudget, MBCHRegSlots, MBCHRegGood, MBCHRegChart,
-    MBCHTaskMem, AbelTime, AbelBudget, AbelUseLimit, MBCHComplex};
+    MBCHTaskMem, AbelTime, AbelBudget, AbelUseLimit, MBCHComplex, MBCHPhaseUsed};
   With[{Vs = Vals},
    Quiet[ParallelEvaluate[
      ({MBCHScale, MBCHVerbose, MBCHVerifyDiff, MBCHTol, MBCHSeriesTerms, MBCHNumTime, MBCHProbe,
        MBCHChartTime, MBCHChartBudget, MBCHRegTime, MBCHRegBudget, MBCHRegSlots, MBCHRegGood, MBCHRegChart,
-       MBCHTaskMem, AbelTime, AbelBudget, AbelUseLimit, MBCHComplex} = Vs), K]]];
+       MBCHTaskMem, AbelTime, AbelBudget, AbelUseLimit, MBCHComplex, MBCHPhaseUsed} = Vs), K]]];
   Return[TrueQ[Ok] || MatchQ[Ok, {True ..}]]];
 
 
@@ -2128,7 +2393,7 @@ WorkersReady[] := Module[{Got},
 SyncWorkers[] := DistributeDefinitions[MBCHScale, MBCHVerbose, MBCHComplex, MBCHVerifyDiff, MBCHTol,
    MBCHSeriesTerms, MBCHNumTime, MBCHProbe, MBCHChartTime, MBCHChartBudget,
    MBCHRegTime, MBCHRegBudget, MBCHRegSlots, MBCHRegGood, MBCHRegChart, MBCHTaskMem,
-   AbelTime, AbelBudget, AbelUseLimit];
+   AbelTime, AbelBudget, AbelUseLimit, MBCHPhaseUsed];
 
 (* the regulator slot and chart the workers found most often become the master's next guess *)
 LearnFromWorkers[] := Module[{Seen, Slot, Chart},
@@ -2835,6 +3100,19 @@ MBSolveOne[IntVar_, MBVars_, Num_, Den_] :=
   If[Got =!= $Failed, MBSymbolicSumStatus = "Series solution obtained!"];
   If[Got === $Failed, Return[Indeterminate]];
   {ResolveOut, Order1, Kind} = Got;
+  (* a structure with the phase whose bases sit on the boundary of every chart at the probe (-2 x at x = 1/2): a chart
+     gives the value on one side only, while the analytic regulator gives it on the whole domain; the charts at probes
+     on either side come after *)
+  If[Kind === "Single" && TrueQ[MBCHPhaseUsed] && ! FreeQ[MBVars, MBCHPhase] && ! TrueQ[MBCHInPhaseProbe] &&
+     PhaseBoundaryQ[ResolveOut, Sub, Pr],
+   Say["Using the analytic regulator!"];
+   Val = SafeEval[MBRegulate[IntVar, MBVars, Num, Den]];
+   If[Val =!= $Failed, Val = SumsToMPL[Val]];
+   If[Val =!= $Failed && ! DirtyQ[Val], Return[Val]];
+   Say["Summing the series at probes off the convergence boundary ..."];
+   Val = SafeEval[PhaseProbeSolve[IntVar, MBVars, Num, Den]];
+   If[Val =!= $Failed, Return[Val]];
+   Return[Indeterminate]];
   If[Kind === "Multi",
    Res = Total[Table[
       Module[{RO, Ord1, V},
@@ -2929,6 +3207,11 @@ MBSolveOne[IntVar_, MBVars_, Num_, Den_] :=
    Say["Changing integration variables ..."];
    Val = SafeEval[TransformSolve[IntVar, MBVars, Num, Den, Ref]];
    If[Val =!= $Failed && ! DirtyQ[Val], Return[Val]]];
+  (* a structure with the phase that nothing summed at the probe: its charts at probes off the convergence boundary *)
+  If[TrueQ[MBCHPhaseUsed] && ! FreeQ[MBVars, MBCHPhase] && ! TrueQ[MBCHInPhaseProbe],
+   Say["Summing the series at probes off the convergence boundary ..."];
+   Val = SafeEval[PhaseProbeSolve[IntVar, MBVars, Num, Den]];
+   If[Val =!= $Failed, Return[Val]]];
   Return[Res]];
 
 
@@ -2990,7 +3273,7 @@ MBCH2MPL[MBInt_, {Eps_, Ord_}, opts : OptionsPattern[]] :=
   MBCH2MPL[MBInt, Automatic, {Eps, Ord}, opts];
 
 MBCH2MPL[MBInt_, MBVar_, {Eps_, Ord_}, OptionsPattern[]] := Module[
-  {Expanded, IntVars, SafeVars, Low, Res, Coeffs, K, Tmp, Structs, Groups},
+  {Expanded, IntVars, SafeVars, Low, Res, Coeffs, K, Tmp, Structs, Groups, Bases, Signs},
   MBCHVerbose = TrueQ[OptionValue[Verbose]];
   SetComplex[TrueQ[OptionValue[Complex]]];
   MBSymbolicSumLog = {};
@@ -3025,6 +3308,18 @@ MBCH2MPL[MBInt_, MBVar_, {Eps_, Ord_}, OptionsPattern[]] := Module[
   If[! IntegerQ[Low] || Low > Ord, Low = Ord];
   (* MBCHFromOrder starts the harvest later, so a kernel death costs one coefficient *)
   If[IntegerQ[MBCHFromOrder], Low = Max[Low, Min[MBCHFromOrder, Ord]]];
+
+  (* the sign of every base: a negative one is solved through the phase (Negative Bases), any other is refused *)
+  Bases = DeleteDuplicates[Cases[Expanded, Power[B_, E1_] /; ! FreeQ[E1, Alternatives @@ IntVars] :> B, {0, Infinity}]];
+  Signs = Map[BaseSign, Bases];
+  MBCHNegativeBases = Pick[Bases, Signs, -1];
+  MBCHPhaseUsed = MBCHNegativeBases =!= {};
+  If[MemberQ[Signs, $Failed],
+   VPrint["  bases       : not proved positive or negative: ", Pick[Bases, Signs, $Failed]];
+   Say["Done!"];
+   Return[Total[Table[MBAnalytica`Private`NotEvaluated[{"SymbolicSum",
+       "a base of the integral is not proved positive or negative on 0 < x < 1"}]*Eps^K, {K, Low, Ord}]]]];
+  If[MBCHPhaseUsed, VPrint["  bases       : ", MBCHNegativeBases, " negative, continued from a positive phase"]];
 
   (* structures of every order first, so the contours and then the solves each run as one parallel batch *)
   Structs = Table[OrderStructs[Expanded, K], {K, Low, Ord}];
@@ -3112,7 +3407,7 @@ GroupTasks[Groups_] := Module[{Tasks},
   Return[Map[{#, Groups[[#, 1, 2 ;; 5]]} &, Tasks]]];
 
 MBCH2MPLOrder[Groups_, IntVars_, Ord_] := Module[
-  {Res, Bad, Total1, Tasks, Vals},
+  {Res, Bad, Total1, Tasks, Vals, PhaseFailed},
   If[Groups === {}, Return[0]];
   VPrint["  eps^", Ord, "      : ", Length[Flatten[Groups, 1]], " structures -> ", Length[Groups], " distinct"];
 
@@ -3121,6 +3416,7 @@ MBCH2MPLOrder[Groups_, IntVars_, Ord_] := Module[
   Vals = AssociationThread[Map[First, Tasks], SolveAll[Tasks]];
 
   Total1 = 0;
+  PhaseFailed = False;
   Do[
    Module[{G, Coef, Val},
     G = Groups[[J]];
@@ -3130,19 +3426,30 @@ MBCH2MPLOrder[Groups_, IntVars_, Ord_] := Module[
      Val = Vals[J];
      If[Val === $Failed || DirtyQ[Val],
         VPrint["        structure ", J, "/", Length[Groups], " NOT solved"]];
+     If[TrueQ[MBCHPhaseUsed] && ! FreeQ[{Coef, Val}, MBCHPhase] && Val =!= $Failed && Val =!= Indeterminate,
+      {Coef, Val} = PhaseSolve[G[[1, 2 ;; 5]], Coef, Val];
+      If[Val === $Failed, PhaseFailed = True]];
      Total1 = Total1 + Coef*Val]],
    {J, Length[Groups]}];
+  If[PhaseFailed, Return[MBAnalytica`Private`NotEvaluated[{"SymbolicSum",
+     "the continuation of a structure to its negative base was not proved"}]]];
 
   Bad = Select[IntVars, ! FreeQ[Total1, #] &];
   Bad = Join[Bad, Select[MBCHCanonVar, ! FreeQ[Total1, #] &]];
   Bad = Join[Bad, Select[{Global`sinf, Global`LinInf}, ! FreeQ[Total1, #] &]];
   If[! FreeQ[Total1, S], Bad = Append[Bad, S]];
   If[LeakQ[Total1], Bad = Append[Bad, "leak"]];
+  If[! FreeQ[Total1, MBCHPhase], Bad = Append[Bad, MBCHPhase]];
   If[Bad =!= {}, Return[MBAnalytica`Private`NotEvaluated[Bad]]];
 
   Res = Total1 /. Q_Symbol /;
      StringMatchQ[SymbolName[Q], "z" ~~ DigitCharacter ..] :>
      Zeta[ToExpression[StringDrop[SymbolName[Q], 1]]];
+  (* the constants of HarmonicSums as their values, as ConstsAtOne writes them: Log[2] stayed the symbol ln2 in the result
+     of a base 2 x (I Gamma[-z] Gamma[1-z] Gamma[1+z]^2 (2 x)^z, found with the review of e4f55bd) *)
+  Res = Res /. Q_Symbol /; Context[Q] === "Global`" && SymbolName[Q] === "ln2" :> Log[2];
+  Res = Res /. Q_Symbol /; Context[Q] === "Global`" && StringMatchQ[SymbolName[Q], "li" ~~ DigitCharacter .. ~~ "half"] :>
+     PolyLog[ToExpression[StringTake[SymbolName[Q], {3, -5}]], 1/2];
   Res = TidyResult[Res];
   Return[Res]];
 

@@ -9,6 +9,16 @@
      Get["PSLQ`"];
      Get["DenominatorReduction`"];
  	Get["FitReduction`"];
+@@ -155,7 +157,8 @@
+ Some functionalities will not work properly unless ginsh is properly running.";
+ 
+ 
+-If[Run["which ginsh"] =!= 0,
++(* MBAnalytica: the check prints nothing (the path that which writes went to the output of every kernel that loads PolyLogTools) *)
++If[Run["which ginsh > /dev/null 2>&1"] =!= 0,
+    Message[Ginsh::NotFound]
+    ];
+     
 --- a/core/GiNaCInterface.m
 +++ b/core/GiNaCInterface.m
 @@ -93,7 +93,18 @@

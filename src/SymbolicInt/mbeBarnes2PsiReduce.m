@@ -28,7 +28,7 @@
    ============================================================================================================ *)
 
 mbeB2PLog[a___] := If[TrueQ[Global`$mbeB2PVerbose] || TrueQ[Global`$bwsVerbose],
-  WriteString["stdout", "  [Barnes2Psi] " <> StringJoin[ToString /@ {a}] <> "\n"]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [Barnes2Psi] " <> StringJoin[ToString /@ {a}] <> "\n"]]];
 mbeB2PAffineQ[e_, v_] := PolynomialQ[e, v] && Exponent[e, v] <= 1;
 mbeB2PRe[e_, ctr_] := Quiet@Check[Re[N[e /. ctr, 30]], $Failed];
 mbeB2PSameQ[a_, b_] := PossibleZeroQ[Expand[a - b]];
@@ -149,4 +149,4 @@ mbeBarnes2PsiReduce[intg_, vars_List, ctr_List] := Module[{r = $Failed},
   Do[If[r === $Failed, r = Quiet@Check[mbeB2PReduceVar[intg, v, vars, ctr], $Failed]], {v, vars}];
   r];
 
-WriteString["stdout", "[mbeBarnes2PsiReduce] loaded (Barnes second lemma with a polygamma difference: partner leg + one-variable-fewer pieces, crossed-pole residues, one-dimensional gate).\n"];
+If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeBarnes2PsiReduce] loaded (Barnes second lemma with a polygamma difference: partner leg + one-variable-fewer pieces, crossed-pole residues, one-dimensional gate).\n"]];

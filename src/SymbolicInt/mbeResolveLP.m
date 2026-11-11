@@ -130,4 +130,4 @@ If[Environment["MBE_RESOLVE_LP"] =!= "0" && DownValues[MB`Private`MBfindResidues
       MB`Private`Dots[max];
       Return[{MB`Private`MBmakeResidue[res, {temp[[2]], List @@ (temp[[1]])}], step}]];
     Return[False]];
-  WriteString["stdout", "[mbeResolveLP] MB`Private`MBfindResidues redefined: exact linear-programming contour search (margin LP, then L1-hinge LP); the differential-evolution search is the per-node fallback.\n"]]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeResolveLP] MB`Private`MBfindResidues redefined: exact linear-programming contour search (margin LP, then L1-hinge LP); the differential-evolution search is the per-node fallback.\n"]]]];

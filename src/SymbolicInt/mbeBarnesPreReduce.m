@@ -23,7 +23,7 @@
    Nothing is carried across a chart; no contour is closed except by the explicit crossed-pole residues above.
    ============================================================================================================ *)
 
-mbeBPRLog[a___] := If[TrueQ[Global`$mbeBPRVerbose], WriteString["stdout", "  [BarnesPre] " <> StringJoin[ToString /@ {a}] <> "\n"]];
+mbeBPRLog[a___] := If[TrueQ[Global`$mbeBPRVerbose], If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [BarnesPre] " <> StringJoin[ToString /@ {a}] <> "\n"]]];
 
 mbeBPRAffineQ[e_, v_] := PolynomialQ[e, v] && Exponent[e, v] <= 1;
 
@@ -137,4 +137,4 @@ mbeBarnesPreReduce[intg_, vars_List, ctr_List] := Module[{work = {{intg, vars}},
 (* the contour-less signature is an error now: the crossings need the contour *)
 mbeBarnesPreReduce[intg_, vars_List] := (mbeBPRLog["mbeBarnesPreReduce called without a contour -> refused"]; $Failed);
 
-WriteString["stdout", "[mbeBarnesPreReduce] loaded (Barnes first lemma with polynomial absorption, crossed-pole residues, one-dimensional reduction gate).\n"];
+If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeBarnesPreReduce] loaded (Barnes first lemma with polynomial absorption, crossed-pole residues, one-dimensional reduction gate).\n"]];

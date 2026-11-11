@@ -103,12 +103,38 @@ If[StringQ[Recheck] && Recheck =!= "" && FileExistsQ[Recheck],
 (* a saved value carries no messages: an order that MBEvaluate omitted then fails its own check below *)
 If[! BooleanQ[OmittedQ], OmittedQ = False];
 GForm = Total[Values1];
-If[! IntegerQ[Lo], Lo = Exponent[Expand[GForm], Eps, Min]];
+(* LO = auto: the lowest order of the row is that of its reference (the exact benchmark, the record files, the records'
+   coefficients), never the first order of the value itself: a value that had lost its leading pole started the checks
+   at its own first order and passed (review of e4f55bd).  An order of the value below the reference is checked too.
+   A row without a reference order fails *)
+ReferenceLowest[] := Module[{Idx, Ks, Recs},
+  Which[
+    Kind === "inc" && Val =!= None,
+      Return[Exponent[Expand[Normal[Series[Val, {Eps, 0, Hi}]]], Eps, Min]],
+    Kind === "u" && Method1 === "SymbolicSum",
+      Idx = StringReplace[StringDrop[Name, -1], {"MB" -> ""}];
+      Ks = Map[ToExpression[StringReplace[StringDrop[FileBaseName[#], StringLength["MB" <> Idx <> "_diff_"]], "m" -> "-"]] &,
+        If[StringQ[RefDir], FileNames["MB" <> Idx <> "_diff_*.m", RefDir], {}]];
+      Ks = Select[Ks, IntegerQ];
+      Return[If[Ks === {}, $Failed, Min[Ks]]],
+    Kind === "u",
+      Recs = Join[
+        Block[{$ContextPath = $ContextPath}, Quiet[Get[FileNameJoin[{ParentDirectory[ScriptDir], "reference", "mbu_results.m"}]]];
+          If[AssociationQ[Global`MBuResults], {Lookup[Global`MBuResults, Name, None]}, {}]],
+        Block[{$ContextPath = $ContextPath}, With[{R = Quiet[Get[FileNameJoin[{ParentDirectory[ScriptDir], "reference", "mbu_subtraction_records.m"}]]]},
+          If[AssociationQ[R], {Lookup[R, Name, None]}, {}]]]];
+      Recs = Select[Recs, AssociationQ[#] && AssociationQ[#["Coefficients"]] &];
+      Ks = Flatten[Map[Keys[Select[#["Coefficients"], (# =!= 0) &]] &, Recs]];
+      Return[If[Ks === {}, $Failed, Min[Ks]]],
+    True, Return[$Failed]]];
+LoRef = ReferenceLowest[];
+If[! IntegerQ[Lo], Lo = If[IntegerQ[LoRef], Min[LoRef, Exponent[Expand[GForm], Eps, Min]], Exponent[Expand[GForm], Eps, Min]]];
+If[! IntegerQ[LoRef], Print["MBEVAL_NOTE ", Name, "  no reference order"]];
 Clean = ! MemberQ[Values1, $Failed] && ! OmittedQ && FreeQ[GForm, _HarmonicSums`H] &&
   (Names["HPL`HPL"] === {} || FreeQ[GForm, _HPL`HPL]);
 Print["MBEVAL_FORM ", Name, "  every order evaluated, free of H and HPL: ", Clean, "  G functions: ", Count[GForm, _PolyLogTools`G, {0, Infinity}],
   "  seconds ", Seconds];
-Pass = Clean;
+Pass = Clean && IntegerQ[LoRef] && IntegerQ[Lo];
 OrderPass = <||>;
 
 

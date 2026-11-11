@@ -10,8 +10,9 @@ redistribution are not part of the repository: `make` downloads them from their 
   loads the project's two files `core/MZVw78.m` (the weight-7/8 multiple-zeta values) and `core/ReduceCG78.m` (the
   weight 7--10 branch of `ReduceCG`, a fail-closed identity reached by no route), adds the same fail-closed identity
   for weight 6, makes the `GiNaC` interface accept words given as lists, lets the numerical check of `Fiber` tolerate
-  rounding (and skip when `ginsh` is unavailable), and renames the internal `HermiteReduce` of `core/PSLQ.m`, which
-  Mathematica 15 makes a protected System symbol.
+  rounding (and skip when `ginsh` is unavailable), renames the internal `HermiteReduce` of `core/PSLQ.m`, which
+  Mathematica 15 makes a protected System symbol, and silences the path that the check for `ginsh` printed whenever
+  PolyLogTools was loaded.
 - HPL 2.0 (Daniel Maitre; hep-ph/0507152, hep-ph/0703052) and HypExp 2.0 (Tobias Huber, Daniel Maitre;
   hep-ph/0507094, arXiv:0708.2443): NOT redistributed. `make` downloads `HPL-2.0.tar.gz` and `HypExp-2.0.tar.gz`
   from https://www.physik.uzh.ch/data/HPL/ and https://www.physik.uzh.ch/data/HypExp/, checks them against

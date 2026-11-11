@@ -304,6 +304,18 @@ TaylorCheck[Result_, Norm_, GammaList_, X_, Eps_, Lo_, Hi_] := Module[{NMax = On
   Return[Good]];
 
 
+(* the G functions of -X with the letters 0 and 1 are single-valued for -X < 1 only: for X <= -1 the letter 1 lies on the
+   integration path, and the value of the principal power X^z needs the prescription -X - I 0 there (review of e4f55bd,
+   the branch of a negative base).  Such an integral is left to MBCH2MPL, which continues negative bases *)
+ArgumentBelowOneQ[Y_] := Module[{Vars, Domain},
+  If[! FreeQ[Y, Complex | DirectedInfinity | Indeterminate], Return[False]];
+  If[NumericQ[Y], Return[TrueQ[Y < 1]]];
+  Vars = Union[Cases[Y, S1_Symbol /; ! NumericQ[S1], {0, Infinity}]];
+  Domain = And @@ Map[(0 < # < 1) &, Vars];
+  If[TrueQ[Quiet[Refine[Y < 1, Domain]]], Return[True]];
+  Return[TrueQ[Quiet[TimeConstrained[Resolve[ForAll[Vars, Domain, Y < 1], Reals], 10, False]]]]];
+
+
 OneFoldHypExpand[Integrand_, Eps_Symbol, {Lo_Integer, Hi_Integer}] := Catch[Module[
   {Parsed, GammaList, X, PreFac, Norm, N0, Sigma, Nu, N1, T, Ratio, PochProd, Leading, Inv, Order2, Exponent1, ExpSeries,
    SS, Generic, Exceptional, Total1, Result, LowPower},
@@ -311,6 +323,14 @@ OneFoldHypExpand[Integrand_, Eps_Symbol, {Lo_Integer, Hi_Integer}] := Catch[Modu
   If[Parsed === $Failed, Throw[$Failed, "OneFoldHyp"]];
   GammaList = Parsed["Gammas"];
   X = Parsed["X"];
+  If[! ArgumentBelowOneQ[-X], Throw[$Failed, "OneFoldHyp"]];
+  (* a base that is not a symbol is replaced by one for the expansion and its exact Taylor check, which reads the base
+     as the variable of the series: with X = x/4 or -x/2 the check compared polynomials in different variables and
+     refused every such integral *)
+  If[Head[X] =!= Symbol,
+    Module[{Xs, Res},
+      Res = OneFoldHypExpand[Integrand /. Power[X, Parsed["z"]] -> Power[Xs, Parsed["z"]], Eps, {Lo, Hi}];
+      Throw[If[AssociationQ[Res], Map[(# /. Xs -> X) &, Res], $Failed], "OneFoldHyp"]]];
   PreFac = Parsed["Prefactor"];
   (* F = Norm Sum_n Y^n/n! Prod (m_i + c_i Eps)_n^k_i, Y = -X *)
   Norm = PreFac Product[Gamma[Gam[[1]] + Gam[[2]] Eps]^Gam[[3]], {Gam, GammaList}];

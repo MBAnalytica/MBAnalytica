@@ -47,7 +47,10 @@ Module[{},
         FileNames["*.m", FileNameJoin[{d, "multifold_close"}]], FileNames["*.m", FileNameJoin[{d, "intvolflint"}]],
         FileNames["*.m", FileNameJoin[{d, "mbtools"}]], FileNames["*.m", FileNameJoin[{Global`$MBStandardVendorDir, "MB"}]],
         {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], StringQ[#] && FileExistsQ[#] &];
-    Hash[{FileNameTake[#], FileHash[#, "SHA256"]} & /@ Sort[DeleteDuplicates[files]], "SHA256", "HexString"]];
+    (* with the identity of the dependencies (the Wolfram version, the third-party packages, the tables, the GiNaC
+       shell): the code files alone let a value of another build of a dependency be served (review of e4f55bd) *)
+    Hash[{MBAnalytica`SymbolicInt`Private`mbtDependencyState[], {FileNameTake[#], FileHash[#, "SHA256"]} & /@ Sort[DeleteDuplicates[files]]},
+      "SHA256", "HexString"]];
 
   Global`orsRoot[] := Which[Global`$oftResidueStore === False, None,
     StringQ[Global`$oftResidueStore], Global`$oftResidueStore,
@@ -61,13 +64,26 @@ Module[{},
   (* written to a temporary name and renamed: a reader never sees a partial file *)
   Global`orsWrite[file_, value_] := Module[{tmp = file <> ".tmp" <> ToString[$ProcessID]},
     Quiet@Check[Export[tmp, value, "WXF"]; RenameFile[tmp, file, OverwriteTarget -> True], Quiet@DeleteFile[tmp]]];
-  (* a claim's holder is alive while its PID runs a Wolfram kernel (a reused PID of another program is not a holder) *)
-  Global`orsAliveQ[pid_Integer] := Quiet@Check[With[{a = RunProcess[{"ps", "-o", "args=", "-p", ToString[pid]}, "StandardOutput"]},
-    StringQ[a] && StringContainsQ[a, "WolframKernel" | "MathKernel" | "math"]], False];
+  (* a claim's holder is alive while its PID runs a Wolfram kernel that started when the claim says (a reused PID of
+     another program, or of another kernel, is not a holder) *)
+  Global`orsStartTime[pid_Integer] := Quiet@Check[With[{a = RunProcess[{"ps", "-o", "lstart=", "-p", ToString[pid]}, "StandardOutput"]},
+    If[StringQ[a], StringTrim[a], ""]], ""];
+  Global`orsAliveQ[pid_Integer] := Global`orsAliveQ[{pid, None}];
+  Global`orsAliveQ[{pid_Integer, started_}] := Quiet@Check[With[{a = RunProcess[{"ps", "-o", "args=", "-p", ToString[pid]}, "StandardOutput"]},
+    StringQ[a] && StringContainsQ[a, "WolframKernel" | "MathKernel" | "math"] &&
+      (! StringQ[started] || started === "" || started === Global`orsStartTime[pid])], False];
   Global`orsClaim[claim_String] := If[Quiet@Check[CreateDirectory[claim]; True, False] === True,
-    Quiet@Check[Export[FileNameJoin[{claim, "owner"}], ToString[$ProcessID], "Text"], Null]; True, False];
-  Global`orsOwner[claim_String] := Quiet@Check[ToExpression[StringTrim[Import[FileNameJoin[{claim, "owner"}], "Text"]]], $Failed];
+    Quiet@Check[Export[FileNameJoin[{claim, "owner"}], ToString[$ProcessID] <> "|" <> Global`orsStartTime[$ProcessID], "Text"], Null];
+    True, False];
+  (* {PID, start time} of the holder (an owner file of an older release has the PID alone), $Failed when it cannot be read *)
+  Global`orsOwner[claim_String] := Quiet@Check[With[{parts = StringSplit[StringTrim[Import[FileNameJoin[{claim, "owner"}], "Text"]], "|"]},
+    If[Length[parts] >= 1 && StringMatchQ[parts[[1]], DigitCharacter ..],
+      {ToExpression[parts[[1]]], If[Length[parts] >= 2, parts[[2]], None]}, $Failed]], $Failed];
   Global`orsRelease[claim_String] := Quiet@DeleteDirectory[claim, DeleteContents -> True];
+  (* a claim without a readable owner a minute after it was made: its holder stopped between making it and writing the
+     owner, and the claim is released (it was waited for until the wait limit, hours, review of e4f55bd) *)
+  If[! NumericQ[Global`$oftClaimGrace], Global`$oftClaimGrace = 60];
+  Global`orsClaimAge[claim_String] := Quiet@Check[AbsoluteTime[] - AbsoluteTime[FileDate[claim, "Modification"]], 0];
 
   (* ---- 1-2. the store and the claims around the multi-fold slot ---- *)
   DownValues[Global`orsMultiFoldOrig] = DownValues[Global`oftMultiFoldHandler] /.
@@ -93,17 +109,21 @@ Module[{},
           If[verbose, Print["    [residue store] residue read from the store", If[said, " (closed by another process meanwhile)", ""], " (", StringTake[key, 12], ")"]];
           Return[m, Module]]];
       If[Global`orsClaim[claim],
+        (* a stored file that does not read as a good value (a corrupt or truncated file) is replaced: it was kept, and
+           every later request computed the residue again (review of e4f55bd) *)
         Internal`WithLocalSettings[Null, m = compute,
-          If[! FileExistsQ[file] && TrueQ[goodQ[m]], Global`orsWrite[file, m]]; Global`orsRelease[claim]];
+          If[TrueQ[goodQ[m]] && ! (FileExistsQ[file] && TrueQ[goodQ[Global`orsRead[file]]]), Global`orsWrite[file, m]];
+          Global`orsRelease[claim]];
         Return[m, Module]];
       owner = Global`orsOwner[claim];
-      If[IntegerQ[owner] && owner =!= $ProcessID && ! Global`orsAliveQ[owner], Global`orsRelease[claim]; Continue[]];
+      If[ListQ[owner] && owner[[1]] =!= $ProcessID && ! Global`orsAliveQ[owner], Global`orsRelease[claim]; Continue[]];
+      If[! ListQ[owner] && DirectoryQ[claim] && Global`orsClaimAge[claim] > Global`$oftClaimGrace, Global`orsRelease[claim]; Continue[]];
       (* a helper does not wait: another process holds this residue, the helper goes on to its next one *)
       If[TrueQ[Global`$orsHelperMode], Return[$Failed, Module]];
       If[AbsoluteTime[] - t0 > Global`orsWaitLimit[],
         If[verbose, Print["    [residue store] waited ", Round[AbsoluteTime[] - t0], " s for process ", owner, "; closing it here"]];
         Return[compute, Module]];
-      If[! said && verbose, Print["    [residue store] being closed by process ", owner, "; waiting"]]; said = True;
+      If[! said && verbose, Print["    [residue store] being closed by process ", If[ListQ[owner], owner[[1]], "unknown"], "; waiting"]]; said = True;
       Pause[Global`$oftClaimPoll]]];
   Global`oftMultiFoldHandler[term_, eps_Symbol, ordMin_Integer, ordMax_Integer, verbose_] :=
     If[Global`orsRoot[] === None, Global`orsMultiFoldOrig[term, eps, ordMin, ordMax, verbose],
@@ -143,8 +163,10 @@ Module[{},
     Join[Flatten[Global`orsTree /@ Select[kids, IntegerQ]], {pid}]];
   (* the PID of a process started by StartProcess is in the ProcessObject's own association *)
   Global`orsPID[p_ProcessObject] := Quiet@Check[With[{a = First[p]}, If[AssociationQ[a], Lookup[a, "PID", $Failed], $Failed]], $Failed];
+  (* the STOP file is written with Put: this runs in the cleanup of an aborted computation as well, where Export (and
+     Import) turned the abort of a TimeConstrained into an abort of the whole evaluation *)
   Global`orsStopHelpers[procs_List, jobDir_String] := Module[{pids},
-    Quiet@Export[FileNameJoin[{jobDir, "STOP"}], "stop", "Text"];
+    Quiet@Put["stop", FileNameJoin[{jobDir, "STOP"}]];
     pids = Flatten[With[{pid = Global`orsPID[#]}, If[IntegerQ[pid], Global`orsTree[pid], {}]] & /@ procs];
     (* literal PIDs of the helpers and of every process they started (subkernels, integrators) *)
     Scan[Quiet@RunProcess[{"kill", "-KILL", ToString[#]}] &, Select[pids, IntegerQ]];
@@ -157,10 +179,17 @@ Module[{},
      once more.  The wait ends as soon as every helper has either written its start marker (OFT_MARKER, the first statement
      of oft_residue_helper.wls) or stopped, instead of always after ten seconds (audit of 2026-11-09: ten idle seconds of
      the calling process on every start).  Returns {processes, job directory}. *)
+  (* every start gets a job directory of its own: the directory of a tag was used again by a second start of the same
+     tag in the same process, whose helpers then found the STOP file and the start markers of the first and stopped at
+     once (review of e4f55bd).  The processes are recorded as they start, and an abort during the start stops those
+     already started *)
+  If[! IntegerQ[Global`$orsLaunchCount], Global`$orsLaunchCount = 0];
   Global`orsStartHelpers[job_Association, tag_, nH_Integer, verbose_] := Module[
-    {root = Global`orsRoot[], jobDir, jobFile, orders, kernel = MBAnalytica`SymbolicInt`Private`$mbtMathExecutable, start, procs,
-     marker, settled, deadline},
-    jobDir = FileNameJoin[{root, "job_" <> ToString[$ProcessID] <> "_" <> IntegerString[Hash[tag], 16]}];
+    {root = Global`orsRoot[], jobDir, jobFile, orders, kernel = MBAnalytica`SymbolicInt`Private`$mbtMathExecutable, start, procs = {},
+     marker, settled, deadline, done = False},
+    Global`$orsLaunchCount = Global`$orsLaunchCount + 1;
+    jobDir = FileNameJoin[{root, "job_" <> ToString[$ProcessID] <> "_" <> IntegerString[Hash[tag], 16] <> "_" <>
+      IntegerString[Hash[{$SessionID, Global`$orsLaunchCount, AbsoluteTime[]}], 16, 8]}];
     Quiet@CreateDirectory[jobDir, CreateIntermediateDirectories -> True];
     jobFile = FileNameJoin[{jobDir, "job.wxf"}];
     Export[jobFile, Append[job, "Owner" -> $ProcessID], "WXF"];
@@ -171,13 +200,18 @@ Module[{},
         <|"OFT_JOB" -> jobFile, "OFT_ORDER" -> o, "OFT_STORE" -> root, "OFT_MARKER" -> mk|>]], $Failed];
     marker[k_Integer, attempt_Integer] := FileNameJoin[{jobDir, "started_" <> ToString[k] <> "_" <> ToString[attempt]}];
     settled[p_, mk_String] := FileExistsQ[mk] || Head[p] =!= ProcessObject || ProcessStatus[p] =!= "Running";
-    procs = Table[start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}], marker[k, 1]], {k, nH}];
-    deadline = AbsoluteTime[] + 10;
-    While[AbsoluteTime[] < deadline && ! AllTrue[Range[nH], settled[procs[[#]], marker[#, 1]] &], Pause[0.25]];
-    procs = Table[If[Head[procs[[k]]] === ProcessObject && ProcessStatus[procs[[k]]] === "Running", procs[[k]],
-        If[verbose, Print["  [residue store] helper ", k, " stopped at start (exit code ",
-          If[Head[procs[[k]]] === ProcessObject, ProcessInformation[procs[[k]]]["ExitCode"], "-"], "); starting it again"]];
-        Pause[5]; start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}], marker[k, 2]]], {k, nH}];
+    Internal`WithLocalSettings[Null,
+      Do[AppendTo[procs, start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}], marker[k, 1]]], {k, nH}];
+      deadline = AbsoluteTime[] + 10;
+      While[AbsoluteTime[] < deadline && ! AllTrue[Range[nH], settled[procs[[#]], marker[#, 1]] &], Pause[0.25]];
+      Do[If[! (Head[procs[[k]]] === ProcessObject && ProcessStatus[procs[[k]]] === "Running"),
+          If[verbose, Print["  [residue store] helper ", k, " stopped at start (exit code ",
+            If[Head[procs[[k]]] === ProcessObject, ProcessInformation[procs[[k]]]["ExitCode"], "-"], "); starting it again"]];
+          Pause[5];
+          procs[[k]] = start[orders[[k]], FileNameJoin[{jobDir, "helper" <> ToString[k] <> ".log"}], marker[k, 2]]],
+        {k, nH}];
+      done = True,
+      If[! done, Global`orsStopHelpers[Select[procs, Head[#] === ProcessObject &], jobDir]]];
     procs = Select[procs, Head[#] === ProcessObject &];
     If[verbose, Print["  [residue store] ", Length[procs], " helper process(es) started (orders ", Take[orders, Length[procs]],
       "), store ", root]];
@@ -195,11 +229,11 @@ Module[{},
       Global`mfrSameContourCensus[resList], resList];
     heavy = Select[Range[Length[members]], ListQ[members[[#, 2, 2]]] && Length[members[[#, 2, 2]]] >= 2 &];
     nH = Global`orsHelperCount[Length[heavy]];
-    If[nH > 0,
-      If[verbose, Print["  [residue store] ", Length[heavy], " multi-fold residues"]];
-      started = Global`orsStartHelpers[<|"Kind" -> "Family", "Members" -> members[[heavy]], "Indices" -> heavy,
-        "Regulator" -> eps, "OrderMin" -> ordMin, "OrderMax" -> ordMax|>, {resList, ordMin, ordMax}, nH, verbose]];
     Internal`WithLocalSettings[Null,
+      If[nH > 0,
+        If[verbose, Print["  [residue store] ", Length[heavy], " multi-fold residues"]];
+        started = Global`orsStartHelpers[<|"Kind" -> "Family", "Members" -> members[[heavy]], "Indices" -> heavy,
+          "Regulator" -> eps, "OrderMin" -> ordMin, "OrderMax" -> ordMax|>, {resList, ordMin, ordMax}, nH, verbose]];
       Global`orsFamilyLaurentOrig[resList, eps, ordMin, ordMax, verbose],
       If[started[[1]] =!= {}, Global`orsStopHelpers[started[[1]], started[[2]]]]]];
 

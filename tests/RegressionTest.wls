@@ -114,7 +114,15 @@ Check1["private name with a value", Block[{Global`mbaUserSymbol0001 = 7},
   MBEvaluate[Global`z2 BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True] === Global`z2/2]];
 Check1["two protected parameters", Simplify[MBEvaluate[(Global`z2 + 2 Global`ln2) BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
   Complex -> True] - (Global`z2 + 2 Global`ln2)/2] === 0];
-Check1["no private name left behind", Names["Global`mbaUserSymbolx*"] === {}];
+(* the review of e4f55bd: the private names are kept and used again, so that the memo of the leading pole does not grow
+   under removed names *)
+Check1["private names used again, no memo growth", Module[{Names1, Memo1},
+  MBEvaluate[Global`z2 BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True];
+  Names1 = Names["Global`mbaUserSymbol*"];
+  Memo1 = Length[DownValues[MBAnalytica`Private`LeadingPole]];
+  Do[MBEvaluate[Global`z2 BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True], {3}];
+  Names["Global`mbaUserSymbol*"] === Names1 && Length[DownValues[MBAnalytica`Private`LeadingPole]] === Memo1 &&
+    StringFreeQ[ToString[DownValues[MBAnalytica`Private`LeadingPole], InputForm], "Removed"]]];
 
 (* R2. an inexact order is refused: 0.5 and 1.5 passed the exact checks and gave zero integrands *)
 Do[Check1["CosmoTreeMB refuses the inexact order " <> ToString[Nu, InputForm],
@@ -184,6 +192,93 @@ If[StringQ[MBAnalytica`Portable`Private`FindCommand["perl"]],
     R === "aborted" && IntegerQ[Sh] && IntegerQ[Child] && RunProcess[{"kill", "-0", ToString[Sh]}, "ExitCode"] =!= 0 &&
       RunProcess[{"kill", "-0", ToString[Child]}, "ExitCode"] =!= 0]]];
 
+(* the review of e4f55bd (2026-11-10) *)
+(* R3.1 a negative base is the principal power: solved with a positive phase and continued to Exp[I Pi]; positive bases as
+   before; a base of no fixed sign, or a complex one, is refused *)
+Value1[R_] := If[Head[R] === ConditionalExpression, First[R], R];
+If[MethodQ["SymbolicSum"],
+  Check1["negative base: the full complex value", FullSimplify[Value1[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0},
+    Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] - (2 Pi x + I (1 + 2 x - 2 x Log[2 x]))/(1 + 2 x)^2, 0 < x < 1] === 0];
+  Check1["negative base: the real part", FullSimplify[Value1[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+    BarnesReduce -> False]] - 2 Pi x/(1 + 2 x)^2, 0 < x < 1] === 0];
+  Check1["negative base: the inverse power", With[{X = -2 x, LX = Log[2 x] + I Pi}, FullSimplify[Value1[MBEvaluate[I BarnesKernel (-2 x)^(-z),
+    {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] - I (X^2 - X - X LX)/(X - 1)^2, 0 < x < 1] === 0]];
+  (* the principal power on the negative axis is the limit from above: the contour integral with Log of the base at
+     Log[3/2] + I Pi agrees, the one with Log[3/2] - I Pi (the limit from below) differs by 12 Pi/25 *)
+  Check1["negative base: the limit from above, not from below", Module[{V, Contours},
+    V = N[Value1[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] /. x -> 3/4, 25];
+    Contours = Map[Function[LB, NIntegrate[Evaluate[I BarnesKernel Exp[z LB] /. z -> -1/2 + I t], {t, -60, 60}, WorkingPrecision -> 30]/(2 Pi)],
+      {Log[3/2] + I Pi, Log[3/2] - I Pi}];
+    Abs[V - Contours[[1]]] < 10^-12 && Abs[Abs[V - Contours[[2]]] - 12 Pi/25] < 10^-12]];
+  (* at the probe x = 1/2 the base -2 x sits on the boundary of both charts: the analytic regulator gives the value on
+     the whole domain, and without it the charts are summed at probes on either side, a value with its region *)
+  Check1["negative base without the analytic regulator", Module[{R},
+    MBAnalytica`SymbolicSum`Private`ClearSolveCaches[];
+    R = Block[{MBAnalytica`SymbolicSum`Private`MBCHRegSlots = 0}, MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0},
+      Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]];
+    MBAnalytica`SymbolicSum`Private`ClearSolveCaches[];
+    R =!= 0 && FullSimplify[Value1[R] - (2 Pi x + I (1 + 2 x - 2 x Log[2 x]))/(1 + 2 x)^2,
+      If[Head[R] === ConditionalExpression, R[[2]], True] && 0 < x < 1] === 0]];
+  Check1["negative base -x/3 (its charts converge at the probe)", With[{X = -x/3}, FullSimplify[Value1[MBEvaluate[I BarnesKernel (-x/3)^z,
+    {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] - I (1 - X + X (Log[x/3] + I Pi))/(1 - X)^2, 0 < x < 1] === 0]];
+  Check1["positive bases as before, Log[2] not ln2", With[{R = MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+      BarnesReduce -> False, Complex -> True]},
+    FreeQ[R, Global`ln2] && FullSimplify[Value1[R] - I (1 - 2 x + 2 x Log[2 x])/(1 - 2 x)^2, 1/2 < x < 1] === 0 &&
+      FullSimplify[MBEvaluate[I BarnesKernel (x/3)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True] -
+        I (1 - x/3 + x/3 Log[x/3])/(1 - x/3)^2, 0 < x < 1] === 0]];
+  Check1["complex base refused", Check[MBEvaluate[I BarnesKernel (-2 x + I/10)^z, {ep, 0}, Method -> "SymbolicSum", Complex -> True]; False,
+    True, MBEvaluate::open]];
+  Check1["base of changing sign refused", Check[MBEvaluate[I BarnesKernel (1 - 2 x)^z, {ep, 0}, Method -> "SymbolicSum", Complex -> True]; False,
+    True, MBEvaluate::open]];
+  (* (-x)^z: a base that is no symbol, with -X = x below 1 (Mathematica writes (-x/2)^z as (-x)^z/2^z, two powers,
+     which is outside the class) *)
+  Check1["one-fold route: the negative base -x", With[{A = MBAnalytica`OneFoldHyp`OneFoldHypExpand[
+      Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] (-x)^z, e, {-1, 1}],
+      B = MBAnalytica`OneFoldHyp`OneFoldHypExpand[Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] y^z, e, {-1, 1}] /. y -> -x},
+    AssociationQ[A] && AssociationQ[B] && AllTrue[Keys[B], Simplify[A[#] - B[#]] === 0 &]]];
+  Check1["one-fold route refuses the argument 2 x", MBAnalytica`OneFoldHyp`OneFoldHypExpand[
+    Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] (-2 x)^z, e, {-1, 1}] === $Failed];
+  (* R3.3 the defaults of SetOptions[MBEvaluate, ...] are read, an explicit option still wins, and the defaults return *)
+  Check1["SetOptions of MBEvaluate", Module[{Saved = Options[MBEvaluate], A, B, C1},
+    SetOptions[MBEvaluate, Complex -> True];
+    A = MBEvaluate[I BarnesKernel, {ep, 0}, Method -> "SymbolicSum"];
+    B = MBEvaluate[I BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> False];
+    SetOptions[MBEvaluate, Saved];
+    C1 = MBEvaluate[I BarnesKernel, {ep, 0}, Method -> "SymbolicSum"];
+    A === I/2 && B === 0 && C1 === 0 && Options[MBEvaluate] === Saved]];
+  (* the names the methods give their own variables *)
+  Check1["a parameter named like an integration variable", MBEvaluate[Global`MBSymbolicSumIntVar1 BarnesKernel, {ep, 0},
+    Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True] === Global`MBSymbolicSumIntVar1/2];
+  Check1["a parameter named like the phase", MBEvaluate[Global`MBSymbolicSumPhase BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+    Complex -> True] === Global`MBSymbolicSumPhase/2];
+  (* R3.4 an H that is not real on the whole domain keeps its imaginary part in the real projection *)
+  Check1["TidyResult of I H[1, 2 x] and I H[1, x/2]", Block[{MBAnalytica`SymbolicSum`Private`MBCHComplex = False,
+      MBAnalytica`SymbolicSum`Private`MBCHScale = {x}},
+    MBAnalytica`SymbolicSum`Private`TidyResult[I HarmonicSums`H[1, 2 x]] === -Im[HarmonicSums`H[1, 2 x]] &&
+      MBAnalytica`SymbolicSum`Private`TidyResult[I HarmonicSums`H[1, x/2]] === 0]]];
+(* R3.7 $KernelLaunch = 0 is one subkernel, with a message *)
+Check1["$KernelLaunch = 0", Block[{Global`$KernelLaunch = 0},
+  MBAnalytica`Private`KernelCountWarned = False;
+  Check[MBAnalytica`Private`KernelCount[]; False, True, MBEvaluate::kernels] && MBAnalytica`Private`KernelCount[] === 1]];
+(* R3.5 the benchmark checker takes the lowest order from the benchmark, not from the value: a value without its leading
+   pole fails, the full value passes *)
+Check1["benchmark checker refuses a truncated value", Module[{Dir = CreateDirectory[], Full, Lo1, Trunc, Run1, Kernel1},
+  Block[{$ContextPath = $ContextPath}, Get[FileNameJoin[{TestRoot, "tests", "benchmark", "mb_symbolicsum_targets.m"}]]];
+  Full = Expand[Normal[Series[Global`MB1Val, {Global`\[Epsilon], 0, 0}]]];
+  Lo1 = Exponent[Full, Global`\[Epsilon], Min];
+  Trunc = Expand[Full - Coefficient[Full, Global`\[Epsilon], Lo1] Global`\[Epsilon]^Lo1];
+  (* the kernel of this installation through its launcher (the binary of $CommandLine needs the launcher's environment) *)
+  Kernel1 = SelectFirst[{FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}],
+    FileNameJoin[{$InstallationDirectory, "MacOS", "WolframKernel"}], First[$CommandLine]}, FileExistsQ];
+  Run1[V_, Tag_] := Module[{F = FileNameJoin[{Dir, Tag <> ".m"}], Out},
+    Put[<|"Value" -> V, "Seconds" -> 0|>, F];
+    Out = RunProcess[{Kernel1, "-noprompt", "-script", FileNameJoin[{TestRoot, "tests", "benchmark", "mbevaluate_target.wls"}]},
+      ProcessEnvironment -> Join[Association[GetEnvironment[]], <|"METHOD" -> "SymbolicSum", "KIND" -> "inc", "NAME" -> "MB1",
+        "LO" -> "auto", "HI" -> "0", "OUT" -> Dir, "RECHECK" -> F, "KERNELS" -> "1"|>]];
+    (* the kernel prints the strings of the result line in InputForm under -script: pass "True" *)
+    StringContainsQ[Out["StandardOutput"], RegularExpression["MBEVAL_RESULT.*pass \"?True"]]];
+  Lo1 < 0 && Run1[Full, "full"] && ! Run1[Trunc, "truncated"]]];
+
 (* 3. and 6. need the integration engine *)
 If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
   MBAnalytica`Private`WithoutUserValues[MBAnalytica`Private`LoadSymbolicInt[]];
@@ -223,6 +318,54 @@ If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
     Check1["three-fold integral with that corner", With[{T = Gamma[-s] Gamma[1 - ep + s] Gamma[-t] Gamma[1 - ep + t] Gamma[-u] Gamma[1 - ep + u]/Gamma[1 - ep]^3*
         Gamma[-1 + 2 ep - s - t]/Gamma[2 ep - s - t] Gamma[ep + s - u]/Gamma[1 + ep + s - u] Gamma[1 + t + u]/Gamma[2 + t + u]},
       Simplify[MBEvaluate[T, {ep, -1}, Method -> "Subtraction", Complex -> True] - Pi^2/(12 ep)] === 0]]];
+  (* the review of e4f55bd: a corner through a pole face along a weighted direction, x ~ y^2 *)
+  Check1["corner letters: a weighted direction through a pole face", Global`fcuCornerLetters[x^(-1 + ep) y^3 (x + y^2)^(-2 + ep), {x, y}, ep] ===
+    {x + y^2}];
+  Check1["corner letters: a convergent weighted direction through a pole face",
+    Global`fcuCornerLetters[x^(-1 + ep) y^5 (x + y^2)^(-2 + ep), {x, y}, ep] === {}];
+  Check1["weighted face cube without jobs refused", FailureQ[MBAnalytica`Private`WithoutSymbolicSumRules[MBParameterSubtraction`PSPrepareCube[
+    <|"Cube" -> x^(-1 + ep) y^3 (x + y^2)^(-2 + ep), "Variables" -> {x, y}, "Prefactor" -> 1|>, ep, -2, -2, {}]]]];
+  (* R3.2 distinct logarithms do not cancel in the certificate, and the all-zero words of the endpoint jets are kept *)
+  Check1["log certificate", With[{C1 = MBJobConvergence`mbeJobConvergenceCertificate[#, {x}]["Certified"] &},
+    C1[(Log[x] - Log[1 - x])/x] === False && C1[Log[x]/x] === False && C1[Log[x]] === True &&
+      C1[Log[x]/(x (1 + x)) - Log[x]/x] === True && C1[1/Log[x]] === False]];
+  Check1["last folds: divergent refused, convergent exact", Module[{Gnum, Fold1},
+    Gnum[E1_] := N[E1 /. {HoldPattern[PolyLogTools`G[0, A_]] :> Log[A], HoldPattern[PolyLogTools`G[1, A_]] :> Log[1 - A],
+      HoldPattern[PolyLogTools`G[-1, A_]] :> Log[1 + A], HoldPattern[PolyLogTools`G[0, 0, A_]] :> Log[A]^2/2,
+      HoldPattern[PolyLogTools`G[0, 1, A_]] :> -PolyLog[2, A], HoldPattern[PolyLogTools`G[0, -1, A_]] :> -PolyLog[2, -A],
+      HoldPattern[PolyLogTools`G[-1, 0, A_]] :> Log[A] Log[1 + A] + PolyLog[2, -A]}, 40];
+    Fold1[F_] := MBAnalytica`Private`WithoutSymbolicSumRules[Block[{MBExactLastFold`Private`gatePts = {1/3, 2/3}},
+      KeyTake[MBExactLastFold`mbeLastFoldIntegrate[F, {}, x, Gnum], {"Status", "Value"}]]];
+    Fold1[(PolyLogTools`G[0, x] - PolyLogTools`G[1, x])/x]["Status"] === "ZERO_NONCANCEL" &&
+      Fold1[PolyLogTools`G[0, x]/x]["Status"] === "ZERO_NONCANCEL" &&
+      Fold1[PolyLogTools`G[0, x]] === <|"Status" -> "ok", "Value" -> -1|> &&
+      Fold1[-PolyLogTools`G[1, x]/x] === <|"Status" -> "ok", "Value" -> Pi^2/6|> &&
+      Fold1[PolyLogTools`G[0, x]/(x (1 + x)) - PolyLogTools`G[0, x]/x] === <|"Status" -> "ok", "Value" -> Pi^2/12|>]];
+  (* R3.6 the residue store repairs a corrupt value and an ownerless claim; every start of helpers has its own job
+     directory, and an abort during the start stops the helpers already started *)
+  If[TrueQ[Global`$orsInstalled],
+    Check1["residue store: corrupt value, ownerless claim", Module[{Dir = CreateDirectory[], Calls = 0, A, B},
+      Block[{Global`$oftResidueStore = Dir, Global`$oftClaimGrace = 1},
+        Export[FileNameJoin[{Dir, "k1.wxf"}], "not a value", "Text"];
+        A = Global`orsStoredCall["k1", (Calls++; {1, 2}), (ListQ[#] && Length[#] === 2 &), False];
+        B = Global`orsStoredCall["k1", (Calls++; {3, 4}), (ListQ[#] && Length[#] === 2 &), False];
+        CreateDirectory[FileNameJoin[{Dir, "k2.claim"}]];
+        Pause[2];
+        A === {1, 2} && B === {1, 2} && Calls === 1 &&
+          TimeConstrained[Global`orsStoredCall["k2", {5, 6}, (ListQ[#] && Length[#] === 2 &), False], 60, $TimedOut] === {5, 6}]]];
+    Check1["helpers: own job directory, stopped on an abort", Module[{Dir = CreateDirectory[], Fake, A, B, Left1},
+      Fake = FileNameJoin[{Dir, "fakekernel.sh"}];
+      Export[Fake, "#!/bin/sh\nsleep 4317\n", "Text"];
+      RunProcess[{"chmod", "+x", Fake}];
+      Block[{Global`$oftResidueStore = Dir, MBAnalytica`SymbolicInt`Private`$mbtMathExecutable = Fake},
+        A = Global`orsStartHelpers[<|"Kind" -> "Family"|>, "tag", 0, False];
+        B = Global`orsStartHelpers[<|"Kind" -> "Family"|>, "tag", 0, False];
+        TimeConstrained[Global`orsStartHelpers[<|"Kind" -> "Family"|>, "tag2", 2, False], 3]];
+      Pause[2];
+      (* the bracket keeps pgrep from matching the command line of this shell *)
+      Left1 = StringTrim[RunProcess[{"/bin/sh", "-c", "pgrep -f 'sleep 431[7]' | wc -l"}, "StandardOutput"]];
+      A[[2]] =!= B[[2]] && Left1 === "0"]]];
+  Check1["Euclidean partial fractions keep the quotient", With[{F1 = x^2/((x + 1) (x + 2))}, Together[IV$EuclideanApart[F1, x] - F1] === 0]];
   (* perf A of the review: the orders of a large block are formed without its permutations *)
   Check1["integration orders of eleven variables", With[{Vs = Array[Symbol["Global`axis" <> ToString[#]] &, 11]},
     With[{T = AbsoluteTiming[MBParameterSubtractionHF`Private`heurOrders[Times @@ (1/(1 + #) & /@ Vs), Vs, 48]]},

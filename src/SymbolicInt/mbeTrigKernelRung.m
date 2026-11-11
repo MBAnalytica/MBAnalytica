@@ -24,7 +24,7 @@
    Env / flag: Global`$mbeTrigVerbose = True prints the steps.
    ============================================================================================================ *)
 
-mbeTrigLog[a___] := If[TrueQ[Global`$mbeTrigVerbose], WriteString["stdout", "  [TrigKernel] " <> StringJoin[ToString /@ {a}] <> "\n"]];
+mbeTrigLog[a___] := If[TrueQ[Global`$mbeTrigVerbose], If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [TrigKernel] " <> StringJoin[ToString /@ {a}] <> "\n"]]];
 
 (* reduce a product of Gamma's (and polygammas) in the single variable z to a meromorphic form with Sin/Cos/PolyGamma
    (FunctionExpand turns reflection pairs and half-integer Gamma's into trig/elementary); keep it a ratio, no FullSimplify *)
@@ -105,4 +105,4 @@ mbeTrigKernelClose[ig_, ctr_List, vrs_List, OptionsPattern[]] := Module[
      ", quad ", N[q, 6], ") -> fail-closed"];
   $Failed];
 
-WriteString["stdout", "[mbeTrigKernelRung] loaded (trig-kernel one-fold closer; residue sum, quadrature-gated, fail-closed).\n"];
+If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeTrigKernelRung] loaded (trig-kernel one-fold closer; residue sum, quadrature-gated, fail-closed).\n"]];

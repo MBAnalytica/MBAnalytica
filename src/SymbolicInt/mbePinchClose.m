@@ -39,7 +39,7 @@ $mbePinchCloserEnabled = True;
 If[$RecursionLimit < 8192, $RecursionLimit = 8192];
 $mbePinchDebug = False;
 mbePinchDbg[msg___] := If[TrueQ[$mbePinchDebug],
-  WriteString["stdout", "    [PinchLin/dbg] ", msg, "\n"]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [PinchLin/dbg] ", msg, "\n"]]];
 If[! AssociationQ[$mbePinchClosedForms], $mbePinchClosedForms = <||>];
 
 (* strict chain-result acceptance: no Integrate/ConditionalExpression
@@ -441,13 +441,13 @@ mbePinchLinClose[intg_, ctr_List, vrs_List, timeout_:2400] := Module[
   nv = mbeSeqNValue[tot, 20];
   If[! NumericQ[Quiet@N[nv]], Return[$Failed]];
   If[Abs[N[nv, 20] - truth] <= tol (1 + Abs[truth]),
-    WriteString["stdout",
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
       "    [PinchLin] corner-linear closer ORACLE-VERIFIED (tol " <>
-      ToString[N[tol]] <> ").\n"];
+      ToString[N[tol]] <> ").\n"]];
     tot,
-    WriteString["stdout",
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
       "    [PinchLin] value-vs-oracle MISMATCH: " <> ToString[N[nv, 12]] <>
-      " vs " <> ToString[N[truth, 12]] <> " -> $Failed.\n"];
+      " vs " <> ToString[N[truth, 12]] <> " -> $Failed.\n"]];
     $Failed]];
 
 End[];

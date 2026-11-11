@@ -31,7 +31,7 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbeReflZeroOrig] =!= {} &&
          Global`abpClose[ig, z, c0, "AUTO", "Timeout" -> Max[300, to], "Gate" -> True, "Log" -> None],
          Max[900, 3 to], $Failed], $Failed];
       If[v =!= $Failed && FreeQ[v, $Failed | Indeterminate | ComplexInfinity] && NumericQ[Quiet@N[v]],
-       WriteString["stdout", "    [ABRung] affine-Bell producer closed the psi-dressed piece (gated).\n"];
+       If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [ABRung] affine-Bell producer closed the psi-dressed piece (gated).\n"]];
        Return[v, Module]]]];
     MBAnalytica`SymbolicInt`Private`mbeABRungOrig[ig, ctr, vrs, to]];
-  WriteString["stdout", "[mbeAffineBellRung] sidecar installed (attempt-0.5 chain: ReflZero -> affine-Bell -> original).\n"]]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeAffineBellRung] sidecar installed (attempt-0.5 chain: ReflZero -> affine-Bell -> original).\n"]]]];

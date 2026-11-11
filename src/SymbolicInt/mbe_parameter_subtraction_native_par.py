@@ -33,7 +33,7 @@ def key_of(fp, job):
     return hashlib.sha256(json.dumps([fp, job], sort_keys=True).encode()).hexdigest()
 
 
-def run_order(binary, req, seconds, procs, lock, deadline=None):
+def run_order(binary, req, seconds, procs, lock, deadline=None, cancelled=None):
     start = time.monotonic()
     if deadline is not None:
         seconds = min(seconds, deadline-time.time())
@@ -41,7 +41,16 @@ def run_order(binary, req, seconds, procs, lock, deadline=None):
         return {'order': req['vars_int'], 'error': 'DeadlineExpired', 'seconds': 0.0}
     p = subprocess.Popen(native.stack_command(binary), stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env={**os.environ, 'OMP_NUM_THREADS': '1'})
-    with lock: procs.add(p)
+    # the process is registered and the cancellation read under the same lock as the kill loops: a sibling that won (or a
+    # halt) between the caller's check and this registration found no process to kill, and the late process ran to its
+    # time limit, holding up the whole batch (review of e4f55bd)
+    with lock:
+        procs.add(p)
+        stop = cancelled is not None and cancelled()
+    if stop:
+        p.kill(); p.communicate()
+        with lock: procs.discard(p)
+        return {'order': req['vars_int'], 'error': 'Cancelled', 'seconds': time.monotonic()-start}
     try:
         out, err = p.communicate(json.dumps(req), timeout=seconds)
         try: resp = json.loads(out) if p.returncode == 0 and out else None
@@ -114,11 +123,13 @@ def main():
         with lock:
             if halt['job'] is not None or st['winner'] is not None: st['left'] -= 1; return
         req = {**j['request'], 'vars_int': order}
-        trial = run_order(data['binary'], req, seconds, st['procs'], lock, deadline)
+        trial = run_order(data['binary'], req, seconds, st['procs'], lock, deadline,
+                          cancelled=lambda: halt['job'] is not None or st['winner'] is not None)
         ok = native.certified(trial.get('response'), req)
         with lock:
             if halt['job'] is not None and not ok: st['left'] -= 1; return
-            st['trials'].append({k: v for k, v in trial.items() if k != 'response' or not ok})
+            if trial.get('error') != 'Cancelled':
+                st['trials'].append({k: v for k, v in trial.items() if k != 'response' or not ok})
             st['left'] -= 1; final = False
             if ok and st['winner'] is None:
                 st['winner'] = trial['response']; st['order'] = order; final = True

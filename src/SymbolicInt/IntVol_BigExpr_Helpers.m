@@ -141,5 +141,7 @@ IV$EuclideanApart[expr_, var_] :=
 
     tmp = expr //. dummyRulesGCD;
     tmp = tmp // IV$GatherByDependency[#, var, None, Apart[#, var] &] &;
-    tmp = tmp // IV$GatherByDependency[#, var, None, If[PolynomialQ[#, var], 0, #] &] &;
+    (* the polynomial part is kept: it was set to zero here, so that x^2/((x+1)(x+2)) lost its quotient 1, the
+       derivative gate of the fast path refused every such antiderivative and the slower Apart path ran instead
+       (review of e4f55bd) *)
     tmp /. tmpRules]

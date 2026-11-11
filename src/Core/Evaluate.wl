@@ -16,9 +16,15 @@
 
 (* $KernelLaunch when the user set it; otherwise 4, at most one per core, and at most what the free memory holds: an
    engine worker loads PolyLogTools with the weight-10 HPL tables, about 3.5 GB, and the main kernel needs as much *)
+(* $KernelLaunch = 0 is no serial mode: the summation stack starts kernels of its own when none run (MBConicHulls two
+   per core, 48 on a 24-core machine, review of e4f55bd), so zero or a negative number is refused with a message and one
+   subkernel is used *)
 KernelCount[] := Module[{Asked, FreeGB, ByMemory},
   Asked = Global`$KernelLaunch;
-  If[IntegerQ[Asked] && Asked >= 0, Return[Asked]];
+  If[IntegerQ[Asked] && Asked >= 1, Return[Asked]];
+  If[IntegerQ[Asked],
+    If[! TrueQ[KernelCountWarned], Message[MBEvaluate::kernels, Asked]; KernelCountWarned = True];
+    Return[1]];
   FreeGB = MemoryAvailable[]/2.^30;
   ByMemory = Max[1, Floor[(FreeGB - 4)/3.5]];
   Return[Min[4, $ProcessorCount, ByMemory]]];
@@ -233,11 +239,20 @@ LoadSymbolicSum[] := Module[{SymbolicSumFile, Folder},
   Block[{$ContextPath = Join[{"MBAnalytica`", "BarnesRoutines`", "MB`"}, FreshContextPath], $Output = {}},
     Get[SymbolicSumFile];
     SymbolicSumContextPath = $ContextPath];
-  (* the one-fold series of hypergeometric type, summed directly (OneFoldHyp.wl); its context stays off the user's path *)
-  Block[{$ContextPath = $ContextPath},
-    Get[FileNameJoin[{PackageRoot, "src", "SymbolicSum", "OneFoldHyp.wl"}]]];
+  LoadOneFoldHyp[];
   SymbolicSumLoaded = DownValues[MBAnalytica`SymbolicSum`MBCH2MPL] =!= {};
   Return[SymbolicSumLoaded]];
+
+
+(* the one-fold series of hypergeometric type, summed directly (OneFoldHyp.wl), which needs none of the summation
+   packages: it is tried before HarmonicSums, Sigma and EvaluateMultiSums are loaded.  Its context stays off the user's
+   path *)
+LoadOneFoldHyp[] := Module[{},
+  If[TrueQ[OneFoldHypLoaded], Return[True]];
+  Block[{$ContextPath = $ContextPath},
+    Get[FileNameJoin[{PackageRoot, "src", "SymbolicSum", "OneFoldHyp.wl"}]]];
+  OneFoldHypLoaded = DownValues[MBAnalytica`OneFoldHyp`OneFoldHypExpand] =!= {};
+  Return[OneFoldHypLoaded]];
 
 
 LoadSymbolicInt[] := Module[{Loader, StartDirectory},
@@ -251,7 +266,9 @@ LoadSymbolicInt[] := Module[{Loader, StartDirectory},
   CacheDirectory[];
   StartDirectory = Directory[];
   Loader = FileNameJoin[{PackageRoot, "src", "SymbolicInt", "load_standard.m"}];
-  Block[{$Output = {}, $ContextPath = FreshContextPath},
+  (* the notices of the engine's files ("sidecar installed", "loaded") write to stdout directly, past $Output: the flag
+     Global`$mbtQuietStdout silences them (review of e4f55bd: an ExpandInt call printed a page of them) *)
+  Block[{$Output = {}, $ContextPath = FreshContextPath, Global`$mbtQuietStdout = True},
     CheckAbort[Get[Loader], Null];
     EngineContextPath = $ContextPath];
   SetDirectory[StartDirectory];
@@ -336,14 +353,16 @@ LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
 
 (* MBSymbolicSum: the coefficients from the leading pole through Eps^Ord; a coefficient it cannot evaluate is NotEvaluated[...] *)
 RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Series1, Expanded, Orders, OneFold},
-  If[! LoadSymbolicSum[], Return[FailAll[Lo, Hi, "SymbolicSum", "the method could not be loaded"]]];
   (* a one-fold integral Gamma(-z) Prod Gamma(m_i + c_i eps + z)^k_i X^z of the pFp-1 class whose contour separates the
      poles of Gamma(-z): its residue series is expanded in harmonic sums and summed with their generating functions,
-     and the result is kept only if its Taylor coefficients in X agree exactly with those of the series *)
-  OneFold = Quiet[TimeConstrained[MBAnalytica`OneFoldHyp`OneFoldHypExpand[MBInt, Eps, {Lo, Hi}], 900, $Failed]];
-  If[AssociationQ[OneFold],
-    If[TrueQ[Opts["Verbose"]], Print["  MBEvaluate: SymbolicSum: one-fold series of hypergeometric type, summed in harmonic sums"]];
-    Return[OneFold]];
+     and the result is kept only if its Taylor coefficients in X agree exactly with those of the series.  It comes
+     before the summation packages are loaded, which it does not need (review of e4f55bd) *)
+  If[LoadOneFoldHyp[],
+    OneFold = Quiet[TimeConstrained[MBAnalytica`OneFoldHyp`OneFoldHypExpand[MBInt, Eps, {Lo, Hi}], 900, $Failed]];
+    If[AssociationQ[OneFold],
+      If[TrueQ[Opts["Verbose"]], Print["  MBEvaluate: SymbolicSum: one-fold series of hypergeometric type, summed in harmonic sums"]];
+      Return[OneFold]]];
+  If[! LoadSymbolicSum[], Return[FailAll[Lo, Hi, "SymbolicSum", "the method could not be loaded"]]];
   Series1 = Block[{$ContextPath = SymbolicSumContextPath},
     MBAnalytica`SymbolicSum`MBCH2MPL[MBInt, MBVar, {Eps, Hi},
       Verbose -> Opts["Verbose"], BarnesReduce -> Opts["BarnesReduce"], Complex -> Opts["Complex"]]];
@@ -402,11 +421,23 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   Census = If[DownValues[Global`mbtMySubkernelCount] =!= {}, Global`mbtMySubkernelCount[], 0];
   Budget = Max[1, KernelCount[]] + If[IntegerQ[Census], Census, 0];
   SetEnvironment["MBT_SUBKERNEL_BUDGET" -> ToString[Budget]];
+  (* with Verbose -> False the engine runs as quietly as the other methods: its notices to stdout (Global`$mbtQuietStdout:
+     [PieceKernels], [L6], ...) and the progress that MBresolve writes to $Output (CREATING RESIDUES LIST ...) are not
+     shown; the result, the open orders and the messages of MBEvaluate are the same *)
   Result = Block[{$ContextPath = EngineContextPath, MBAnalytica`SymbolicInt`Private`$mbtGlobalBarnesBudget = EngineSeconds,
+      $Output = If[TrueQ[Opts["Verbose"]], $Output, {}], Global`$mbtQuietStdout = ! TrueQ[Opts["Verbose"]],
       Global`$oftResidueHelpers = Max[0, KernelCount[] - 1], MBParameterSubtractionHF`$PSHNativeWorkers = Max[1, KernelCount[]],
       Global`$fcuMaxWorkers = Max[1, KernelCount[]], Global`$fcuLaneBudget = 3 Max[1, KernelCount[]],
       Global`$mbtSubkernelBudget = Budget},
-    WithoutSymbolicSumRules[CheckAbort[MBAnalytica`SymbolicInt`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]]];
+    If[TrueQ[Opts["Verbose"]],
+      WithoutSymbolicSumRules[CheckAbort[MBAnalytica`SymbolicInt`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]],
+      (* the engine's own diagnostics (a piece not closed, a numeric piece, an unsubtracted pole, ...) are what the checks
+         below turn into the open orders of MBEvaluate::open, which names them once *)
+      Quiet[WithoutSymbolicSumRules[CheckAbort[MBAnalytica`SymbolicInt`MBresolveToMPL[Integrand, Reg, Sequence @@ Options1], $Aborted]],
+        {MBAnalytica`SymbolicInt`MBresolveToMPL::ofcfail, MBAnalytica`SymbolicInt`MBresolveToMPL::rpfail,
+         MBAnalytica`SymbolicInt`MBresolveToMPL::inexact, MBAnalytica`SymbolicInt`MBresolveToMPL::incomplete,
+         MBAnalytica`SymbolicInt`MBresolveToMPL::unsubtracted, MBAnalytica`SymbolicInt`MBresolveToMPL::nnccorner,
+         MBAnalytica`SymbolicInt`MBresolveToMPL::resolvefail, MBAnalytica`SymbolicInt`MBresolveToMPL::resonant}]]];
   SetEnvironment["MBT_SUBKERNEL_BUDGET" -> None];
   Ledger = If[Kinematics === {} && ListQ[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], MBAnalytica`SymbolicInt`Private`$mbtFailedPieces, {}];
   Exact = Result =!= $Failed && Result =!= $Aborted && ! FailureQ[Result] && Ledger === {} &&
@@ -495,6 +526,7 @@ MBEvaluate::real = "A coefficient contains a function that is not real for all k
 real part cannot be separated symbolically and its full complex value is returned. Complex -> True returns complex \
 values throughout.";
 MBEvaluate::open = "No method evaluated the coefficient(s) of `1`, which are omitted from the result (`2`).";
+MBEvaluate::kernels = "$KernelLaunch = `1` is not a positive number of subkernels; one subkernel is used.";
 
 
 MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
@@ -509,41 +541,65 @@ MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
    of the Gamma and polygamma functions, never reach the result, and replacing every symbol changed the order of the
    kinematic variables against the internal symbols of the summation, after which EvaluateMultiSums summed none of the
    series of F1(eps, eps, eps; 1 + eps; x, y) *)
+(* the methods name some of their own variables in Global` as well: the summation method its integration variables
+   MBSymbolicSumIntVar1, ... and the phase MBSymbolicSumPhase of a negative base, the engine its Euler variables fcv1, ...
+   and parameters psParameter1, ...; a parameter called MBSymbolicSumIntVar1 became the integration variable and the
+   result -1/6 instead of MBSymbolicSumIntVar1/2 (review of e4f55bd) *)
 DependencyNameQ[S1_Symbol] := Module[{Name},
   Name = SymbolName[S1];
-  Return[StringMatchQ[Name, RegularExpression["(z|ln|Log|li|et)[0-9].*"]] || MemberQ[{"S", "H", "G"}, Name]]];
+  Return[StringMatchQ[Name, RegularExpression["(z|ln|Log|li|et)[0-9].*"]] || MemberQ[{"S", "H", "G"}, Name] ||
+    StringMatchQ[Name, RegularExpression["(MBSymbolicSumIntVar|MBSymbolicSumPhase|fcv|fcd|fcuL|psParameter|MBtmpVar|MBTreg)[0-9]*"]]]];
 
 
 (* a prefix of the private names that no symbol of the session, in any context, starts with, so that a private name is
    neither a symbol of the input nor a symbol with a value: the fixed names Global`mbaUserSymbol0001, ... merged z2 with
-   an input symbol of that name, and a value given to that name entered the result (review of a6af3be).  The numbers
-   keep the canonical order of the original symbols *)
-FreshPrefix[] := Module[{Prefix},
+   an input symbol of that name, and a value given to that name entered the result (review of a6af3be).  The private
+   symbols are kept and used again: removing them after every call left the memoized values of LeadingPole under
+   Removed["mbaUserSymbol0001"], one more per call (review of e4f55bd), so a name is taken only when a symbol of that
+   name exists that this package did not create, has a value, or occurs in the integral.  The numbers keep the canonical
+   order of the original symbols *)
+PrivateSymbolNames = {};
+(* the symbol is read held: OwnValues and its relatives hold their argument, so that a local variable holding the symbol
+   was inspected instead of the symbol, and a symbol with a value would have been evaluated *)
+PrivateNameFreeQ[Name_String, Input_] := Module[{Held},
+  If[! MemberQ[PrivateSymbolNames, Name], Return[Names["Global`" <> Name] === {}]];
+  Held = ToExpression["Global`" <> Name, InputForm, HoldComplete];
+  Return[Replace[Held, HoldComplete[S1_] :> (FreeQ[Input, HoldPattern[S1]] && OwnValues[S1] === {} && DownValues[S1] === {} &&
+    UpValues[S1] === {} && SubValues[S1] === {} && Attributes[S1] === {})]]];
+(* Names gives a symbol of a context on $ContextPath without its context *)
+FullSymbolName[Name_String] := If[StringContainsQ[Name, "`"], Name, Context[Name] <> Name];
+FreshPrefix[Input_, Count_Integer] := Module[{Prefix, Free},
   Prefix = "mbaUserSymbol";
-  While[Names["*`" <> Prefix <> "*"] =!= {}, Prefix = Prefix <> "x"];
+  Free[P_] := AllTrue[Map[FullSymbolName, Names["*`" <> P <> "*"]],
+      (StringStartsQ[#, "Global`"] && MemberQ[PrivateSymbolNames, StringDrop[#, 7]]) &] &&
+    AllTrue[Range[Count], PrivateNameFreeQ[P <> IntegerString[#, 10, 4], Input] &];
+  While[! Free[Prefix], Prefix = Prefix <> "x"];
   Return[Prefix]];
 
 
-UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration, Prefix},
+UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration, Prefix, Names1},
   Symbols = Cases[{MBInt, If[MBVar === Automatic, {}, MBVar]}, S1_Symbol /; Context[S1] =!= "System`" && S1 =!= Eps,
     {0, Infinity}];
   Integration = Cases[Cases[MBInt, (Gamma | PolyGamma)[A__] :> {A}, {0, Infinity}], S1_Symbol, {0, Infinity}];
   Symbols = Select[Sort[DeleteDuplicates[Symbols]], DependencyNameQ[#] && ! MemberQ[Integration, #] &];
   If[Symbols === {}, Return[{}]];
-  Prefix = FreshPrefix[];
-  Return[MapIndexed[#1 -> Symbol["Global`" <> Prefix <> IntegerString[First[#2], 10, 4]] &, Symbols]]];
+  Prefix = FreshPrefix[{MBInt, MBVar}, Length[Symbols]];
+  Names1 = Table[Prefix <> IntegerString[K1, 10, 4], {K1, Length[Symbols]}];
+  PrivateSymbolNames = DeleteDuplicates[Join[PrivateSymbolNames, Names1]];
+  Return[MapThread[#1 -> Symbol["Global`" <> #2] &, {Symbols, Names1}]]];
 
 
-(* the private symbols are removed after the call, by their names (they have no values), so that the next call finds
-   the same prefix *)
-MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] := Module[{Rules1, Back, Private1, Result},
+(* the options are resolved here, against Options[MBEvaluate], and passed on explicitly: only the options of the call
+   were passed before, and MBEvaluatePrivate then used its own defaults, so that SetOptions[MBEvaluate, Complex -> True]
+   had no effect (review of e4f55bd) *)
+MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] := Module[{Rules1, Back, Result, Resolved},
+  Resolved = {Method -> OptionValue[Method], Verbose -> OptionValue[Verbose], BarnesReduce -> OptionValue[BarnesReduce],
+    Complex -> OptionValue[Complex]};
   Rules1 = UserSymbolRules[MBInt, MBVar, Eps];
   Back = Map[Reverse, Rules1];
-  Private1 = Map[Context[#] <> SymbolName[#] &, Map[Last, Rules1]];
   Result = Block[{MBEvaluateBackRules = Back},
-    MBEvaluatePrivate[MBInt /. Rules1, If[MBVar === Automatic, Automatic, MBVar /. Rules1], {Eps, Ord}, Opts]];
+    MBEvaluatePrivate[MBInt /. Rules1, If[MBVar === Automatic, Automatic, MBVar /. Rules1], {Eps, Ord}, Sequence @@ Resolved]];
   Result = Result /. Back;
-  If[Private1 =!= {}, Quiet[Remove @@ Private1]];
   Return[Result]];
 
 

@@ -58,8 +58,15 @@ vertexLP[nu_List,denSupports_List,powers_List,tmo_]:=Module[{n=Length[nu],rates,
   If[!AllTrue[witness,pcpRationalQ[#]&&#>=0&]||Total[witness]=!=1||exactCost=!=opt[[1]],Return[$Failed]];
   <|"Minimum"->opt[[1]],"Rates"->witness|>];
 Options[mbeJobConvergenceCertificate]={"Elevation"->3,"ParameterAssumptions"->True,"MaxNumeratorTerms"->400,"NumeratorModel"->"Pareto","LPTimeout"->8};
-mbeJobConvergenceCertificate[expr_,vars_List,OptionsPattern[]]:=Module[{dom=OptionValue["ParameterAssumptions"],e,fs,low,high,dens={},pows={},logs=0,model,audit,bad=None,numTerms,numNote="",numFacs={},pareto=OptionValue["NumeratorModel"]==="Pareto",n=Length[vars]},
-  e=Together[expr/.Log[_]->1];
+mbeJobConvergenceCertificate[expr_,vars_List,OptionsPattern[]]:=Module[{dom=OptionValue["ParameterAssumptions"],e,logList,logSyms,fs,low,high,dens={},pows={},logs=0,model,audit,bad=None,numTerms,numNote="",numFacs={},pareto=OptionValue["NumeratorModel"]==="Pareto",n=Length[vars]},
+  (* every distinct logarithm is an independent symbol, constant for the power count (a logarithm is absorbed by the
+     strict margin): replacing all of them by 1 let distinct logarithms cancel, and (Log[x]-Log[1-x])/x was certified
+     as the zero integrand (review of e4f55bd).  Equal logarithms still cancel.  A logarithm in a denominator vanishes
+     inside the cube (1/Log[x] at x = 1), which the power count cannot see: such a job is not certified *)
+  logList=DeleteDuplicates[Cases[expr,Log[_],{0,Infinity}]];
+  logSyms=Table[Unique["mbeJobLog"],{Length[logList]}];
+  e=Together[expr/.Thread[logList->logSyms]];
+  If[!FreeQ[Denominator[e],Alternatives@@logSyms],Return[<|"Certified"->False,"Reason"->"logarithm in a denominator"|>]];
   low=ConstantArray[0,Length[vars]];high=ConstantArray[0,Length[vars]];
   fs=FactorList[Numerator[e]];
   (* numerator: atoms shift the exponents; any other polynomial factor is expanded in the Bernstein basis and the

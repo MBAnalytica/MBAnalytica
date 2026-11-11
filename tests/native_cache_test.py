@@ -12,6 +12,7 @@ import stat
 import sys
 import tempfile
 import threading
+import time
 
 HERE = Path(__file__).resolve().parent
 NATIVE = HERE.parent / 'src' / 'SymbolicInt' / 'mbe_parameter_subtraction_native.py'
@@ -41,6 +42,18 @@ def fake_binary(folder):
     path.write_text('#!/usr/bin/env python3\n'
                     'import json, sys\n'
                     'req = json.loads(sys.stdin.read())\n'
+                    'print(json.dumps({"result": [{"coef": "1", "key": [["0"]]}], "vars": req["vars"]}))\n')
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    return str(path)
+
+
+def mixed_binary(folder):
+    """An executable that answers the order ['x'] at once and sleeps a minute on any other order."""
+    path = Path(folder) / 'mixed_hyperflint'
+    path.write_text('#!/usr/bin/env python3\n'
+                    'import json, sys, time\n'
+                    'req = json.loads(sys.stdin.read())\n'
+                    'if req["vars_int"] != ["x"]: time.sleep(60)\n'
                     'print(json.dumps({"result": [{"coef": "1", "key": [["0"]]}], "vars": req["vars"]}))\n')
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
     return str(path)
@@ -112,6 +125,30 @@ def main():
             t.join()
         final = native.read_record(target)
         check('concurrent writers leave a complete record', isinstance(final, dict) and len(final.get('pad', '')) == 10000)
+
+        # the review of e4f55bd: a sibling registered after its job was won is stopped at once, and a batch ends when
+        # every job is won, without waiting for a slow sibling to reach its time limit
+        procs = set()
+        t0 = time.monotonic()
+        trial = parallel.run_order(mixed_binary(tmp), {'op': 'hyperflint', 'expr': 'x', 'vars': ['x', 'a'], 'vars_int': ['a']},
+                                   60, procs, threading.Lock(), None, cancelled=lambda: True)
+        check('a cancelled sibling stops at once', trial.get('error') == 'Cancelled' and time.monotonic()-t0 < 20 and not procs)
+        race = Path(tmp) / 'race'
+        race.mkdir()
+        request = {'op': 'hyperflint', 'expr': 'x', 'vars': ['x', 'a'], 'vars_int': ['x']}
+        batch = {'jobs': [{'id': 1, 'request': request, 'orders': [['a'], ['x']]}], 'binary': mixed_binary(tmp),
+                 'record_directory': str(race/'records'), 'workers': 2, 'job_seconds': 60, 'audit': False, 'cache': False}
+        (race/'requests.json').write_text(json.dumps(batch))
+        saved_argv = sys.argv
+        sys.argv = ['runner', str(race/'requests.json'), str(race/'responses.json')]
+        t0 = time.monotonic()
+        try:
+            parallel.main()
+        finally:
+            sys.argv = saved_argv
+        elapsed = time.monotonic()-t0
+        out = json.loads((race/'responses.json').read_text())
+        check('a won job stops its slow sibling (%.1f s)' % elapsed, elapsed < 30 and out.get('complete') is True)
 
     failed = [name for name, ok in results if not ok]
     if not results or failed:

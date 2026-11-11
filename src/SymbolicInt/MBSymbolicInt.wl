@@ -300,7 +300,7 @@ MBresolveToMPL::inexact =
 "The \[Epsilon]^`1` coefficient contains a floating-point number: some piece was served NUMERICALLY (a numeric library seal or a numeric fallback), so this coefficient is NOT an exact GPL expression.";
 MBresolveToMPL::incomplete =
 "`1` piece(s) could not be closed and were set to 0; the returned \[Epsilon]-series \
-is INCOMPLETE and not trustworthy. See MBAnalytica`SymbolicInt`Private`$mbtFailedPieces.";
+is INCOMPLETE and not trustworthy. See MBAnalytica\\`SymbolicInt\\`Private\\`$mbtFailedPieces.";
 
 MBresolveToMPL::unsubtracted =
 "`1` residue-cube(s) still carry a GENUINE un-subtracted boundary/corner pole that \
@@ -645,9 +645,27 @@ $mbtFailedPieces = {};
 $mbtCacheVersion = 5;
 (* the SHA-256 hashes of the native integrators (the plain and the guarded HyperFLINT) are part of every piece key, so
    that a value computed by another build of the integrators is never reused (2026-11-09) *)
-mbtNativeFingerprint[] := mbtNativeFingerprint[] = Hash[
+mbtNativeFingerprint[] := mbtNativeFingerprint[] = Hash[{
   Map[If[StringQ[#] && FileExistsQ[#], FileHash[#, "SHA256"], None] &,
-    {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], "SHA256"];
+    {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], mbtDependencyState[]}, "SHA256"];
+(* the identity of what a value depends on besides the integrators and the code of the engine: the Wolfram version, the
+   third-party packages (PolyLogTools, HPL with the manifest of its tables, HypExp, HyperIntica, the manifests of the
+   downloaded files and the patches), the sixth-root tables, the MZV reductions of the integrator and the GiNaC shell.
+   The keys of the pieces and of the residue store named the integrators and the engine's own files only, so that a
+   value computed with another build of a dependency was reused (review of e4f55bd).  Paths are relative to dep/, so
+   that a package moved to another folder keeps its keys *)
+mbtDependencyState[] := mbtDependencyState[] = Module[{dep = Global`$MBStandardVendorDir, files, relName},
+  files = If[! StringQ[dep] || ! DirectoryQ[dep], {}, Join[
+    FileNames[{"*.m", "*.wl"}, FileNameJoin[{dep, "PolyLogTools"}], Infinity],
+    FileNames[{"*.m", "*.patch"}, FileNameJoin[{dep, "HPL"}]],
+    FileNames[{"*.m", "*.wl"}, FileNameJoin[{dep, "HypExp"}]],
+    FileNames[{"*.m", "*.wl"}, FileNameJoin[{dep, "HyperIntica"}]],
+    FileNames["*", FileNameJoin[{dep, "level6_tables"}]],
+    FileNames[{"*.sha256", "*.patch"}, dep]]];
+  files = Join[files, {Global`$MBStandardHyperFLINTData, Global`$MBStandardGinshExecutable}];
+  files = Select[DeleteDuplicates[files], StringQ[#] && FileExistsQ[#] && ! DirectoryQ[#] &];
+  relName[F_] := If[StringQ[dep] && StringStartsQ[F, dep], StringDrop[F, StringLength[dep]], FileNameTake[F]];
+  Hash[{$Version, Map[{relName[#], FileHash[#, "SHA256"]} &, Sort[files]]}, "SHA256"]];
 
 (* Round 26 (2026-06-13): FIX the standard route for corner-singularity
    integrands.  Root cause: Round 10 switched the corner-sing branch from the
@@ -735,9 +753,9 @@ mbtRecoverContour[f_, c0_, v_] := Module[
             PrecisionGoal -> 10, MaxRecursion -> 30], 300, $TimedOut];
         If[TrueQ[NumericQ[q] && Abs[N[out, 30] - q] < 10^-8 Max[1, Abs[q]]],
           Break[],
-          WriteString["stdout", "    [LSR] contour-shift recovery REFUSED by the contour quadrature: recovered ",
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] contour-shift recovery REFUSED by the contour quadrature: recovered ",
             ToString[N[out, 12]], " vs quadrature ", ToString[If[NumericQ[q], N[q, 12], q]],
-            " (target contour ", ToString[cT], ")\n"];
+            " (target contour ", ToString[cT], ")\n"]];
           out = $Failed]]],
     {i, Length[cands]}];
   out];
@@ -769,7 +787,7 @@ mbtInitParallel[] := If[!TrueQ[$mbtParallelReady] && TrueQ[$mbtUseParallel],
     currK = Length[Kernels[]];
     If[currK < $mbtNumKernels,
       Quiet @ LaunchKernels[$mbtNumKernels - currK]];
-    log[s_] := WriteString["stdout", "[ParInit] ", s, "\n"];
+    log[s_] := If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[ParInit] ", s, "\n"]];
     log[ToString[Length[Kernels[]]] <> " kernels launched in " <>
         ToString[Round[AbsoluteTime[]-t0, 0.01]] <> "s"];
     t0 = AbsoluteTime[];
@@ -801,14 +819,14 @@ mbtInitPieceKernels[nSpec_] := Module[
     True, 0];
   If[n <= 0, Return[False]];
   If[pkgPath === "" || pkgPath === $Failed || ! FileExistsQ[pkgPath],
-    WriteString["stdout", "  [PieceKernels] cannot locate package file; serial.\n"];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] cannot locate package file; serial.\n"]];
     Return[False]];
   currK = Length[Kernels[]];
   If[currK < n, Quiet @ LaunchKernels[n - currK]];
   If[Length[Kernels[]] < 1, Return[False]];
   If[TrueQ[$mbtPieceKernelsReady] && Length[Kernels[]] >= n, Return[True]];
-  WriteString["stdout", "  [PieceKernels] initializing ", Length[Kernels[]],
-    " subkernels...\n"];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] initializing ", Length[Kernels[]],
+    " subkernels...\n"]];
   (* IMPORTANT: inline the path STRINGS with With so the values reach the
      subkernels.  ParallelEvaluate does NOT substitute master-local Module
      variables -- referencing pkgPath/pltPath/brPath bare would send undefined
@@ -848,7 +866,7 @@ mbtInitPieceKernels[nSpec_] := Module[
     MBAnalytica`SymbolicInt`Private`$mbtLongCloseCount = 0;
     "OK", DistributedContexts -> None]];
   $mbtPieceKernelsReady = True;
-  WriteString["stdout", "  [PieceKernels] ready (", Length[Kernels[]], " kernels).\n"];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] ready (", Length[Kernels[]], " kernels).\n"]];
   True];
 
 (* ============================================================
@@ -872,8 +890,8 @@ mbtClosePiecesParallel[integ_List, ctrs_List, vars_List, epsFacs_List, pkSpec_] 
     worker = FileNameJoin[{pkgDir, "mbt_piece_worker.m"}];
     If[$mbtPackageFile === "" || ! FileExistsQ[worker] ||
        ! FileExistsQ[$mbtMathExecutable],
-      WriteString["stdout",
-        "  [PieceKernels] worker/math not found; falling back to serial.\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+        "  [PieceKernels] worker/math not found; falling back to serial.\n"]];
       Return[serialFallback]];
     jobRoot = FileNameJoin[{$TemporaryDirectory,
       "symbolicint-piece-" <> ToString[$ProcessID] <> "-" <>
@@ -887,8 +905,8 @@ mbtClosePiecesParallel[integ_List, ctrs_List, vars_List, epsFacs_List, pkSpec_] 
              "vrs" -> vars[[ii]], "epsFac" -> epsFacs[[ii]]|>,
            FileNameJoin[{jobRoot, "p_" <> IntegerString[ii, 10, 4] <> ".m"}]],
       {ii, n}];
-    WriteString["stdout", "  [PieceKernels] ", nW,
-      " process-workers on ", n, " pieces (job ", FileNameTake[jobRoot], ")...\n"];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] ", nW,
+      " process-workers on ", n, " pieces (job ", FileNameTake[jobRoot], ")...\n"]];
     (* Launch via a generated bash script: env vars passed by the shell reach
        the workers reliably (the proven par_run.sh mechanism).  StartProcess +
        ProcessEnvironment did NOT deliver the env to the workers. *)
@@ -904,8 +922,8 @@ mbtClosePiecesParallel[integ_List, ctrs_List, vars_List, epsFacs_List, pkSpec_] 
       Export[runfile, sh, "Text"];
       rc = Run["bash " <> MBAnalytica`Portable`ShellQuote[runfile]];
       If[rc =!= 0,
-        WriteString["stdout", "  [PieceKernels] launcher exit code ", rc,
-          " (collecting; any missing pieces will be flagged, not dropped).\n"]]];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] launcher exit code ", rc,
+          " (collecting; any missing pieces will be flagged, not dropped).\n"]]]];
     (* v2.6 (2026-07-27): absorb the workers' library DELTA files (each worker
        writes ivlib_delta_<pid>.m instead of the shared intvol_library.m; see
        mbt_piece_worker.m).  The master is the single shared-file writer;
@@ -918,8 +936,8 @@ mbtClosePiecesParallel[integ_List, ctrs_List, vars_List, epsFacs_List, pkSpec_] 
             Scan[Quiet[Global`IVLibMergeFile[#]] &, ivDfs];
             If[StringQ[Global`$IVLibFile],
               Quiet@Global`IVLibSave[Global`$IVLibFile]]];
-          WriteString["stdout", "  [PieceKernels] merged ",
-            Length[ivDfs], " library delta file(s).\n"]]]];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] merged ",
+            Length[ivDfs], " library delta file(s).\n"]]]]];
     (* collect in index order; track which pieces the workers did NOT cleanly
        produce (a worker process can die -- e.g. a ginsh segfault -- leaving its
        whole stride unfinished).  Don't flag yet; the master mops them up. *)
@@ -939,15 +957,15 @@ mbtClosePiecesParallel[integ_List, ctrs_List, vars_List, epsFacs_List, pkSpec_] 
          Guarantees completion even if a worker crashed.  mbtCachedMBSymbolicInt itself
          records any genuinely-unrecoverable piece in $mbtFailedPieces. *)
       If[bad =!= {},
-        WriteString["stdout", "  [PieceKernels] serial mop-up of ", Length[bad],
-          " worker-missing/non-clean piece(s)...\n"];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] serial mop-up of ", Length[bad],
+          " worker-missing/non-clean piece(s)...\n"]];
         Do[res[[k]] = MBAnalytica`SymbolicInt`Private`mbtCachedMBSymbolicInt[
              integ[[k]], ctrs[[k]], vars[[k]]], {k, bad}]]];
     If[Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces] == 0,
       Quiet @ DeleteDirectory[jobRoot, DeleteContents -> True],
-      WriteString["stdout", "  [PieceKernels] job kept for inspection: ", jobRoot, "\n"]];
-    WriteString["stdout", "  [PieceKernels] done (",
-      n - Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], "/", n, " clean).\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] job kept for inspection: ", jobRoot, "\n"]]];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] done (",
+      n - Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], "/", n, " clean).\n"]];
     res];
 
 (* Parallel DoAllBarnes drop-in.  Mirrors Czakon's iterative loop but
@@ -1002,7 +1020,7 @@ mbtDoAllBarnesPar[intlist_List, progressive_:False, bound_:1] :=
       ,
       fallback = True];
     If[fallback,
-       WriteString["stdout", "[ParBarnes] FALLBACK to serial DoAllBarnes\n"];
+       If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[ParBarnes] FALLBACK to serial DoAllBarnes\n"]];
        BarnesRoutines`DoAllBarnes[intlist, progressive, bound],
        result]];
 
@@ -6795,9 +6813,9 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
     diskHash = IntegerString[Hash[key, "SHA"], 16];
     diskVal = MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskGet[diskHash];
     If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtDbgHash],
-      WriteString["stdout", "  [DBG] vars=", ToString[vrs], " hash=",
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [DBG] vars=", ToString[vrs], " hash=",
         StringTake[diskHash, 12], " -> ",
-        If[diskVal === $Failed, "MISS", "HIT"], "\n"]];
+        If[diskVal === $Failed, "MISS", "HIT"], "\n"]]];
     If[diskVal =!= $Failed,
       (* Round 25: self-healing cache.  A cached 0 for a multi-var piece is
          almost always a stale "hung/timeout -> 0" marker from before the
@@ -6806,9 +6824,9 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
       If[PossibleZeroQ[diskVal] &&
          TrueQ[MBAnalytica`SymbolicInt`Private`$mbtDistrustZeros] &&
          Length[vrs] >= MBAnalytica`SymbolicInt`Private`$mbtLongCloseMinVars,
-        WriteString["stdout",
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
           "    [LSR] distrusting stale cached-0 for " <>
-          ToString[Length[vrs]] <> "-fold piece; recomputing via long-close\n"],
+          ToString[Length[vrs]] <> "-fold piece; recomputing via long-close\n"]],
         (* else: trust the cached value *)
         MBAnalytica`SymbolicInt`Private`$mbtCacheHits++;
         MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = diskVal;
@@ -6824,10 +6842,10 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
        via the failed-pieces ledger — never fall through to the generic closer,
        whose value for this class is silently wrong. *)
     If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtDbgDegTrig],
-      WriteString["stdout", "  [DBGdt] dvQ=" <>
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [DBGdt] dvQ=" <>
         ToString[DownValues[MBAnalytica`SymbolicInt`Private`mbeDegTrigQ] =!= {}] <> " Q=" <>
         ToString[MBAnalytica`SymbolicInt`Private`mbeDegTrigQ[normalised, vrs]] <> " vrs=" <>
-        ToString[vrs] <> "\n"]];
+        ToString[vrs] <> "\n"]]];
     (* NOTE (2026-07-20): dtvHook lives in the OUTER Module. An earlier
        version used an inner Module[{dtv}, ... Return[..., Module]] — that
        Return exits the INNER Module only (trap #20 class), so the correct
@@ -6899,8 +6917,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                        Quiet@N[normalised /. First[vrs] -> ecZt, 25]] <
                    10^-12 (1 + Abs[Quiet@N[normalised /. First[vrs] -> ecZt, 25]])],
             dtqCanon = ecC;
-            WriteString["stdout",
-              "    [EntryCanon] classifying on the canonical form.\n"]]]]];
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+              "    [EntryCanon] classifying on the canonical form.\n"]]]]]];
     If[DownValues[MBAnalytica`SymbolicInt`Private`mbeDegTrigQ] =!= {} &&
        (MBAnalytica`SymbolicInt`Private`mbeDegTrigQ[normalised, vrs] ||
         MBAnalytica`SymbolicInt`Private`mbeDegTrigQ[dtqCanon, vrs]),
@@ -6937,8 +6955,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
             If[NumericQ[Quiet@N[dtvQuad]] &&
                ! FreeQ[normalised, Power[bb_ /; bb === -1 || bb === E,
                  ee_ /; ! FreeQ[ee, Alternatives @@ vrs]]],
-              WriteString["stdout",
-                "    [PhaseOracle] z-phase stripped; quad oracle available.\n"]]]]];
+              If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+                "    [PhaseOracle] z-phase stripped; quad oracle available.\n"]]]]]];
       (* ---- PREPASS (a) 2026-07-21: GAMMA-MINIMIZATION ----
          Collapse redundant same-slope integer-differing Gamma ratios
          (e.g. Gamma(-z)/Gamma(1-z) -> -1/z) so every cube/shift route
@@ -6976,8 +6994,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
           MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
           MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
           MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt0 piece-quad 1e-6"];
-          WriteString["stdout",
-            "    [DegClass] attempt0 ORDINARY route QUAD-VERIFIED.\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+            "    [DegClass] attempt0 ORDINARY route QUAD-VERIFIED.\n"]];
           Return[numFactor * dtvPBv, Module]];
         (* ---- attempt 0.5: DIRECT faithful-cube close (MBtoEuler +
            IntVolIntegrate over all parts). Bypasses MBSymbolicInt's internal
@@ -6991,8 +7009,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
           MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
           MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
           MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt0.5 piece-quad 1e-6"];
-          WriteString["stdout",
-            "    [DegClass] attempt0.5 DIRECT-CUBE QUAD-VERIFIED.\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+            "    [DegClass] attempt0.5 DIRECT-CUBE QUAD-VERIFIED.\n"]];
           Return[numFactor * dtvPBv, Module]];
         (* ---- attempt 0.6: GROWTH polynomial-split + faithful cube ----
            pure-Gamma (or residual) growth pieces whose canon carries an
@@ -7010,8 +7028,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
           MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
           MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
           MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt0.6 piece-quad 1e-6"];
-          WriteString["stdout",
-            "    [DegClass] attempt0.6 GROWTH-POLYSPLIT QUAD-VERIFIED.\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+            "    [DegClass] attempt0.6 GROWTH-POLYSPLIT QUAD-VERIFIED.\n"]];
           Return[numFactor * dtvPBv, Module]];
         (* ---- attempt 0.7 (b): PSI-SHIFT + SPLIT + cube/shift close ---- *)
         MBAnalytica`SymbolicInt`Private`$mbtIVCertPend = {};   (* v2.6 *)
@@ -7022,8 +7040,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
           MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
           MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
           MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt0.7 piece-quad 1e-6"];
-          WriteString["stdout",
-            "    [DegClass] attempt0.7 PSI-SHIFT-SPLIT QUAD-VERIFIED.\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+            "    [DegClass] attempt0.7 PSI-SHIFT-SPLIT QUAD-VERIFIED.\n"]];
           Return[numFactor * dtvPBv, Module]];
         (* ---- attempt 0.75: DERIVATIVE FORM (fold-(k+2), sidecar) ----
            psi0^k pieces on a no-window kernel: EGF/Bell inversion into an
@@ -7043,8 +7061,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
             MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
             MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
             MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt0.75 piece-quad 1e-6"];
-            WriteString["stdout",
-              "    [DegClass] attempt0.75 DERIVATIVE-FORM QUAD-VERIFIED.\n"];
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+              "    [DegClass] attempt0.75 DERIVATIVE-FORM QUAD-VERIFIED.\n"]];
             Return[numFactor * dtvPBv, Module]]];
         (* ---- attempt 0.8: PSI FORCE-SHIFT + split + cube/shift ---- *)
         MBAnalytica`SymbolicInt`Private`$mbtIVCertPend = {};   (* v2.6 *)
@@ -7057,8 +7075,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
           MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
           MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
           MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt0.8 piece-quad 1e-6"];
-          WriteString["stdout",
-            "    [DegClass] attempt0.8 PSI-FORCE-SHIFT QUAD-VERIFIED.\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+            "    [DegClass] attempt0.8 PSI-FORCE-SHIFT QUAD-VERIFIED.\n"]];
           Return[numFactor * dtvPBv, Module]];
         (* ---- attempt 1: Gamma-canonicalization + plain cube route ---- *)
         dtvCanon = Quiet@TimeConstrained[
@@ -7075,8 +7093,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
             MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
             MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
             MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt1 piece-quad 1e-6"];
-            WriteString["stdout",
-              "    [DegClass] attempt1 GAMMA-CANON+cube QUAD-VERIFIED.\n"];
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+              "    [DegClass] attempt1 GAMMA-CANON+cube QUAD-VERIFIED.\n"]];
             Return[numFactor * dtvPBv, Module]]];
         (* ---- attempt 2: shift + integral rep (forced Path B/B') ---- *)
         MBAnalytica`SymbolicInt`Private`$mbtIVCertPend = {};   (* v2.6 *)
@@ -7090,8 +7108,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
           MBAnalytica`SymbolicInt`Private`$mbtMBSymbolicIntCache[key] = dtvPBv;
           MBAnalytica`SymbolicInt`Private`mbtMBSymbolicIntDiskPut[diskHash, dtvPBv];
           MBAnalytica`SymbolicInt`Private`mbtIVCertSweep["deg-dispatch attempt2 piece-quad 1e-6"];
-          WriteString["stdout",
-            "    [DegClass] attempt2 SHIFT+INTEGRAL-REP QUAD-VERIFIED.\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+            "    [DegClass] attempt2 SHIFT+INTEGRAL-REP QUAD-VERIFIED.\n"]];
           Return[numFactor * dtvPBv, Module]]];
       (* ---- attempt 3: legacy tower, quadrature-gated inside ---- *)
       dtvHook = If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbeDegTrigTowerEnabled] &&
@@ -7104,14 +7122,14 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
         AppendTo[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces,
           <|"reason" -> "tower-fallback-used", "vars" -> vrs,
             "normalised" -> Short[normalised, 3]|>];
-        WriteString["stdout",
-          "    [DegClass] attempt3 TOWER used (cube attempts failed) - ledgered.\n"];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+          "    [DegClass] attempt3 TOWER used (cube attempts failed) - ledgered.\n"]];
         Return[numFactor * dtvHook, Module]];
       AppendTo[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces,
         <|"reason" -> "degclass-all-attempts-failed", "vars" -> vrs,
           "normalised" -> Short[normalised, 3]|>];
-      WriteString["stdout",
-        "    [DegClass] ALL attempts failed; generic closer value SUSPECT (ledgered).\n"]];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+        "    [DegClass] ALL attempts failed; generic closer value SUSPECT (ledgered).\n"]]];
     (* Cache miss — recompute *)
     MBAnalytica`SymbolicInt`Private`$mbtCacheMisses++;
       (* Round 15 fast-path: 1-var Gamma+ψ patterns close in 0.1-0.5s via HS. *)
@@ -7178,21 +7196,21 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                Disabled; a genuine 1-fold timeout goes straight to contour
                recovery below. *)
             If[False && Length[vrs] == 1 && r === $TimedOut,
-              WriteString["stdout", "    [LSR] plain MBSymbolicInt retry (1-var, 180s)...\n"];
+              If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] plain MBSymbolicInt retry (1-var, 180s)...\n"]];
               rL = Quiet @ TimeConstrained[
                  Block[{Print}, MBAnalytica`SymbolicInt`MBSymbolicInt[normalised, ctr, vrs]], 180, $TimedOut];
               If[AssociationQ[rL], rL = rL["MPLResult"]]];
             If[Length[vrs] == 1 && ! MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[rL, vrs],
-              WriteString["stdout",
-                "    [LSR] contour-shift recovery (1-var, recovery-first)...\n"];
+              If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+                "    [LSR] contour-shift recovery (1-var, recovery-first)...\n"]];
               rL = Quiet @ TimeConstrained[
                  MBAnalytica`SymbolicInt`Private`mbtRecoverContour[
                    normalised, First[vrs] /. ctr, First[vrs]],
                  MBAnalytica`SymbolicInt`Private`$mbtLongCloseBudget, $TimedOut]];
             If[! MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[rL, vrs],
-              WriteString["stdout",
+              If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
                 "    [LSR] non-numeric/timeout; GreedySearch (" <>
-                ToString[Length[vrs]] <> "-fold)...\n"];
+                ToString[Length[vrs]] <> "-fold)...\n"]];
               rL = Quiet @ TimeConstrained[
                  Block[{Print},
                    MBAnalytica`SymbolicInt`MBSymbolicInt[normalised, ctr, vrs, "GreedySearch" -> True]],
@@ -7200,7 +7218,7 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
               If[AssociationQ[rL], rL = rL["MPLResult"]];
               (* last-ditch: bounded 1-var contour-shift recovery *)
               If[! MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[rL, vrs] && Length[vrs] == 1,
-                WriteString["stdout", "    [LSR] contour-shift recovery (1-var, fallback)...\n"];
+                If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] contour-shift recovery (1-var, fallback)...\n"]];
                 rL = Quiet @ TimeConstrained[
                    MBAnalytica`SymbolicInt`Private`mbtRecoverContour[
                      normalised, First[vrs] /. ctr, First[vrs]],
@@ -7213,8 +7231,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                   NIntegrate[Evaluate[(normalised /. v -> c0 + I tq)/(2 Pi)], {tq, -60, 60}, WorkingPrecision -> 25,
                     PrecisionGoal -> 10, MaxRecursion -> 30], 300, $TimedOut];
                 If[! TrueQ[NumericQ[q] && Abs[N[rL, 30] - q] < 10^-8 Max[1, Abs[q]]],
-                  WriteString["stdout", "    [LSR] recovery value REFUSED by the contour quadrature: ",
-                    ToString[N[rL, 12]], " vs ", ToString[If[NumericQ[q], N[q, 12], q]], "\n"];
+                  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] recovery value REFUSED by the contour quadrature: ",
+                    ToString[N[rL, 12]], " vs ", ToString[If[NumericQ[q], N[q, 12], q]], "\n"]];
                   rL = $Failed]]];
             (* A MULTI-fold value of the recovery ladder needs the same confirmation: on the inclusive N4LO MB13 at
                eps^-3, GreedySearch closed a 2-fold piece whose integration had reported a divergence with
@@ -7231,14 +7249,14 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                   NIntegrate @@ Join[{onContour}, Map[{#, -40, 40} &, tqs],
                     {WorkingPrecision -> 20, PrecisionGoal -> 6, MaxRecursion -> 20}], 900, $TimedOut];
                 If[! TrueQ[NumericQ[q] && Abs[N[rL, 30] - q] < 10^-5 Max[1, Abs[q]]],
-                  WriteString["stdout", "    [LSR] multi-fold recovery value REFUSED by the contour quadrature: ",
-                    ToString[N[rL, 12]], " vs ", ToString[If[NumericQ[q], N[q, 12], q]], "\n"];
+                  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] multi-fold recovery value REFUSED by the contour quadrature: ",
+                    ToString[N[rL, 12]], " vs ", ToString[If[NumericQ[q], N[q, 12], q]], "\n"]];
                   rL = $Failed]]];
             If[MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[rL, vrs],
               r = rL;
               MBAnalytica`SymbolicInt`Private`$mbtLongCloseCount++;
-              WriteString["stdout",
-                "    [LSR] long-close/recovery SUCCEEDED\n"]]]];
+              If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+                "    [LSR] long-close/recovery SUCCEEDED\n"]]]]];
         If[AssociationQ[r], r = r["MPLResult"]];
         (* 2026-07-26 GAMMA-CANON RETRY (a REACHABILITY fix, not new theory).
            Measured on MB6's failed-piece dump: all 38 entries are 1-fold and
@@ -7318,9 +7336,9 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                                10^-6 (1 + Abs[gcQuad]),
                             MBAnalytica`SymbolicInt`Private`mbtIVCertSweep[
                               "GammaCanonRetry piece-quad 1e-6"];
-                            WriteString["stdout",
+                            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
                               "    [GammaCanonRetry] canon+" <> gcNm <>
-                              " QUAD-VERIFIED.\n"];
+                              " QUAD-VERIFIED.\n"]];
                             r = gcNum; gcHit = True]]],
                       {gcRung, gcLadder}]]]]]]];
         (* ---- v2.9 (2026-07-29): MULTI-FOLD QUAD-GATED RETRY ----
@@ -7360,8 +7378,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                   Method -> {"GlobalAdaptive", "MaxErrorIncreases" -> 2000}],
                 If[Length[vrs] == 2, 300, 700], $Failed]];
             If[NumericQ[Quiet@N[mfQuad]],
-              WriteString["stdout",
-                "    [MultiFoldRetry] phase-stripped oracle available.\n"];
+              If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+                "    [MultiFoldRetry] phase-stripped oracle available.\n"]];
               Do[
                If[! MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[r, vrs],
                  Module[{mfIn},
@@ -7384,9 +7402,9 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                           10^-6 (1 + Abs[mfQuad]),
                        MBAnalytica`SymbolicInt`Private`mbtIVCertSweep[
                          "MultiFoldRetry piece-quad 1e-6"];
-                       WriteString["stdout",
+                       If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
                          "    [MultiFoldRetry] " <> ToString[mfTry] <>
-                         " QUAD-VERIFIED.\n"];
+                         " QUAD-VERIFIED.\n"]];
                        r = mfNum]]]],
                {mfTry, {"direct", "canon"}}]]]];
         (* 2026-07-24 PINCH CLOSER (corner-linear, oracle-gated): LAST attempt
@@ -7400,8 +7418,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
            TrueQ[MBAnalytica`SymbolicInt`Private`$mbePinchCloserEnabled] &&
            DownValues[MBAnalytica`SymbolicInt`Private`mbePinchLinClose] =!= {} &&
            TrueQ[Quiet@MBAnalytica`SymbolicInt`Private`mbePinchPieceQ[normalised, vrs]],
-          WriteString["stdout",
-            "    [PinchLin] pinch fingerprint; corner-linear closer...\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+            "    [PinchLin] pinch fingerprint; corner-linear closer...\n"]];
           (* 2026-07-26 COST GATE.  mbePinchPieceQ returns True for ANY
              1-fold piece, so every failing 1-fold coefficient was entering a
              closer designed for 2-fold cross-Gamma pinches and burning its
@@ -7490,9 +7508,9 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                    10^-7 (1 + Abs[Quiet@N[esOrWide, 20]]),
                 esOr = esOrWide]];
             If[NumericQ[Quiet@N[esOr]],
-              WriteString["stdout",
+              If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
                 "    [EngineDispatch] complex tail-stable oracle ready; " <>
-                  "classify+dispatch...\n"];
+                  "classify+dispatch...\n"]];
               esRes = Quiet@TimeConstrained[
                 MBEStrategy`mbeStdClose[normalised, ctr, vrs], 2400, $Failed];
               If[ListQ[esRes] && Length[esRes] == 2 && esRes[[1]] =!= $Failed &&
@@ -7515,9 +7533,9 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
                 If[NumericQ[Quiet@N[esNum]] &&
                    Abs[Quiet@N[esNum, 20] - Quiet@N[esOr, 20]] <
                      10^-6 (1 + Abs[Quiet@N[esOr, 20]]),
-                  WriteString["stdout", "    [EngineDispatch] strategy " <>
+                  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [EngineDispatch] strategy " <>
                     ToString[esRes[[2]]] <>
-                    " EXACT + FULL-COMPLEX TAIL-VERIFIED.\n"];
+                    " EXACT + FULL-COMPLEX TAIL-VERIFIED.\n"]];
                   MBAnalytica`SymbolicInt`Private`$mbeEngineClosedForms[{normalised, ctr, vrs}] =
                     esExact;
                   r = esExact;
@@ -7535,9 +7553,9 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
            cube vars (timeout / unintegrated cube integrand / Indeterminate), dump
            it and use 0 -- and, crucially, DO NOT cache the non-numeric value. *)
         If[! MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[r, vrs],
-          WriteString["stdout",
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
             "    [LSR] WARNING: piece not a clean number (timeout/cube-integrand/"
-            <> "Indeterminate); NOT caching, returning 0\n"];
+            <> "Indeterminate); NOT caching, returning 0\n"]];
           Module[{dumpDir = FileNameJoin[{$TemporaryDirectory, "indet_pieces"}] <> $PathnameSeparator, fname, cnt},
             Quiet@CreateDirectory[dumpDir];
             cnt = Length[FileNames["indet_*.m", dumpDir]];
@@ -7591,10 +7609,10 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
     If[doAB === None, Return[ConstantArray[$Failed, ordMax2 - ordMin2 + 1]]];
     t1 = AbsoluteTime[];
     exp2    = Symbol["MB`MBexpand"][{mbintPiece}, 1, {eps2, 0, ordMax2}];
-    WriteString["stdout", "    [LSR] MBexpand: ",
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] MBexpand: ",
       ToString[Round[AbsoluteTime[] - t1, 0.01]],
       "s  # pieces: ",
-      ToString[If[ListQ[exp2], Length[exp2], "non-list"]], "\n"];
+      ToString[If[ListQ[exp2], Length[exp2], "non-list"]], "\n"]];
     t2 = AbsoluteTime[];
     (* Round 21 (2026-06-09): disk cache for DoAllBarnes output.
        DoAllBarnes is deterministic on a given MB integrand. We hash
@@ -7609,21 +7627,21 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
         If[loaded && ValueQ[MBAnalytica`SymbolicInt`Private`mbtDoABCached],
           barnes2 = MBAnalytica`SymbolicInt`Private`mbtDoABCached;
           ClearAll[MBAnalytica`SymbolicInt`Private`mbtDoABCached];
-          WriteString["stdout", "    [LSR] DoAllBarnes [CACHED]: ",
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] DoAllBarnes [CACHED]: ",
             ToString[Round[AbsoluteTime[] - t2, 0.01]],
             "s  # out: ",
             ToString[If[ListQ[barnes2], Length[barnes2], "non-list"]],
-            "  (key=", StringTake[cacheKey, 8], ")\n"],
+            "  (key=", StringTake[cacheKey, 8], ")\n"]],
           loaded = False]];
       If[!TrueQ[loaded],
         barnes2 = Quiet @ If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtUseParallel],
                              MBAnalytica`SymbolicInt`Private`mbtDoAllBarnesPar[exp2, True],
                              doAB[exp2, True]];
-        WriteString["stdout", "    [LSR] DoAllBarnes",
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] DoAllBarnes",
           If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtUseParallel], "Par", ""], ": ",
           ToString[Round[AbsoluteTime[] - t2, 0.01]],
           "s  # out: ",
-          ToString[If[ListQ[barnes2], Length[barnes2], "non-list"]], "\n"];
+          ToString[If[ListQ[barnes2], Length[barnes2], "non-list"]], "\n"]];
         If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtUseDoABCache] &&
            ListQ[barnes2] && Length[barnes2] > 0,
           Quiet @ Check[
@@ -7631,8 +7649,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
             MBAnalytica`SymbolicInt`Private`mbtDoABCached = barnes2;
             DumpSave[cacheFile, MBAnalytica`SymbolicInt`Private`mbtDoABCached];
             ClearAll[MBAnalytica`SymbolicInt`Private`mbtDoABCached];
-            WriteString["stdout", "    [LSR]   saved to cache: ",
-              StringTake[cacheKey, 8], "\n"],
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR]   saved to cache: ",
+              StringTake[cacheKey, 8], "\n"]],
             Null]]]];
     (* end Round 21 disk cache *)
     mbConst = Symbol["MB`MBmerge"][Select[barnes2, (#[[2,2]] == {}) &]];
@@ -7644,8 +7662,8 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
     epsFac2    = If[mbList2 === {}, {},
                    #/(# /. {eps2 -> 1}) & /@ integrand2];
     integEps12 = If[mbList2 === {}, {}, integrand2 /. {eps2 -> 1}];
-    WriteString["stdout", "    [LSR] # non-empty MB pieces: ",
-      ToString[Length[mbList2]], "\n"];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] # non-empty MB pieces: ",
+      ToString[Length[mbList2]], "\n"]];
     t3 = AbsoluteTime[];
     Module[{baseHits = MBAnalytica`SymbolicInt`Private`$mbtCacheHits,
             baseMiss = MBAnalytica`SymbolicInt`Private`$mbtCacheMisses},
@@ -7655,16 +7673,16 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
             integEps12[[ii]], contours2[[ii]], vars2[[ii]]];
           dt = AbsoluteTime[] - tii;
           If[Mod[ii, 25] == 0 || dt > 0.1,
-            WriteString["stdout", "      [LSR] piece ", ii, "/",
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "      [LSR] piece ", ii, "/",
               Length[integEps12], " t=", Round[dt, 0.01], "s LC=",
-              LeafCount[integEps12[[ii]]], "\n"]];
+              LeafCount[integEps12[[ii]]], "\n"]]];
           rii],
         {ii, Length[integEps12]}];
       MBAnalytica`SymbolicInt`Private`$mbtCacheStats = {
         MBAnalytica`SymbolicInt`Private`$mbtCacheHits - baseHits,
         MBAnalytica`SymbolicInt`Private`$mbtCacheMisses - baseMiss}];
-    WriteString["stdout", "    [LSR] MBSymbolicInt Table total: ",
-      ToString[Round[AbsoluteTime[] - t3, 0.01]], "s\n"];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] MBSymbolicInt Table total: ",
+      ToString[Round[AbsoluteTime[] - t3, 0.01]], "s\n"]];
     t4 = AbsoluteTime[];
     total = mbConstVal + If[mbEva === {}, 0, mbEva . epsFac2];
     resultLSR = Table[
@@ -7677,14 +7695,14 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
     If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtUseHungCorrection] &&
        ! TrueQ[MBAnalytica`SymbolicInt`Private`$mbtHungCorrectionApplied] &&
        (hungAtEnd - hungAtStart) >= 30,
-      WriteString["stdout", "    [LSR] [Round 23] Applying hung-pieces correction (",
-        hungAtEnd - hungAtStart, " timeouts in this residue)\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] [Round 23] Applying hung-pieces correction (",
+        hungAtEnd - hungAtStart, " timeouts in this residue)\n"]];
       resultLSR[[-1]] = resultLSR[[-1]] +
         MBAnalytica`SymbolicInt`Private`$mbtHungCorrectionValue;
       MBAnalytica`SymbolicInt`Private`$mbtHungCorrectionApplied = True];
-    WriteString["stdout", "    [LSR] series+coeff: ",
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [LSR] series+coeff: ",
       ToString[Round[AbsoluteTime[] - t4, 0.01]], "s   TOTAL: ",
-      ToString[Round[AbsoluteTime[] - tStart, 0.01]], "s\n"];
+      ToString[Round[AbsoluteTime[] - tStart, 0.01]], "s\n"]];
     resultLSR];
 
   (* Round 9 (2026-06-05): Full std-route fallback for integrands where ANY
@@ -7721,14 +7739,14 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
         If[loaded && ValueQ[MBAnalytica`SymbolicInt`Private`mbtDoABCached],
           barnes2 = MBAnalytica`SymbolicInt`Private`mbtDoABCached;
           ClearAll[MBAnalytica`SymbolicInt`Private`mbtDoABCached];
-          WriteString["stdout", "  GLOBAL DoAllBarnes [CACHED] key=",
-            StringTake[cacheKey, 8], "\n"],
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  GLOBAL DoAllBarnes [CACHED] key=",
+            StringTake[cacheKey, 8], "\n"]],
           loaded = False]];
       If[!TrueQ[loaded],
         barnes2 = Quiet @ doAB[exp2, True];
-        WriteString["stdout", "  GLOBAL DoAllBarnes computed in ",
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  GLOBAL DoAllBarnes computed in ",
           ToString[Round[AbsoluteTime[] - t2, 0.1]], "s key=",
-          StringTake[cacheKey, 8], "\n"];
+          StringTake[cacheKey, 8], "\n"]];
         If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtUseDoABCache] && ListQ[barnes2] &&
            Length[barnes2] > 0,
           Quiet @ Check[
@@ -7760,14 +7778,14 @@ MBresolveToMPL[mbIntegrand_, eps_Symbol,
           MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel[
             integEps12, contours2, vars2, epsFac2, pk]]]];
     If[TrueQ[MBAnalytica`SymbolicInt`Private`$mbtDbgHash],
-      WriteString["stdout", "  [DBG] mbConstVal cube? ",
-        ToString[! FreeQ[mbConstVal, (t|u|s|bdyU)[_]]], "\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [DBG] mbConstVal cube? ",
+        ToString[! FreeQ[mbConstVal, (t|u|s|bdyU)[_]]], "\n"]];
       Do[If[! FreeQ[mbEva[[jj]], (t|u|s|bdyU)[_]],
-          WriteString["stdout", "  [DBG] mbEva[", jj, "] HAS CUBE VARS  vars2=",
-            ToString[vars2[[jj]]], "  val=", ToString[Short[mbEva[[jj]], 2]], "\n"]],
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [DBG] mbEva[", jj, "] HAS CUBE VARS  vars2=",
+            ToString[vars2[[jj]]], "  val=", ToString[Short[mbEva[[jj]], 2]], "\n"]]],
         {jj, Length[mbEva]}];
       Do[If[! FreeQ[epsFac2[[jj]], (t|u|s|bdyU)[_]],
-          WriteString["stdout", "  [DBG] epsFac2[", jj, "] HAS CUBE VARS\n"]],
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [DBG] epsFac2[", jj, "] HAS CUBE VARS\n"]]],
         {jj, Length[epsFac2]}]];
     total = mbConstVal + mbEva . epsFac2;
     Table[
@@ -8514,7 +8532,7 @@ mbeCubeOrShiftClose[intg_, ctr_List, vrs_List, timeout_:400] := Module[{r, v},
   If[FreeQ[intg, PolyGamma],
     r = mbeRationalCsc2Close[intg, ctr, vrs];
     If[r =!= $Failed && NumericQ[Quiet@N[r]],
-      WriteString["stdout", "    [RationalCsc2] exact arc-certified closure.\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [RationalCsc2] exact arc-certified closure.\n"]];
       Return[r]]];
   r = Quiet@TimeConstrained[
     mbeDirectCubeClose[intg, ctr, vrs, timeout], timeout + 200, $Failed];
@@ -8645,8 +8663,8 @@ mbeDirectCubeClose[intg_, ctr_List, vrs_List, timeout_:600] := Module[
         mbeRationalCsc2Close[failedIntegrand, ctr, vrs]];
       If[res === $Failed || ! NumericQ[Quiet@N[res]],
         Return[$Failed, Module]];
-      WriteString["stdout",
-        "    [RationalCsc2] closed exact PartBStreamFailed correction.\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+        "    [RationalCsc2] closed exact PartBStreamFailed correction.\n"]];
       tot += res;
       Continue[]];
     If[FailureQ[cube], Return[$Failed, Module]];
@@ -9016,16 +9034,16 @@ mbeDegTrigEvalCore[intg_, ctr_List, vrs_List] := Module[
   v = First[vrs]; c = ctr[[1, 2]];
   red = mbeTrigReduce[intg, v];
   If[! FreeQ[red, Gamma[a_ /; ! FreeQ[a, v]]],
-    WriteString["stdout", "    [DegTrig:S1] reduction incomplete\n"]; Return[$Failed]];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [DegTrig:S1] reduction incomplete\n"]]; Return[$Failed]];
   If[! mbeTrigGate[intg, red, v],
-    WriteString["stdout", "    [DegTrig:S2] trig gate failed\n"]; Return[$Failed]];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [DegTrig:S2] trig gate failed\n"]]; Return[$Failed]];
   (* contour quadrature reference (DIAGNOSTIC GATE ONLY) *)
   quad = Quiet@TimeConstrained[
     NIntegrate[(red /. v -> c + I Global`mbeTT)/(2 Pi),
       {Global`mbeTT, -60, 60}, WorkingPrecision -> 25,
       PrecisionGoal -> 10, MaxRecursion -> 14], 300, $Failed];
   If[! NumericQ[quad],
-    WriteString["stdout", "    [DegTrig:S3] quadrature failed\n"]; Return[$Failed]];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [DegTrig:S3] quadrature failed\n"]]; Return[$Failed]];
   (* 2026-07-20 GENERALIZED HEADS (MB10 offset-3 class): the symbolic tower
      residue is only valid where no psi/Gamma argument hits a nonpositive
      integer, i.e. for nn > hOff where hOff = max |integer offset| of the
@@ -9076,9 +9094,9 @@ mbeDegTrigEvalCore[intg_, ctr_List, vrs_List] := Module[
     NumericQ[partR] && Abs[partR - quad] < 10^-3 (1 + Abs[quad]), "R",
     True, $Failed];
   If[side === $Failed,
-    WriteString["stdout", "    [DegTrig:S4] side selection failed (partL=" <>
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [DegTrig:S4] side selection failed (partL=" <>
       ToString[N[partL]] <> " partR=" <> ToString[N[partR]] <> " quad=" <>
-      ToString[N[quad]] <> ")\n"]; Return[$Failed]];
+      ToString[N[quad]] <> ")\n"]]; Return[$Failed]];
   (* Tail sums run in an ISOLATED BARE subkernel (ginsh-isolation pattern):
      the loaded stack's rule pollution stalls Sum in-kernel (measured: S5
      stalls at 600s and 1200s in-package while a bare kernel closes the same
@@ -9108,8 +9126,8 @@ mbeDegTrigEvalCore[intg_, ctr_List, vrs_List] := Module[
             MBAnalytica`SymbolicInt`Private`$mbtDegDumpN + 1, 1]] <> ".m"}]},
       Put[{"side" -> side, "rL" -> rL, "rR" -> rR, "headL" -> headL,
            "headR" -> headR, "quad" -> quad, "assump" -> $Assumptions}, df];
-      WriteString["stdout", "    [DegTrig:S5] exact tail sum stalled; dump " <>
-        df <> "\n"]]; Return[$Failed]];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [DegTrig:S5] exact tail sum stalled; dump " <>
+        df <> "\n"]]]; Return[$Failed]];
   exact = FullSimplify[If[side === "L", head + tail, -(head + tail)]];
   (* FINAL GATE *)
   If[Abs[N[exact, 25] - quad] < 10^-8 (1 + Abs[quad]),

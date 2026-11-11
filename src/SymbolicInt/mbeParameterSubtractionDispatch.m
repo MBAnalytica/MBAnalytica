@@ -73,8 +73,11 @@ psExpandMain[f_,ep_Symbol,c_Association,lo_Integer,hi_Integer,seconds_,cache_]:=
  (* release R3.1: a helper process (oft_residue_helper.wls) takes the queue in its own order; the main process starts
     the helpers for a queue with enough terms with folds (mbeResidueStore.m) and stops them at the end *)
  If[StringQ[Global`$psQueueOrder]&&Length[resolved]>1,resolved=resolved[[Global`orsPermute[Length[resolved],Global`$psQueueOrder]]]];
- psHelpers=If[DownValues[Global`orsPSLaunch]=!={},Global`orsPSLaunch[f,ep,c,lo,hi,timeLeft[],cache,resolved],{{},None}];
+ psHelpers={{},None};
  Internal`WithLocalSettings[Null,
+ (* the helpers start inside the protected body, so that an abort right after their start still stops them (review of
+    e4f55bd) *)
+ psHelpers=If[DownValues[Global`orsPSLaunch]=!={},Global`orsPSLaunch[f,ep,c,lo,hi,timeLeft[],cache,resolved],{{},None}];
  (* 2026-09-29: the resolved list is a QUEUE; the general multifold handler may replace a multi-fold term by its exactly
     reduced terms (appended to the queue), each going through the same ladder *)
  i=0;While[i<Length[resolved],i++;term=resolved[[i]];

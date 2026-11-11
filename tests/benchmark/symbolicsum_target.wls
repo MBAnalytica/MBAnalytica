@@ -77,6 +77,11 @@ If[DiffQ,
     N[Vx, 20]];
   ZetaSym[V_] := V /. Q_Symbol /; StringMatchQ[SymbolName[Q], "z" ~~ DigitCharacter ..] :> Zeta[ToExpression[StringDrop[SymbolName[Q], 1]]];
   Idx = StringReplace[StringDrop[Name, -1], {"MB" -> ""}];
+  (* the lowest order of the row is that of the record files, never the first order of the value itself: a value that
+     had lost its leading pole was checked from its own first order and passed (review of e4f55bd) *)
+  LoRef = Select[Map[ToExpression[StringReplace[StringDrop[FileBaseName[#], StringLength["MB" <> Idx <> "_diff_"]], "m" -> "-"]] &,
+    If[StringQ[RefDir], FileNames["MB" <> Idx <> "_diff_*.m", RefDir], {}]], IntegerQ];
+  If[LoRef === {}, Print["RESUM_DIFF ", Name, " no record files"]; Pass = False, Lo = Min[Min[LoRef], Lo]];
   Do[Module[{File1, GC, Ref, Rel},
      File1 = FileNameJoin[{RefDir, "MB" <> Idx <> "_diff_" <> StringReplace[ToString[K], "-" -> "m"] <> ".m"}];
      GC = Coefficient[Expand[GForm], Eps, K];

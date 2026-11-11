@@ -212,11 +212,12 @@ regLimitZero[P_,x_]:=Module[{terms,total=0},
     constpart=Times@@Select[If[Head[rest]===Times,List@@rest,{rest}],!FreeQ[#,G]&];ratpart=Together[rest/constpart];
     If[!FreeQ[ratpart,G]||!FreeQ[constpart,x],refusal="ENDPOINT_BAD_TERM "<>ToString[Short[t,3],InputForm];Throw[$Failed,lastfold]];
     p=Max[0,Exponent[Denominator[ratpart],x,Min]];
-    If[p==0,
-      total+=constpart*(ratpart/.x->0)*Times@@(If[Most[List@@#]=!={},0,1]&/@gx),
-      ser=Expand[Times@@(gser[Most[List@@#],x,p]&/@gx)];
-      lau=Normal[Series[ratpart,{x,0,0}]];
-      total+=constpart*Coefficient[Expand[lau*ser],x,0]+constpart*Sum[Coefficient[Expand[lau*ser],x,-k]*x^-k,{k,1,p}]]],{t,terms}];
+    (* a term with a regular coefficient goes through the same jets: the shortcut that set every word with letters to
+       zero at x = 0 dropped the all-zero words, G(0,...,0;x) = L^m/m!, so that the divergent primitive of
+       (G(0;x) - G(1;x))/x gave Pi^2/6 (review of e4f55bd); the words with a nonzero letter vanish there as before *)
+    ser=Expand[Times@@(gser[Most[List@@#],x,p]&/@gx)];
+    lau=Normal[Series[ratpart,{x,0,0}]];
+    total+=constpart*Coefficient[Expand[lau*ser],x,0]+constpart*Sum[Coefficient[Expand[lau*ser],x,-k]*x^-k,{k,1,p}]],{t,terms}];
   Expand[total]];
 
 (* the primitive must differentiate back to the fibrated integrand: symmetric finite difference at an interior gate

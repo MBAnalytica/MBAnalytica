@@ -41,7 +41,7 @@
 Global`$bwsCounter = 0;
 Global`$bwsIVFSeconds = 1200;
 Global`$bwsVerbose = True;
-bwsLog[a___] := If[TrueQ[Global`$bwsVerbose], WriteString["stdout", "    [BWS] " <> StringJoin[ToString /@ {a}] <> "\n"]];
+bwsLog[a___] := If[TrueQ[Global`$bwsVerbose], If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] " <> StringJoin[ToString /@ {a}] <> "\n"]]];
 
 bwsAffineQ[e_, vars_] := PolynomialQ[e, vars] && AllTrue[CoefficientRules[e, vars], Total[#[[1]]] <= 1 &];
 bwsRe[e_, ctr_] := Quiet@Check[Re[N[e /. ctr, 30]], $Failed];
@@ -1104,7 +1104,7 @@ If[DownValues[MBEStrategy`mbeStdClose] =!= {} && DownValues[Global`bwsStdCloseOr
            v = bwsOrigTry[igR, ctrR, vrs, 400]]],
         {rp, Subsets[vrs, {2}]}]];
     If[v === $Failed, {$Failed, None}, v]];
-  WriteString["stdout", "[mbeTwoVarPsiRung] mbeStdClose wrapped (BWS engine + permutation/reflection retries).\n"]]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeTwoVarPsiRung] mbeStdClose wrapped (BWS engine + permutation/reflection retries).\n"]]]];
 
 (* ===================== PART C: post-failure exact ladder at the piece entry point ===================== *)
 (* mbtCachedMBSymbolicInt is (re)defined INSIDE every MBresolveToMPL call (a call-time helper of the sealed entry point) with
@@ -1206,7 +1206,7 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
     numFactor = Times @@ Cases[intg, _?(NumericQ[N[#]] && FreeQ[#, Alternatives @@ vrs] &), {1}];
     If[PossibleZeroQ[numFactor] || ! FreeQ[numFactor, Alternatives @@ vrs], numFactor = 1];
     normalised = intg/numFactor;
-    serve[v_, how_] := (WriteString["stdout", "    [BWS] EXACT value served (" <> how <> "): " <> ToString[v, InputForm] <> "\n"];
+    serve[v_, how_] := (If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] EXACT value served (" <> how <> "): " <> ToString[v, InputForm] <> "\n"]];
       numFactor v);
     (* construction A: BWS *)
     Global`$bwsLastOrder = {}; Global`$bwsUngatedReg = False; ungated = False;
@@ -1313,13 +1313,13 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
       If[Length[vrs] === 1,
         q = bwsQuad1[intg, ctr, First[vrs]];
         If[NumericQ[q] && Abs[N[v, 20] - q] <= 10^-6 (1 + Abs[q]),
-          WriteString["stdout", "    [BWS] EXACT value served (slope-|k| psi one-fold: BWS engine + one-fold quadrature " <>
-            ToString[q] <> "): " <> ToString[v, InputForm] <> "\n"]; Return[v, Module],
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] EXACT value served (slope-|k| psi one-fold: BWS engine + one-fold quadrature " <>
+            ToString[q] <> "): " <> ToString[v, InputForm] <> "\n"]]; Return[v, Module],
           bwsLog["BWS value ", v, " NOT confirmed by the one-fold quadrature ", q, " -> multiplication route"]],
         v2 = Quiet@CheckAbort[TimeConstrained[Global`bwsClose[intg, ctr, vrs, "Exclude" -> Global`$bwsLastOrder], 1200, $Failed], $Failed];
         If[bwsExactQ[v2, vrs] && bwsSameExactQ[v, v2],
-          WriteString["stdout", "    [BWS] EXACT value served (slope-|k| psi multi-fold: two BWS elimination orders agree): " <>
-            ToString[v, InputForm] <> "\n"]; Return[v, Module],
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] EXACT value served (slope-|k| psi multi-fold: two BWS elimination orders agree): " <>
+            ToString[v, InputForm] <> "\n"]]; Return[v, Module],
           bwsLog["BWS value ", v, " has no agreeing second elimination order -> multiplication route"]]],
       bwsLog["BWS engine refused the slope-|k| psi piece directly -> multiplication route"]];
     parts = bwsPsiMultSplit[intg, vrs];
@@ -1340,7 +1340,7 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
         bwsLog["psi part (BWS): ", v]];
       AppendTo[vals, v], {part, parts}];
     tot = Simplify[Total[vals]];
-    WriteString["stdout", "    [BWS] EXACT value served via the psi multiplication formula: " <> ToString[tot, InputForm] <> "\n"];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] EXACT value served via the psi multiplication formula: " <> ToString[tot, InputForm] <> "\n"]];
     tot];
   (* ---- NEAR-POLE CONTOUR SHIFT (2026-09-05, MB11 fresh audit) ----
      MBresolve / the regulated continuation may place a contour within 1e-3 of a pole of the piece (MB11: the 23-piece
@@ -1435,8 +1435,8 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
           If[Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces] > n0,
             bwsLog["a reduced piece was refused -> the pre-reduction is abandoned (its ledger entries dropped); the piece continues on its own path"];
             MBAnalytica`SymbolicInt`Private`$mbtFailedPieces = Take[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces, n0],
-            WriteString["stdout", "    [BWS] EXACT value served (Barnes-lemma pre-reduction, " <> ToString[Length[red]] <>
-              " reduced piece(s)): " <> ToString[Simplify[tot], InputForm] <> "\n"];
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] EXACT value served (Barnes-lemma pre-reduction, " <> ToString[Length[red]] <>
+              " reduced piece(s)): " <> ToString[Simplify[tot], InputForm] <> "\n"]];
             bprVal = bwsServe[Simplify[tot], "barnes-prereduction", intg, ctr, vrs, n0, True]]]]];
     If[bprVal =!= $Failed, Return[bprVal, Module]];
     (* 2026-09-15 (MB14b pieces 0245/0247/0248; mbeBarnes2PsiReduce.m): a polygamma on a leg of a Barnes-SECOND-lemma
@@ -1465,8 +1465,8 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
              If[Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces] > n0,
                bwsLog["a sub-piece of candidate ", k, " was refused -> candidate abandoned (its ledger entries dropped)"];
                MBAnalytica`SymbolicInt`Private`$mbtFailedPieces = Take[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces, n0],
-               WriteString["stdout", "    [BWS] EXACT value served (Barnes second lemma with a psi difference, partner + " <>
-                 ToString[Length[cand] - 1] <> " reduced piece(s)): " <> ToString[Simplify[tot], InputForm] <> "\n"];
+               If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] EXACT value served (Barnes second lemma with a psi difference, partner + " <>
+                 ToString[Length[cand] - 1] <> " reduced piece(s)): " <> ToString[Simplify[tot], InputForm] <> "\n"]];
                bprVal = bwsServe[Simplify[tot], "barnes2psi", intg, ctr, vrs, n0, True]]], {cand, cands}]]]];
     If[bprVal =!= $Failed, Return[bprVal, Module]];
     (* pieces the sealed ladder handles as before go straight to it; the only change for them is the numeric-argument
@@ -1545,8 +1545,8 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
     If[! bwsExactQ[v, vrs], bwsLog["BWS engine refused the one-fold psi piece"]; Return[$Failed]];
     q = bwsQuad1[intg, ctr, First[vrs]];
     If[NumericQ[q] && Abs[N[v, 20] - q] <= 10^-6 (1 + Abs[q]),
-      WriteString["stdout", "    [BWS] EXACT value served (one-fold psi piece after an inexact sealed value: BWS engine + one-fold quadrature " <>
-        ToString[q] <> "): " <> ToString[v, InputForm] <> "\n"]; v,
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [BWS] EXACT value served (one-fold psi piece after an inexact sealed value: BWS engine + one-fold quadrature " <>
+        ToString[q] <> "): " <> ToString[v, InputForm] <> "\n"]]; v,
       bwsLog["BWS one-fold value ", v, " NOT confirmed by the one-fold quadrature ", q, " -> refused"]; $Failed]];
   bwsServe[v0_, stage_String, intg_, ctr_, vrs_, n0_, tried_, key_:None, nf_:1, dh_:None] := Module[{ex, v},
     v = bwsPrimeLog[v0];   (* 18:40: every served value in the prime-log canonical form (exact identity) *)
@@ -1570,7 +1570,7 @@ bwsInstallCachedWrap[] := If[DownValues[MBEStrategy`mbeStdClose] =!= {} && ! Tru
       <|"reason" -> "inexact-served(" <> stage <> ")", "vars" -> vrs, "normalised" -> Short[intg, 3],
         "precision" -> Precision[v]|>];
     v];
-  WriteString["stdout", "[mbeTwoVarPsiRung] mbtCachedMBSymbolicInt wrapped (persistent rule: exact-first ladder for its classes, library/caches first, two-construction gate).\n"]]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeTwoVarPsiRung] mbtCachedMBSymbolicInt wrapped (persistent rule: exact-first ladder for its classes, library/caches first, two-construction gate).\n"]]]];
 bwsInstallCachedWrap[];
 
 (* ===================== PART E: numeric-argument G leftovers of the word converter (2026-09-05) ===================== *)
@@ -1590,7 +1590,7 @@ If[DownValues[Global`gvExact] =!= {} && DownValues[Global`bwsGvExactOrig] === {}
   DownValues[Global`bwsGvExactOrig] = DownValues[Global`gvExact] /. HoldPattern[Global`gvExact] -> Global`bwsGvExactOrig;
   Clear[Global`gvExact];
   Global`gvExact[e_] := bwsGNumericClean[Global`bwsGvExactOrig[e]];
-  WriteString["stdout", "[mbeTwoVarPsiRung] gvExact wrapped (numeric-argument G leftovers -> Log / Li).\n"]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeTwoVarPsiRung] gvExact wrapped (numeric-argument G leftovers -> Log / Li).\n"]]];
 
 (* ===================== PART D: master mop-up guard (2026-09-05) ===================== *)
 (* The sealed mbtClosePiecesParallel recomputes every worker-failed or worker-missing piece SERIALLY IN THE MASTER
@@ -1649,8 +1649,8 @@ Global`mbtExportIVFScaling[nW_Integer] := Module[{running, total, budget, t, w, 
   (* one argument: a list of rules (the three-rule form is refused by SetEnvironment and set nothing) *)
   SetEnvironment[{"IVF_THREADS" -> ToString[t], "IVF_RACE_WIDTH" -> ToString[w], "IVF_SECONDS" -> ToString[s]}];
   Global`$mbtIVFScaling = {t, w, s};   (* handed to subkernel workers through ParallelEvaluate (they do not inherit the environment) *)
-  WriteString["stdout", "  [PieceKernels] IntVolFLINT scaling for ", nW, " worker(s) (", running, " other subkernel(s) running) on ",
-    $ProcessorCount, " cores: ", t, " thread(s) per hyperflint, ", w, " candidate(s) raced at once, ", s, " s per candidate\n"]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] IntVolFLINT scaling for ", nW, " worker(s) (", running, " other subkernel(s) running) on ",
+    $ProcessorCount, " cores: ", t, " thread(s) per hyperflint, ", w, " candidate(s) raced at once, ", s, " s per candidate\n"]]];
 
 If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && DownValues[Global`bwsClosePiecesOrig] === {},
   DownValues[Global`bwsClosePiecesOrig] = DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] /.
@@ -1672,22 +1672,22 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && 
       pkgDir = DirectoryName[MBAnalytica`SymbolicInt`Private`$mbtPackageFile];
       worker = FileNameJoin[{pkgDir, "mbt_piece_worker.m"}];
       If[MBAnalytica`SymbolicInt`Private`$mbtPackageFile === "" || ! FileExistsQ[worker],
-        WriteString["stdout", "  [PieceKernels] worker file not found.\n"]; serialWarn; Return[serialFallback]];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] worker file not found.\n"]]; serialWarn; Return[serialFallback]];
       If[mode === "Processes" && ! FileExistsQ[MBAnalytica`SymbolicInt`Private`$mbtMathExecutable],
-        WriteString["stdout", "  [PieceKernels] math executable not found -> subkernel workers instead of processes.\n"]; mode = "Subkernels"];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] math executable not found -> subkernel workers instead of processes.\n"]]; mode = "Subkernels"];
       If[mode === "Subkernels",
         cap = Min[If[IntegerQ[Global`$mbtSubkernelCap], Global`$mbtSubkernelCap, Infinity],
                   If[IntegerQ[$MaxLicenseSubprocesses], $MaxLicenseSubprocesses, Infinity], Max[1, $ProcessorCount - 1],
                   Max[1, Global`mbtSubkernelCapDynamic[]]];   (* the policy budget shared with this user's running jobs *)
         nW = Max[0, Min[nReq, cap]];
-        WriteString["stdout", "  [PieceKernels] workers requested ", nReq, "; licence allows ", $MaxLicenseSubprocesses,
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] workers requested ", nReq, "; licence allows ", $MaxLicenseSubprocesses,
           " subkernels; policy budget ", Global`$mbtSubkernelBudget, " (", Global`mbtMySubkernelCount[], " running); ",
-          $ProcessorCount, " cores -> launching ", nW, " subkernel worker(s)\n"];
+          $ProcessorCount, " cores -> launching ", nW, " subkernel worker(s)\n"]];
         Quiet@CloseKernels[];
         If[nW > 0, Global`mbtExportIVFScaling[nW]; Quiet@Check[LaunchKernels[nW], Null]];
         ks = Kernels[]; got = Length[ks];
-        If[got < nW, WriteString["stdout", "  [PieceKernels] only ", got, " subkernel(s) could be launched (licence or resources).\n"]];
-        If[got == 0, WriteString["stdout", "  [PieceKernels] no subkernel available -> trying process workers.\n"]; mode = "Processes"]];
+        If[got < nW, If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] only ", got, " subkernel(s) could be launched (licence or resources).\n"]]];
+        If[got == 0, If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] no subkernel available -> trying process workers.\n"]]; mode = "Processes"]];
       If[mode === "Processes",
         cap = Min[If[IntegerQ[$MaxLicenseProcesses], $MaxLicenseProcesses - 1, Infinity], Max[1, $ProcessorCount - 1]];
         (* process workers are MAIN kernels (one licence seat each).  In the workers of the multifold closing chain
@@ -1697,13 +1697,13 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && 
            a pool of sixty piece workers otherwise started one or more main kernels per worker and exhausted the
            licence.  Without the flag (the Standard route, the family driver's own workers) nothing changes. *)
         If[$KernelID =!= 0 && TrueQ[Global`$mbtNestedInWorker],
-          WriteString["stdout", "  [PieceKernels] nested request inside a worker: ", n, " piece(s) closed in this kernel.\n"]; Return[serialFallback]];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] nested request inside a worker: ", n, " piece(s) closed in this kernel.\n"]]; Return[serialFallback]];
         If[TrueQ[Global`$mbtNestedInWorker],
           cap = Min[cap, Max[0, If[IntegerQ[Global`$mbtMainKernelBudget], Global`$mbtMainKernelBudget, 10] - Global`mbtMyMainKernelCount[]]]];
         nW = Max[0, Min[nReq, cap]];
         If[nW == 0 || ! FileExistsQ[MBAnalytica`SymbolicInt`Private`$mbtMathExecutable], serialWarn; Return[serialFallback]];
-        WriteString["stdout", "  [PieceKernels] workers requested ", nReq, "; licence allows ", $MaxLicenseProcesses,
-          " main kernels; ", $ProcessorCount, " cores -> ", nW, " process worker(s)\n"]];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] workers requested ", nReq, "; licence allows ", $MaxLicenseProcesses,
+          " main kernels; ", $ProcessorCount, " cores -> ", nW, " process worker(s)\n"]]];
       jobRoot = FileNameJoin[{$TemporaryDirectory, "symbolicint-piece-" <> ToString[$ProcessID] <> "-" <> StringReplace[CreateUUID[], "-" -> ""]}];
       Quiet@CreateDirectory[jobRoot, CreateIntermediateDirectories -> True];
       Put[<|"pkgDir" -> pkgDir, "pkgPath" -> MBAnalytica`SymbolicInt`Private`$mbtPackageFile, "pltPath" -> MBAnalytica`SymbolicInt`Private`$mbtPolyLogToolsFile,
@@ -1713,7 +1713,7 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && 
              FileNameJoin[{jobRoot, "p_" <> IntegerString[ii, 10, 4] <> ".m"}]], {ii, n}];
       If[mode === "Subkernels",
         nW = got;
-        WriteString["stdout", "  [PieceKernels] ", nW, " subkernel workers on ", n, " pieces (job ", FileNameTake[jobRoot], ") [mop-up guard ON]...\n"];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] ", nW, " subkernel workers on ", n, " pieces (job ", FileNameTake[jobRoot], ") [mop-up guard ON]...\n"]];
         (* every subkernel runs the same worker file with its own start index (the pieces are claimed dynamically, so
            the stride only sets where each worker starts); ParallelEvaluate holds its argument, hence the With *)
         (* MBAnalytica: rounds of fresh workers.  A long-lived worker accumulates memory: on MB8 (1413 pieces) both
@@ -1735,13 +1735,13 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && 
             If[Length[open] < before, stall = 0, stall++];
             If[stall >= 2 || round >= 200, Break[]];
             Scan[Quiet[DeleteDirectory[FileNameJoin[{jobRoot, "claim_" <> IntegerString[#, 10, 4]}], DeleteContents -> True]] &, open];
-            WriteString["stdout", "  [PieceKernels] round ", round, ": ", Length[open], " piece(s) open -> ", nW, " fresh worker(s)\n"];
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] round ", round, ": ", Length[open], " piece(s) open -> ", nW, " fresh worker(s)\n"]];
             Global`mbtExportIVFScaling[nW];
             Quiet@Check[LaunchKernels[nW], Null];
             ks = Kernels[];
             If[ks === {}, Break[]]]];
         Quiet@CloseKernels[],
-        WriteString["stdout", "  [PieceKernels] ", nW, " process-workers on ", n, " pieces (job ", FileNameTake[jobRoot], ") [mop-up guard ON]...\n"];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] ", nW, " process-workers on ", n, " pieces (job ", FileNameTake[jobRoot], ") [mop-up guard ON]...\n"]];
         Global`mbtExportIVFScaling[nW];
         Module[{sh, runfile, rc},
           sh = "#!/bin/bash\ncd " <> MBAnalytica`Portable`ShellQuote[pkgDir] <> "\n" <>
@@ -1751,14 +1751,14 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && 
           runfile = FileNameJoin[{jobRoot, "run.sh"}];
           Export[runfile, sh, "Text"];
           rc = Run["bash " <> MBAnalytica`Portable`ShellQuote[runfile]];
-          If[rc =!= 0, WriteString["stdout", "  [PieceKernels] launcher exit code ", rc, " (collecting; any missing pieces will be flagged, not dropped).\n"]]]];
+          If[rc =!= 0, If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] launcher exit code ", rc, " (collecting; any missing pieces will be flagged, not dropped).\n"]]]]];
       If[DownValues[Global`IVLibMergeFile] =!= {},
         Module[{ivDfs = FileNames["ivlib_delta_*.m", jobRoot]},
           If[ivDfs =!= {},
             Block[{Global`$IVLibVerbose = False},
               Scan[Quiet[Global`IVLibMergeFile[#]] &, ivDfs];
               If[StringQ[Global`$IVLibFile], Quiet@Global`IVLibSave[Global`$IVLibFile]]];
-            WriteString["stdout", "  [PieceKernels] merged ", Length[ivDfs], " library delta file(s).\n"]]]];
+            If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] merged ", Length[ivDfs], " library delta file(s).\n"]]]]];
       Module[{failedK = {}, missingK = {}, failReasons},
         res = Table[
           Module[{rf = FileNameJoin[{jobRoot, "r_" <> IntegerString[k, 10, 4] <> ".m"}], r1},
@@ -1772,18 +1772,18 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && 
               True, AppendTo[missingK, k]; 0]],
           {k, n}];
         If[failedK =!= {},
-          WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[failedK], " worker-FAILED piece(s) ledgered, NOT recomputed in the master: ", ToString[failedK], "\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[failedK], " worker-FAILED piece(s) ledgered, NOT recomputed in the master: ", ToString[failedK], "\n"]];
           Do[AppendTo[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces,
                <|"reason" -> "worker-failed" <> If[ListQ[failReasons[k]] && failReasons[k] =!= {}, ": " <> StringRiffle[ToString /@ failReasons[k], "; "], ""],
                  "piece" -> k, "vars" -> vars[[k]], "normalised" -> Short[integ[[k]], 3]|>], {k, failedK}]];
         If[Length[missingK] > Global`mbtMasterMopupMax[],
-          WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[missingK], " worker-MISSING piece(s), more than the master may close (",
-            Global`mbtMasterMopupMax[], "): ledgered, NOT recomputed: ", ToString[missingK], "\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[missingK], " worker-MISSING piece(s), more than the master may close (",
+            Global`mbtMasterMopupMax[], "): ledgered, NOT recomputed: ", ToString[missingK], "\n"]];
           Do[AppendTo[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces,
                <|"reason" -> "worker-missing", "piece" -> k, "vars" -> vars[[k]], "normalised" -> Short[integ[[k]], 3]|>], {k, missingK}];
           missingK = {}];
         If[missingK =!= {},
-          WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[missingK], " worker-MISSING piece(s) recomputed under CheckAbort: ", ToString[missingK], "\n"];
+          If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] mop-up guard: ", Length[missingK], " worker-MISSING piece(s) recomputed under CheckAbort: ", ToString[missingK], "\n"]];
           Do[Module[{n0 = Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], v},
                v = CheckAbort[MBAnalytica`SymbolicInt`Private`mbtCachedMBSymbolicInt[integ[[k]], ctrs[[k]], vars[[k]]], $Aborted];
                If[v === $Aborted || ! MBAnalytica`SymbolicInt`Private`mbtCleanNumQ[v, vars[[k]]],
@@ -1798,13 +1798,13 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbtClosePiecesParallel] =!= {} && 
       Quiet@Check[Module[{ld = FileNameJoin[{Global`$MBStandardCacheDir, "worker_logs", FileNameTake[jobRoot]}]},
         CreateDirectory[ld, CreateIntermediateDirectories -> True];
         Scan[CopyFile[#, FileNameJoin[{ld, FileNameTake[#]}], OverwriteTarget -> True] &, FileNames["w_*.log", jobRoot]];
-        WriteString["stdout", "  [PieceKernels] worker logs kept in ", ld, "\n"]], Null];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] worker logs kept in ", ld, "\n"]]], Null];
       If[Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces] == 0,
         Quiet@DeleteDirectory[jobRoot, DeleteContents -> True],
-        WriteString["stdout", "  [PieceKernels] job kept for inspection: ", jobRoot, "\n"]];
-      WriteString["stdout", "  [PieceKernels] done (", n - Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], "/", n, " clean).\n"];
+        If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] job kept for inspection: ", jobRoot, "\n"]]];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "  [PieceKernels] done (", n - Length[MBAnalytica`SymbolicInt`Private`$mbtFailedPieces], "/", n, " clean).\n"]];
       res];
-  WriteString["stdout", "[mbeTwoVarPsiRung] master mop-up guard installed (worker-failed pieces ledgered, not recomputed).\n"]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeTwoVarPsiRung] master mop-up guard installed (worker-failed pieces ledgered, not recomputed).\n"]]];
 
 (* ===================== PART F: RUNGS-ONLY knob (2026-09-06) ===================== *)
 (* env MBT_PIECE_LIBRARY_OFF=1 (already honoured by mbt_piece_worker.m) now also disables the certified PIECE
@@ -1819,4 +1819,4 @@ If[Environment["MBT_PIECE_LIBRARY_OFF"] === "1" && ! TrueQ[Global`$bwsPieceLibra
     Quiet@Unprotect[MBStandardLibrary`MBStdLibQueryPiece];
     ClearAll[MBStandardLibrary`MBStdLibQueryPiece];
     MBStandardLibrary`MBStdLibQueryPiece[___] := Missing["NotFound"]];
-  WriteString["stdout", "[mbeTwoVarPsiRung] RUNGS-ONLY: certified PIECE library disabled in this process (MBT_PIECE_LIBRARY_OFF=1); the resolution-record query is untouched.\n"]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeTwoVarPsiRung] RUNGS-ONLY: certified PIECE library disabled in this process (MBT_PIECE_LIBRARY_OFF=1); the resolution-record query is untouched.\n"]]];

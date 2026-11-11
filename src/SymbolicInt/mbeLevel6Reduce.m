@@ -27,8 +27,8 @@ bwsL6Load[] := If[! TrueQ[Global`$bwsL6Loaded],
        "maptores4000rew3.txt", "maptores4000imw3.txt", "maptores4000rew4.txt", "maptores4000imw4.txt"});
     Global`$bwsL6Vals = vals;
     Global`$bwsL6Loaded = True;
-    WriteString["stdout", "    [L6] sixth-root reduction tables loaded (" <> ToString[Length[tabs]] <> " rules, " <>
-      ToString[Length[vals]] <> " basis values; first rule " <> ToString[First[tabs], InputForm] <> ")\n"]]];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] sixth-root reduction tables loaded (" <> ToString[Length[tabs]] <> " rules, " <>
+      ToString[Length[vals]] <> " basis values; first rule " <> ToString[First[tabs], InputForm] <> ")\n"]]]];
 (* canonical exact form of a constant built from Pi, Zeta, Log 2, Log 3: logarithms of positive numerics are expanded
    (an exact identity for positive arguments), Log 2 / Log 3 are collected as polynomial placeholders so that their
    cancellation is a polynomial identity (06:40: Simplify alone left "(143/24) Log 2 Zeta[3] - Log[32 2^(23/24)] Zeta[3]"
@@ -69,7 +69,7 @@ bwsL6Reduce[raw_] := Catch[Module[{g, x, re, im, rr, ri, num, val, hfnum},
   rr = Expand[re //. Global`$bwsL6Disp]; rr = Expand[rr //. Global`$bwsL6Disp];
   ri = Expand[im //. Global`$bwsL6Disp]; ri = Expand[ri //. Global`$bwsL6Disp];
   rr = Collect[rr, _Global`GR | _Global`GI, Simplify]; ri = Collect[ri, _Global`GR | _Global`GI, Simplify];
-  If[! PossibleZeroQ[ri], WriteString["stdout", "    [L6] imaginary part does not reduce to 0: " <> ToString[Short[ri, 3], InputForm] <> "\n"]; Throw[$Failed, "l6"]];
+  If[! PossibleZeroQ[ri], If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] imaginary part does not reduce to 0: " <> ToString[Short[ri, 3], InputForm] <> "\n"]]; Throw[$Failed, "l6"]];
   (* the known constants (exact identities) go in BEFORE the numeric self-gate: the 4000-digit table carries the basis
      elements only, and GR[-1] = log 2 is a basis element with no table value (06:25: every real part was refused with
      "2.5 GR[-1]" left inside the numeric; in the standalone test PolyLogTools' own GR had evaluated it) *)
@@ -77,7 +77,7 @@ bwsL6Reduce[raw_] := Catch[Module[{g, x, re, im, rr, ri, num, val, hfnum},
   num = Quiet@N[val /. Global`$bwsL6Vals, 30];
   hfnum = Quiet@Global`ivfNumericCheck[raw, {}];
   If[! (NumericQ[num] && NumericQ[hfnum] && Abs[num - hfnum] < 10^-8 (1 + Abs[hfnum])),
-    WriteString["stdout", "    [L6] basis-value numeric " <> ToString[num] <> " vs HyperFLINT numeric " <> ToString[hfnum] <> " -> refused\n"]; Throw[$Failed, "l6"]];
+    If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] basis-value numeric " <> ToString[num] <> " vs HyperFLINT numeric " <> ToString[hfnum] <> " -> refused\n"]]; Throw[$Failed, "l6"]];
   val = bwsL6LogCanon[val];
   (* 2026-09-27 (opt-in, environment MBE_L6_ACCEPT_BASIS=1, set only by the Mellin-space route tools): the remaining
      elements are BASIS elements of the tables (each has its 4000-digit value, used by the self-gate above), e.g.
@@ -87,11 +87,11 @@ bwsL6Reduce[raw_] := Catch[Module[{g, x, re, im, rr, ri, num, val, hfnum},
   If[! FreeQ[val, Global`GR | Global`GI],
     If[Environment["MBE_L6_ACCEPT_BASIS"] === "1",
       val = val /. {Global`GR[a___] :> (L6`GR @@ (bwsL6Tag /@ {a})), Global`GI[a___] :> (L6`GI @@ (bwsL6Tag /@ {a}))};
-      WriteString["stdout", "    [L6] reduced to sixth-root BASIS constants, kept exact (MBE_L6_ACCEPT_BASIS=1): " <> ToString[Short[val, 4], InputForm] <> "\n"],
-      WriteString["stdout", "    [L6] reduced to sixth-root basis elements that are not pure known constants: " <> ToString[Short[val, 4], InputForm] <> " -> refused\n"]; Throw[$Failed, "l6"]]];
-  WriteString["stdout", "    [L6] sixth-root constants reduced exactly: " <> ToString[val, InputForm] <> "\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] reduced to sixth-root BASIS constants, kept exact (MBE_L6_ACCEPT_BASIS=1): " <> ToString[Short[val, 4], InputForm] <> "\n"]],
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] reduced to sixth-root basis elements that are not pure known constants: " <> ToString[Short[val, 4], InputForm] <> " -> refused\n"]]; Throw[$Failed, "l6"]]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] sixth-root constants reduced exactly: " <> ToString[val, InputForm] <> "\n"]];
   val], "l6"];
-WriteString["stdout", "[mbeLevel6Reduce] sidecar installed (bwsL6Reduce: Henn-Smirnov-Smirnov sixth-root tables, weight <= 4).\n"];
+If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeLevel6Reduce] sidecar installed (bwsL6Reduce: Henn-Smirnov-Smirnov sixth-root tables, weight <= 4).\n"]];
 (* eager load at install time (top level), so a table problem is visible in the load log and not first inside a piece *)
-If[DirectoryQ[Global`$bwsL6Dir], Quiet@Check[bwsL6Load[], WriteString["stdout", "    [L6] table load FAILED at install\n"]],
-  WriteString["stdout", "    [L6] WARNING: no tables at " <> Global`$bwsL6Dir <> " -- sixth-root reductions will be refused\n"]];
+If[DirectoryQ[Global`$bwsL6Dir], Quiet@Check[bwsL6Load[], If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] table load FAILED at install\n"]]],
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "    [L6] WARNING: no tables at " <> Global`$bwsL6Dir <> " -- sixth-root reductions will be refused\n"]]];

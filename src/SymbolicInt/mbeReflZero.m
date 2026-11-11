@@ -47,8 +47,8 @@ If[DownValues[MBAnalytica`SymbolicInt`Private`mbeReflZeroOrig] === {} &&
     If[Length[vrs] === 1,
      z = First[vrs]; c0 = Quiet@Check[N[ctr[[1, 2]]], $Failed];
      If[NumericQ[c0] && TrueQ[MBAnalytica`SymbolicInt`Private`mbeReflZeroOddQ[ig, z, c0]],
-      WriteString["stdout",
-        "    [ReflZero] odd under z->-1-z, integer poles, contour in (-1,0) -> EXACT 0.\n"];
+      If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout",
+        "    [ReflZero] odd under z->-1-z, integer poles, contour in (-1,0) -> EXACT 0.\n"]];
       Return[0, Module]]];
     MBAnalytica`SymbolicInt`Private`mbeReflZeroOrig[ig, ctr, vrs, to]];
-  WriteString["stdout", "[mbeReflZero] sidecar installed (wraps mbeDirectCubeClose; exact-proof-gated).\n"]]];
+  If[! TrueQ[Global`$mbtQuietStdout], WriteString["stdout", "[mbeReflZero] sidecar installed (wraps mbeDirectCubeClose; exact-proof-gated).\n"]]]];
