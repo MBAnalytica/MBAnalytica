@@ -29,6 +29,9 @@ parameterPoints[pars_, dom_] := Module[{grid, pt, spread},
     Join[Map[Take[#, Length[pars]] &, Select[spread, Length[#] >= Length[pars] &]],
       Map[ConstantArray[#, Length[pars]] &, {1/3, 2/3, 1/2, 2, 3}]]];
   grid = Thread[pars -> #] & /@ grid;
+  (* points with pairwise distinct coordinates first: equal parameters lie on spurious singularities of many candidate
+     representations (letters u_i - u_j), where no candidate evaluates and the source gate refused correct results *)
+  grid = Join[Select[grid, DuplicateFreeQ[Values[#]] &], Select[grid, ! DuplicateFreeQ[Values[#]] &]];
   pt = Select[grid, TrueQ[dom /. #] &]; Take[pt, UpTo[2]]];
 parseScaled[ig_, vars_, dom_] := Module[{ff = factors[ig], kin, p},
   kin = Select[ff, MatchQ[#, _Power] && !FreeQ[#[[2]], Alternatives @@ vars] &];
@@ -100,6 +103,37 @@ sourceAST[x_, vars_, pars_] := Which[
 (* GiNaC's interface temporarily changes Directory[]. Restore it even when a
    diagnostic times out or aborts. A single batch call avoids launching a
    separate process for every GPL in a large algebraic candidate. *)
+
+(* the constant, non-integer parts of the exponents of positive kinematic bases, {constant factor, rest of the kernel} *)
+splitKinematicConstants[ig_, vars_, dom_] := Module[{pref = 1, rest = {}},
+  Do[If[MatchQ[f, Power[b_, e_] /; FreeQ[b, Alternatives @@ vars] && !FreeQ[e, Alternatives @@ vars]] &&
+      affineQ[f[[2]], vars] && prove[f[[1]] > 0, dom],
+    With[{c0 = f[[2]] /. Thread[vars -> 0]},
+      If[NumericQ[c0] && !IntegerQ[c0],
+        pref *= f[[1]]^c0; AppendTo[rest, f[[1]]^Expand[f[[2]] - c0]],
+        AppendTo[rest, f]]],
+    AppendTo[rest, f]], {f, factors[ig]}];
+  {pref, Times @@ rest}];
+
+(* direct ginsh evaluation of G functions with numeric arguments, each scaled to the argument 1 (G(a; y) = G(a/y; 1)
+   for a nonzero last index), the evaluation that the cosmological records were checked with.  Used only when
+   PolyLogTools`Ginsh returns no number, for the predictions of the independent source gate *)
+directGinshNumber[x_] := Module[{r = If[IntegerQ[x] || Head[x] === Rational || !NumericQ[x], x, Quiet[RootReduce[x]]]},
+  If[IntegerQ[r] || Head[r] === Rational, ToString[InputForm[r]],
+    StringReplace[ToString[N[r, 60], InputForm, NumberMarks -> False], "*^" -> "E"]]];
+directGinshValue[e_] := Module[{exe, gs, lines, reply, vals, scaled},
+  exe = If[StringQ[Global`$MBStandardGinshExecutable], Global`$MBStandardGinshExecutable, "ginsh"];
+  gs = DeleteDuplicates[Cases[{e}, g_PolyLogTools`G /; VectorQ[List @@ g, NumericQ], {0, Infinity}]];
+  If[gs === {}, Return[With[{v = N[e, 30]}, If[NumericQ[v], v, $Failed]], Module]];
+  scaled[g_] := Module[{a = Most[List @@ g], y = Last[List @@ g]}, If[TrueQ[y > 0] || Last[a] === 0, {a, y}, {a/y, 1}]];
+  lines = Map[Function[g, With[{ay = scaled[g]},
+      "evalf(G({" <> StringRiffle[directGinshNumber /@ ay[[1]], ","] <> "}," <> directGinshNumber[ay[[2]]] <> "));"]], gs];
+  reply = Quiet@RunProcess[{exe}, "StandardOutput", "Digits=40:\n" <> StringRiffle[lines, "\n"] <> "\n"];
+  If[!StringQ[reply], Return[$Failed, Module]];
+  vals = Quiet@Map[ToExpression[StringReplace[StringTrim[#], "E" -> "*^"]] &, StringSplit[StringTrim[reply], "\n"]];
+  If[Length[vals] =!= Length[gs] || !VectorQ[vals, NumericQ], Return[$Failed, Module]];
+  With[{v = N[e /. Thread[gs -> vals], 30]}, If[NumericQ[v], v, $Failed]]];
+
 parameterNumericValue[expr_, seconds_: 25] := Module[{here = Directory[], value, e},
   Internal`WithLocalSettings[Null,
     value = CheckAbort[Quiet@TimeConstrained[
@@ -109,6 +143,13 @@ parameterNumericValue[expr_, seconds_: 25] := Module[{here = Directory[], value,
         If[FreeQ[e, PolyLogTools`G], N[e, 35],
           N[PolyLogTools`Ginsh[e, {}, PolyLogTools`PrecisionGoal -> 35], 30]],
         Global`gvN[e]], seconds, $Failed], $Failed],
+    If[Directory[] =!= here, SetDirectory[here]]];
+  (* PolyLogTools`Ginsh returns no number for some candidates (G functions with arguments above 1 together with logs
+     of negative numbers whose imaginary parts cancel): the direct, scaled ginsh evaluation is tried instead *)
+  If[!NumericQ[value],
+    value = Quiet@CheckAbort[TimeConstrained[Module[{e1 = Global`gvExact[expr]},
+        If[FreeQ[e1, _HPL`HPL | _Gamma | _PolyGamma], directGinshValue[PolyLogTools`ShuffleRegulate[Expand[e1]]], $Failed]],
+      seconds, $Failed], $Failed];
     If[Directory[] =!= here, SetDirectory[here]]];
   If[NumericQ[value], value, $Failed]];
 
@@ -419,6 +460,19 @@ closePiece[ig_, ctr_, vars_, pars_, dom_, seconds_] := Module[{key, saved, value
   key = Hash[{ig, ctr, vars, pars, dom}, "SHA256"];
   saved = Lookup[$closureMemo, key, None];
   If[AssociationQ[saved], $lastSourceGate = saved["Gate"]; Return[saved["Value"], Module]];
+  (* a kinematic power b^(c + l(z)) with a constant non-integer offset c (the half-integer powers of the K legs of
+     cosmological trees, u^(-1/2 - z)) is the constant b^c times b^l(z): the Euler construction needs integer
+     exponents after the eliminations, so the constant is taken out of the kernel and multiplied back *)
+  (* the split result is returned from closePiece itself, not from an inner Module *)
+  value = Module[{split = splitKinematicConstants[ig, vars, dom], inner},
+    If[split[[1]] === 1, None,
+      inner = closePiece[split[[2]], ctr, vars, pars, dom, seconds];
+      If[!FailureQ[inner] && inner =!= $Failed,
+        inner = split[[1]] inner;
+        $lastSourceGate = Join[If[AssociationQ[$lastSourceGate], $lastSourceGate, <||>], <|"KinematicConstantFactor" -> split[[1]]|>];
+        AssociateTo[$closureMemo, key -> <|"Value" -> inner, "Gate" -> $lastSourceGate|>]];
+      inner]];
+  If[value =!= None, Return[value, Module]];
   normalized = gammaQuotientNormalize[ig, vars];
   kernel = If[AssociationQ[normalized], normalized["Expression"], ig];
   centered = centerParameterContour[kernel, ctr, vars, dom];

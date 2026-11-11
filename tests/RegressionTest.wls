@@ -403,6 +403,15 @@ If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
       Left1 = StringTrim[RunProcess[{"/bin/sh", "-c", "pgrep -f 'sleep 431[7]' | wc -l"}, "StandardOutput"]];
       A[[2]] =!= B[[2]] && Left1 === "0"]]];
   Check1["Euclidean partial fractions keep the quotient", With[{F1 = x^2/((x + 1) (x + 2))}, Together[IV$EuclideanApart[F1, x] - F1] === 0]];
+  (* E1. the ExpandInt closure of the cosmological blocks: the constant half-integer part of a kinematic power is taken
+     out of the kernel, u^(-1/2 - z) = u^(-1/2) u^(-z), and the source gate samples points with distinct parameters
+     first, since equal parameters lie on the letters u_i - u_j of many candidates *)
+  Check1["kinematic power with a constant half-integer offset split", With[{S = MBParameter`Private`splitKinematicConstants[
+      Global`u^(-1/2 - z) Gamma[-z] Gamma[1 + z], {z}, 0 < Global`u < 1]},
+    S[[1]] === Global`u^(-1/2) && Simplify[S[[2]] - Global`u^(-z) Gamma[-z] Gamma[1 + z]] === 0]];
+  Check1["source-gate points with distinct parameters first", With[{P = MBParameter`Private`parameterPoints[{Global`u1, Global`u2},
+      0 < Global`u1 < 1 && 0 < Global`u2 < 1]},
+    Length[P] === 2 && AllTrue[P, DuplicateFreeQ[Values[#]] &]]];
   (* perf A of the review: the orders of a large block are formed without its permutations *)
   Check1["integration orders of eleven variables", With[{Vs = Array[Symbol["Global`axis" <> ToString[#]] &, 11]},
     With[{T = AbsoluteTiming[MBParameterSubtractionHF`Private`heurOrders[Times @@ (1/(1 + #) & /@ Vs), Vs, 48]]},
