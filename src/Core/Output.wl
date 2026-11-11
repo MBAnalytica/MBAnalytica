@@ -316,7 +316,8 @@ TidyMapped[Expr_ConditionalExpression] := ConditionalExpression[TidyMapped[First
 TidyMapped[Expr_] := Module[{Res, Functions},
   Res = TidyArguments[Expr];
   Functions = DeleteDuplicates[Cases[Res, FunctionPattern, {0, Infinity}]];
-  Res = Collect[Expand[Res], Functions, Together];
+  (* Collect with no functions leaves the expression as it is *)
+  Res = If[Functions === {}, Together[Res], Collect[Expand[Res], Functions, Together]];
   Return[Res]];
 
 
@@ -330,6 +331,9 @@ DomainProbes[Domain1_, Vars_List] := Module[{Candidates, Found, Width},
     Width = Which[Length[Vars] <= 3, 6, Length[Vars] <= 6, 3, True, 2];
     Found = Join[Found, Select[Tuples[Take[Candidates, Width], Length[Vars]],
       TrueQ[Quiet[Domain1 /. Thread[Vars -> #]]] &]]];
+  (* an unbounded domain such as 0 < x < 1 && y > 1 needs the values above 1 and below 0 for some of the variables *)
+  If[Length[Found] < 2 && Length[Vars] <= 3,
+    Found = Join[Found, Select[Tuples[Candidates, Length[Vars]], TrueQ[Quiet[Domain1 /. Thread[Vars -> #]]] &]]];
   Return[Take[DeleteDuplicates[Found], UpTo[2]]]];
 
 

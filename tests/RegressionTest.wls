@@ -308,6 +308,25 @@ If[MethodQ["SymbolicSum"],
     ParameterAssumptions -> x > 1 && x < 0]; False, True, MBEvaluate::assum]];
   Check1["bases that are never positive together", Check[MBEvaluate[Gamma[-z] Gamma[1 + z] x^z (-x)^ep, {ep, 0},
     Method -> "SymbolicSum"]; False, True, MBEvaluate::bases]]];
+(* G2. an unbounded projection, V > c with c > 0 or V < c with c < 0, is inverted to the unit interval, V -> c/V, and
+   every power of a base with V is split into the powers of its factors, each positive there.  SymbolicSum summed no
+   series solution of the two-fold product on y > 1 before *)
+Check1["the split of an inverted base", MBAnalytica`Private`SplitPower[1 + 2/Global`y, w, {Global`y}, 0 < Global`y < 1] ===
+  (2 + Global`y)^w Global`y^-w];
+Check1["a negative inverted base is not split", MBAnalytica`Private`SplitPower[1 - 2/Global`y, w, {Global`y},
+  0 < Global`y < 1] === $Failed];
+Check1["the inversion of y > 1", With[{D1 = MBAnalytica`Private`KinematicDomains[Gamma[-z] Gamma[1 + z] Global`y^z,
+    {Global`y}, Global`y > 1]},
+  D1["Forward"] === {Global`y -> 1/Global`y} && D1["Integrand"] === Gamma[-z] Gamma[1 + z] Global`y^-z]];
+Do[If[MethodQ[M],
+    Check1["an unbounded domain {0 < x < 1, y > 1} with " <> M, With[{R = MBEvaluate[Gamma[-z] Gamma[1 + z] x^z Gamma[-w]*
+        Gamma[1 + w] Global`y^w, {ep, 0}, Method -> M, ParameterAssumptions -> {0 < x < 1, Global`y > 1}]},
+      Simplify[R - 1/((1 + x) (1 + Global`y))] === 0]]],
+  {M, {"SymbolicSum", "ExpandInt", "Subtraction"}}];
+If[MethodQ["SymbolicSum"],
+  Check1["an unbounded domain x > 1 with SymbolicSum", With[{R = MBEvaluate[Gamma[-z]^2 Gamma[1 + z]^2 x^z, {ep, 0},
+      Method -> "SymbolicSum", ParameterAssumptions -> {x > 1}]},
+    FullSimplify[R - Log[x]/(x - 1), x > 1] === 0]]];
 (* R3.7 $KernelLaunch = 0 is one subkernel, with a message *)
 Check1["$KernelLaunch = 0", Block[{Global`$KernelLaunch = 0},
   MBAnalytica`Private`KernelCountWarned = False;

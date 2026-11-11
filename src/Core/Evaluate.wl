@@ -404,27 +404,84 @@ IntervalEnds[Proj_, V_] := Module[{Ends},
   Return[Ends]];
 
 
-(* the affine maps V -> a + (b - a) V that take the projection a < V < b of the derivation domain on each variable to
-   the unit interval, when a and b are finite rationals: the methods were built and validated with kinematic variables
-   in (0, 1).  A variable keeps its name, since the summation packages order the variables by name (renaming the
-   kinematic variables broke EvaluateMultiSums on Appell F1, audit of 2026-11-09), so Forward and Back are rules on the
-   same symbols, applied once each; nothing changes for a projection (0, 1).  The derivation domain in the mapped
-   variables comes third *)
-UnitMaps[Domain1_, Kinematics_List] := Module[{Forward, Back, Mapped},
+(* c for a projection V > c with a rational c > 0, or V < c with a rational c < 0, which the inversion V -> c/V takes to
+   the unit interval; else $Failed *)
+RayEnd[Proj_, V_] := Module[{Lower, Upper},
+  Lower = Replace[Proj, {Greater[V, C1_] :> C1, Less[C1_, V] :> C1, _ :> $Failed}];
+  If[MatchQ[Lower, _Integer | _Rational] && Lower > 0, Return[Lower]];
+  Upper = Replace[Proj, {Less[V, C1_] :> C1, Greater[C1_, V] :> C1, _ :> $Failed}];
+  If[MatchQ[Upper, _Integer | _Rational] && Upper < 0, Return[Upper]];
+  Return[$Failed]];
+
+
+(* the maps that take the projection of the derivation domain on each variable to the unit interval, the domain on
+   which the methods were built and validated: the affine map V -> a + (b - a) V for a projection a < V < b with finite
+   rational ends, and the inversion V -> c/V for an unbounded one, V > c with c > 0 or V < c with c < 0 (not for the
+   variables of NoInversion).  A variable keeps its name, since the summation packages order the variables by name
+   (renaming the kinematic variables broke EvaluateMultiSums on Appell F1, audit of 2026-11-09), so Forward and Back are
+   rules on the same symbols, applied once each; nothing changes for a projection (0, 1).  Mapped is the derivation
+   domain in the mapped variables, Inverted the inverted variables *)
+UnitMaps[Domain1_, Kinematics_List, NoInversion_List] := Module[{Forward, Back, Inverted, Mapped},
   Forward = {};
   Back = {};
-  Do[Module[{Others, Proj, Ends},
+  Inverted = {};
+  Do[Module[{Others, Proj, Ends, C1},
       Others = DeleteCases[Kinematics, V];
       Proj = If[Others === {}, Domain1,
         Quiet[TimeConstrained[Reduce[Exists[Evaluate[Others], Domain1], V, Reals], 20, $Failed]]];
       Ends = IntervalEnds[Proj, V];
-      If[Ends =!= $Failed && Ends =!= {0, 1},
-        AppendTo[Forward, V -> Ends[[1]] + (Ends[[2]] - Ends[[1]]) V];
-        AppendTo[Back, V -> (V - Ends[[1]])/(Ends[[2]] - Ends[[1]])]]],
+      C1 = If[Ends === $Failed && ! MemberQ[NoInversion, V], RayEnd[Proj, V], $Failed];
+      Which[
+        Ends =!= $Failed && Ends =!= {0, 1},
+          AppendTo[Forward, V -> Ends[[1]] + (Ends[[2]] - Ends[[1]]) V];
+          AppendTo[Back, V -> (V - Ends[[1]])/(Ends[[2]] - Ends[[1]])],
+        C1 =!= $Failed,
+          AppendTo[Forward, V -> C1/V];
+          AppendTo[Back, V -> C1/V];
+          AppendTo[Inverted, V]]],
     {V, Kinematics}];
-  If[Forward === {}, Return[{Forward, Back, Domain1}]];
+  If[Forward === {}, Return[<|"Forward" -> {}, "Back" -> {}, "Mapped" -> Domain1, "Inverted" -> {}|>]];
   Mapped = ReduceOrKeep[Domain1 /. Forward, Kinematics];
-  Return[{Forward, Back, Mapped}]];
+  Return[<|"Forward" -> Forward, "Back" -> Back, "Mapped" -> Mapped, "Inverted" -> Inverted|>]];
+
+
+(* the sign of a factor of a base on the mapped domain, 1 or -1, $Failed when it has none there *)
+FactorSign[Factor1_, Kinematics_List, Mapped_] := Which[
+  HoldsOnDomain[Factor1 > 0, Kinematics, Mapped], 1,
+  HoldsOnDomain[Factor1 < 0, Kinematics, Mapped], -1,
+  True, $Failed];
+
+
+(* a power b^e whose base contains an inverted variable, as the product of the powers of the factors of b, each made
+   positive on the mapped domain, (1 + 2/y)^w = (2 + y)^w y^-w.  This holds for the principal powers, and it gives the
+   methods the powers of polynomials in the variables that they solve.  $Failed when a factor has no fixed sign there
+   or b is negative *)
+SplitPower[Base_, Exponent1_, Kinematics_List, Mapped_] := Module[{Rational1, NumList, DenList, Content, Factors, Signs,
+    Total1},
+  Rational1 = Together[Base];
+  NumList = FactorList[Numerator[Rational1]];
+  DenList = FactorList[Denominator[Rational1]];
+  Content = NumList[[1, 1]]^NumList[[1, 2]]/DenList[[1, 1]]^DenList[[1, 2]];
+  Factors = Join[Rest[NumList], Map[{#[[1]], -#[[2]]} &, Rest[DenList]]];
+  Signs = Map[FactorSign[#[[1]], Kinematics, Mapped] &, Factors];
+  If[MemberQ[Signs, $Failed], Return[$Failed]];
+  Total1 = Sign[Content]*(Times @@ MapThread[#1^#2[[2]] &, {Signs, Factors}]);
+  If[Total1 =!= 1, Return[$Failed]];
+  Return[Abs[Content]^Exponent1*(Times @@ MapThread[(#1*#2[[1]])^(#2[[2]]*Exponent1) &, {Signs, Factors}])]];
+
+
+(* the integrand of the methods: Forward, and every power whose base contains an inverted variable split by SplitPower.
+   {integrand, {}}, or {$Failed, the inverted variables of a base that does not split} *)
+MappedIntegrand[MBInt_, Forward_List, Inverted_List, Kinematics_List, Mapped_] := Module[{Int1, Powers, Splits, Bad},
+  Int1 = MBInt /. Forward;
+  If[Inverted === {}, Return[{Int1, {}}]];
+  Powers = DeleteDuplicates[Cases[{Int1}, Power[B_, E1_] /; ! IntegerQ[E1] && ! FreeQ[B, Alternatives @@ Inverted],
+    {0, Infinity}]];
+  Splits = Map[SplitPower[#[[1]], #[[2]], Kinematics, Mapped] &, Powers];
+  (* a list of booleans: Pick with a pattern descends into the powers that do not match it *)
+  Bad = Pick[Powers, Map[# === $Failed &, Splits]];
+  If[Bad =!= {}, Return[{$Failed, Select[Inverted, ! FreeQ[Bad, #] &]}]];
+  Return[{Int1 /. Thread[Powers -> Splits], {}}]];
 
 
 (* the domain given with ParameterAssumptions as one condition on the kinematic variables.  As for Assumptions, it is a
@@ -452,13 +509,16 @@ GivenDomain[Given_, Kinematics_List] := Module[{User, Others, Conjuncts, Res},
 
 (* the domains of a call: Derivation, on which the methods solve the integral (the one given with ParameterAssumptions,
    else where every base lies in (0, 1)), Real, on which Complex -> False takes the real part (the one given, else every
-   real value), the maps Forward and Back of UnitMaps and Mapped, the derivation domain in the mapped variables.  A
+   real value), the maps Forward and Back of UnitMaps, Mapped, the derivation domain in the mapped variables, and
+   Integrand, the integrand of the methods in the mapped variables.  A
    domain that is no restriction, such as Element[x, Reals], counts as none.  $Failed, with a message, for a given
    domain that is not a satisfiable condition on the kinematic variables, and when no real values make every base
    positive *)
-KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, Derive, Real1, Maps},
+KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, Derive, Real1, Maps, NoInversion,
+    Integrand},
   If[Kinematics === {},
-    Return[<|"Derivation" -> True, "Real" -> True, "Forward" -> {}, "Back" -> {}, "Mapped" -> True|>]];
+    Return[<|"Derivation" -> True, "Real" -> True, "Forward" -> {}, "Back" -> {}, "Mapped" -> True,
+      "Integrand" -> MBInt|>]];
   User = GivenDomain[Given, Kinematics];
   If[User === $Failed,
     Message[MBEvaluate::assum, Given /. MBEvaluateBackRules, Kinematics /. MBEvaluateBackRules];
@@ -474,8 +534,15 @@ KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, 
   If[Derive === False,
     Message[MBEvaluate::bases, KinematicBases[MBInt, Kinematics] /. MBEvaluateBackRules];
     Return[$Failed]];
-  Maps = UnitMaps[Derive, Kinematics];
-  Return[<|"Derivation" -> Derive, "Real" -> Real1, "Forward" -> Maps[[1]], "Back" -> Maps[[2]], "Mapped" -> Maps[[3]]|>]];
+  (* a variable whose inversion leaves a base that does not split keeps its projection *)
+  NoInversion = {};
+  While[True,
+    Maps = UnitMaps[Derive, Kinematics, NoInversion];
+    Integrand = MappedIntegrand[MBInt, Maps["Forward"], Maps["Inverted"], Kinematics, Maps["Mapped"]];
+    If[Integrand[[1]] =!= $Failed, Break[]];
+    NoInversion = If[Integrand[[2]] === {}, Kinematics, Join[NoInversion, Integrand[[2]]]]];
+  Return[<|"Derivation" -> Derive, "Real" -> Real1, "Forward" -> Maps["Forward"], "Back" -> Maps["Back"],
+    "Mapped" -> Maps["Mapped"], "Integrand" -> Integrand[[1]]|>]];
 
 
 (* ::Section:: *)
@@ -772,7 +839,7 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
   If[Kinematics =!= {},
     Say[Settings["Verbose"], "MBEvaluate: solved on ", Domains["Derivation"] /. MBEvaluateBackRules,
       If[Domains["Real"] === True, ", real part for every real value", ", real part on that domain"]]];
-  MethodInt = MBInt /. Domains["Forward"];
+  MethodInt = Domains["Integrand"];
   Settings["Domain"] = Domains["Mapped"];
   (* without a domain given, the real part is taken for every real value, not on the domain the method solved on: the
      method returns the full value *)
