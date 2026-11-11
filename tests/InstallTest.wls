@@ -63,7 +63,8 @@ TestPass[Reference_, Result_] := Module[{Eps, Var, Differences},
 
 TestRun[Reference_, Method1_] := Module[{Start, Result},
   Start = AbsoluteTime[];
-  Result = MBEvaluate[Reference["Integral"], {Reference["Regulator"], Reference["Order"]}, Method -> Method1];
+  Result = MBEvaluate[Reference["Integral"], {Reference["Regulator"], Reference["Order"]}, Method -> Method1,
+    ParameterAssumptions -> Lookup[Reference, "Assumptions", True]];
   Return[<|"Reference" -> Reference, "Method" -> Method1, "Result" -> Result, "Seconds" -> Round[AbsoluteTime[] - Start]|>]];
 
 (* every evaluation is compared as soon as it is done.  TestMB comes first with every method, so that an integration

@@ -16,16 +16,28 @@
 (*Harmonic polylogarithms to G*)
 
 
-(* the sign of a letter on the kinematic domain 0 < x < 1, proved by Refine or by Resolve (HoldsOnDomain); $Failed when
-   neither proves it, and the function then stays in its original form.  Points sampled on the diagonal prove nothing:
+(* the domains of the kinematic variables: DerivationDomain, on which the method solved the integral, where the letters
+   of the harmonic polylogarithms take their signs, and RealPartDomain, on which Complex -> False takes the real part.
+   True means every real value.  MBEvaluate sets both for each call *)
+DerivationDomain = True;
+RealPartDomain = True;
+
+
+(* a domain as an assumption on the variables: True gives every real value *)
+DomainAssumption[Vars_List, Domain1_] := If[Domain1 === True, And @@ Map[Element[#, Reals] &, Vars],
+  Domain1 && (And @@ Map[Element[#, Reals] &, Vars])];
+
+
+(* the sign of a letter on the derivation domain, proved by Refine or by Resolve (HoldsOnDomain); $Failed when neither
+   proves it, and the function then stays in its original form.  Points sampled on the diagonal prove nothing:
    1 - 2 x + y is positive at every diagonal point x = y but negative at (9/10, 1/10) *)
 LetterSign[Letter_, Vars_List] := Module[{Assumption, Refined},
   If[Letter === 0, Return[0]];
-  Assumption = And @@ Map[(0 < # < 1) &, Vars];
+  Assumption = DomainAssumption[Vars, DerivationDomain];
   Refined = Quiet[Refine[Sign[Letter], Assumption]];
   If[MemberQ[{1, -1}, Refined], Return[Refined]];
-  If[HoldsOnDomain[Letter > 0, Vars], Return[1]];
-  If[HoldsOnDomain[Letter < 0, Vars], Return[-1]];
+  If[HoldsOnDomain[Letter > 0, Vars, DerivationDomain], Return[1]];
+  If[HoldsOnDomain[Letter < 0, Vars, DerivationDomain], Return[-1]];
   Return[$Failed]];
 
 
@@ -95,25 +107,31 @@ NumericValue[Expr_] := Block[{$ContextPath = Prepend[$ContextPath, "PolyLogTools
   Return[$Failed, Module]]];
 
 
-(* True when Cond holds on the whole domain 0 < x < 1: proved by Refine, else by Resolve within ten seconds *)
-DecideOnDomain[Cond_, Vars_List] := Module[{Assumption, Refined, Resolved},
+(* True when Cond holds on the whole domain: proved by Refine, else by Resolve within ten seconds.  For every real value
+   (Domain1 True) Refine alone decides: a function of the kinematic variables is then hardly ever real everywhere, and a
+   Resolve over the whole real space for each of the thousands of letters of a cosmological coefficient ran into its
+   ten seconds every time (the light double exchange of Examples.nb took more than an hour instead of twenty minutes);
+   a function that is not proved real keeps Re[...] and Im[...], which is exact *)
+DecideOnDomain[Cond_, Vars_List, Domain1_] := Module[{Assumption, Refined, Resolved},
   If[Vars === {}, Return[TrueQ[Quiet[Simplify[Cond]]]]];
-  Assumption = And @@ Map[(0 < # < 1) &, Vars];
+  Assumption = DomainAssumption[Vars, Domain1];
   Refined = Quiet[Refine[Cond, Assumption]];
   If[Refined === True, Return[True]];
+  If[Domain1 === True, Return[False]];
   Resolved = Quiet[TimeConstrained[Resolve[ForAll[Vars, Assumption, Cond], Reals], 10, $Failed]];
   Return[Resolved === True]];
 
 
-(* the decided conditions, keyed by {Cond, Vars}: the same letters recur across thousands of G functions, and each
-   undecided Resolve costs its ten seconds again *)
+(* the decided conditions, keyed by {Cond, Vars, Domain1}: the same letters recur across thousands of G functions, and
+   each undecided Resolve costs its ten seconds again *)
 HoldsOnDomainCache = <||>;
-HoldsOnDomain[Cond_, Vars_List] := Module[{CacheKey, Res},
-  CacheKey = {Cond, Vars};
+HoldsOnDomain[Cond_, Vars_List] := HoldsOnDomain[Cond, Vars, RealPartDomain];
+HoldsOnDomain[Cond_, Vars_List, Domain1_] := Module[{CacheKey, Res},
+  CacheKey = {Cond, Vars, Domain1};
   (* KeyExistsQ, not Lookup: Lookup reads a list as a list of keys, so the cache never answered and no condition was
      ever decided *)
   If[KeyExistsQ[HoldsOnDomainCache, CacheKey], Return[HoldsOnDomainCache[CacheKey]]];
-  Res = DecideOnDomain[Cond, Vars];
+  Res = DecideOnDomain[Cond, Vars, Domain1];
   HoldsOnDomainCache[CacheKey] = Res;
   Return[Res]];
 
@@ -167,11 +185,25 @@ RealPartByTerms[Held_, RealSymbols_List, ComplexSymbols_List] := Module[{Expande
     Fs = If[Head[Term] === Times, List @@ Term, {Term}];
     Constant1 = Times @@ Select[Fs, FreeQ[#, RealPattern] &];
     Rest = Times @@ Select[Fs, ! FreeQ[#, RealPattern] &];
-    If[! RealMonomialQ[Rest, RealPattern], Return[ComplexExpand[Re[Term], ComplexSymbolsIn[Term, ComplexSet]], Module]];
-    If[! KeyExistsQ[ConstantRe, Constant1],
-      ConstantRe[Constant1] = ComplexExpand[Re[Constant1], ComplexSymbolsIn[Constant1, ComplexSet]]];
+    If[! RealMonomialQ[Rest, RealPattern], Return[ExpandedRe[Term, ComplexSet], Module]];
+    If[! KeyExistsQ[ConstantRe, Constant1], ConstantRe[Constant1] = ExpandedRe[Constant1, ComplexSet]];
     Return[ConstantRe[Constant1] Rest, Module]];
   Return[Total[Map[TermRe, Terms]]]];
+
+
+(* Re of a term: with at most one complex function factor its real and imaginary parts are written out, Re[c G] =
+   Re[c] Re[G] - Im[c] Im[G]; a product of several complex functions stays inside Re[...], since writing out
+   Re[G1 G2 ... Gk] gives 2^(k-1) products, which made the real part of the light double exchange three times as large
+   and its numerical evaluation an hour long *)
+ComplexFactorCount[Term_, ComplexSet_Association] := Module[{Fs},
+  Fs = If[Head[Term] === Times, List @@ Term, {Term}];
+  Return[Total[Map[Function[F, Which[
+      MatchQ[F, S1_Symbol /; KeyExistsQ[ComplexSet, S1]], 1,
+      MatchQ[F, Power[S1_Symbol, N1_Integer] /; KeyExistsQ[ComplexSet, S1]], Abs[F[[2]]],
+      FreeQ[F, S1_Symbol /; KeyExistsQ[ComplexSet, S1]], 0,
+      True, 2]], Fs]]]];
+ExpandedRe[Term_, ComplexSet_Association] := If[ComplexFactorCount[Term, ComplexSet] <= 1,
+  ComplexExpand[Re[Term], ComplexSymbolsIn[Term, ComplexSet]], Re[Term]];
 
 
 (* seconds for the reality proofs of all functions together, and for each numeric probe: a function whose proof has
@@ -188,20 +220,26 @@ ProvedRealQ[Function1_, Vars_List, Deadline_] := Module[{Left},
   Return[TrueQ[TimeConstrained[RealFunctionQ[Function1, Vars], Left, False]]]];
 
 
-(* Re and Im of a logarithm: Log of the modulus and the argument, refined on the domain *)
+(* Re and Im of a logarithm: Log of the modulus and the argument, refined on the domain of the real part *)
 LogParts[Expr_, Vars_List] := Module[{Assumption, Res},
-  Assumption = And @@ Map[(0 < # < 1) &, Vars];
+  Assumption = DomainAssumption[Vars, RealPartDomain];
   Res = Expr /. {Re[Log[A1_]] :> Log[Abs[A1]], Im[Log[A1_]] :> Arg[A1]};
   Res = Res /. {Abs[A1_] :> Quiet[Refine[Abs[A1], Assumption]], Arg[A1_] :> Quiet[Refine[Arg[A1], Assumption]]};
   Return[Res]];
 
 
-(* the exact real part on the whole domain 0 < x < 1: every function proved real there (RealFunctionQ) is held as a
-   real symbol, every other one as a complex symbol, whose real and imaginary parts stay explicit, Re[G[...]] and
-   Im[G[...]] (for a logarithm, Log of the modulus and the argument).  No sampled point decides: I Log[1 - 2 x + y]
-   is real at every diagonal point but has the real part -Pi at (9/10, 1/10), and its result is -Arg[1 - 2 x + y].
-   The two numeric probes only check the construction; a disagreement returns $Failed, and the full complex value
-   is kept *)
+(* the exact real part on the whole domain of the real part (RealPartDomain: the one given with ParameterAssumptions,
+   else every real value): every function proved real there (RealFunctionQ) is held as a real symbol, every other one
+   as a complex symbol, whose real and imaginary parts stay explicit, Re[G[...]] and Im[G[...]] (for a logarithm, Log
+   of the modulus and the argument).  No sampled point decides: I Log[1 - 2 x + y] is real at every diagonal point but
+   has the real part -Pi at (9/10, 1/10), and its result is -Arg[1 - 2 x + y].  The two numeric probes, points of the
+   domain, only check the construction; a disagreement returns $Failed, and the full complex value is kept *)
+(* a coefficient given with the convergence region of its series: the real part of its value, under the same
+   condition.  Taken as one term, the whole value went into a single Re[...] *)
+RealPart[ConditionalExpression[Value1_, Cond_], Vars_List] := Module[{Part1},
+  Part1 = RealPart[Value1, Vars];
+  If[Part1 === $Failed, Return[$Failed]];
+  Return[ConditionalExpression[Part1, Cond]]];
 RealPart[Expr_, Vars_List] := Module[{Functions, Deadline, RealQ, Holders, RealHolders, ComplexHolders, ToHolders,
     FromHolders, Held, Candidate, Points, Probes},
   Functions = DeleteDuplicates[Cases[Expr, FunctionPattern, {0, Infinity}]];
@@ -218,7 +256,7 @@ RealPart[Expr_, Vars_List] := Module[{Functions, Deadline, RealQ, Holders, RealH
   Candidate = LogParts[Candidate, Vars];
   Candidate = Expand[Candidate];
   If[Functions === {}, Return[Candidate]];
-  Points = If[Vars === {}, {{}}, Map[Function[Point1, Thread[Vars -> Point1]], {1/3, 5/7}]];
+  Points = If[Vars === {}, {{}}, Map[Thread[Vars -> #] &, DomainProbes[RealPartDomain, Vars]]];
   Probes = Map[Function[Rules1, Module[{Whole, Part1},
     (* Quiet: a probe point on which a letter vanishes (u1 = u2) gives Power::infy, and such a probe is just not evaluated *)
     Whole = TimeConstrained[Quiet[NumericValue[Expr /. Rules1]], RealPartBudget, $Failed];
@@ -268,10 +306,41 @@ CheckOutputClass[Coef_, Method1_String, Vars_List, Eps_] := Module[{Outside, Val
   Return[NotEvaluated[{Method1, "functions outside the output class: " <> ToString[Take[Outside, UpTo[3]], InputForm]}]]];
 
 
-(* coefficients: an association order -> coefficient (or NotEvaluated[...]) *)
-FinishCoefficient[Coef_, Vars_List, ComplexQ_] := Module[{Res, Real1},
+(* after the variables of the method are taken back to those of the user, the arguments of the functions and the rational
+   coefficients are brought together: Log[1 - 2 (1/2 + x)] becomes Log[-2 x] *)
+TidyArguments[Expr_] := Expr /. {
+  Log[A_] :> Log[Together[A]],
+  PolyLog[N1_, A_] :> PolyLog[N1, Together[A]],
+  HoldPattern[PolyLogTools`G[Args__]] :> (PolyLogTools`G @@ Map[Together, {Args}])};
+TidyMapped[Expr_ConditionalExpression] := ConditionalExpression[TidyMapped[First[Expr]], TidyArguments[Expr[[2]]]];
+TidyMapped[Expr_] := Module[{Res, Functions},
+  Res = TidyArguments[Expr];
+  Functions = DeleteDuplicates[Cases[Res, FunctionPattern, {0, Infinity}]];
+  Res = Collect[Expand[Res], Functions, Together];
+  Return[Res]];
+
+
+(* two points of the domain for the probes of the real part: 1/3 and 5/7 for every variable when they lie in it,
+   else other exact points *)
+DomainProbes[Domain1_, Vars_List] := Module[{Candidates, Found, Width},
+  Candidates = {1/3, 5/7, 1/5, 3/4, 2/3, 1/7, 3/2, 7/3, 4, -1/3, -5/7, -3/2, -7/3};
+  Found = Select[Map[ConstantArray[#, Length[Vars]] &, Candidates],
+    TrueQ[Quiet[Domain1 /. Thread[Vars -> #]]] &];
+  If[Length[Found] < 2,
+    Width = Which[Length[Vars] <= 3, 6, Length[Vars] <= 6, 3, True, 2];
+    Found = Join[Found, Select[Tuples[Take[Candidates, Width], Length[Vars]],
+      TrueQ[Quiet[Domain1 /. Thread[Vars -> #]]] &]]];
+  Return[Take[DeleteDuplicates[Found], UpTo[2]]]];
+
+
+(* coefficients: an association order -> coefficient (or NotEvaluated[...]).  The harmonic polylogarithms become G on
+   the derivation domain, then Back takes the variables of the method to those of the user (the affine maps of
+   MBEvaluate), and the real part is taken on RealPartDomain *)
+FinishCoefficient[Coef_, Vars_List, ComplexQ_] := FinishCoefficient[Coef, Vars, ComplexQ, {}];
+FinishCoefficient[Coef_, Vars_List, ComplexQ_, Back_List] := Module[{Res, Real1},
   If[Head[Coef] === NotEvaluated, Return[Coef]];
   Res = ToGBasis[Coef, Vars];
+  If[Back =!= {}, Res = TidyMapped[Res /. Back]];
   If[TrueQ[ComplexQ], Return[Res]];
   Real1 = RealPart[Res, Vars];
   If[Real1 === $Failed,

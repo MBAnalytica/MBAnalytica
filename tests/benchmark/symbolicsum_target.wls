@@ -23,7 +23,9 @@ Parts = Switch[Name, "MB2", {MB21, MB22}, "MB2u", {MB21u, MB22u}, "MB8", {MB81, 
   _, {ToExpression[Name]}];
 DiffQ = StringEndsQ[Name, "u"];
 T0 = AbsoluteTime[];
-Runs = Map[EvaluationData[MBEvaluate[#, {Eps, Ord}, Method -> "SymbolicSum"]] &, Parts];
+(* a differential row is the special differential MB of the variable u in the unit interval *)
+Domain1 = If[DiffQ, 0 < Global`u < 1, True];
+Runs = Map[EvaluationData[MBEvaluate[#, {Eps, Ord}, Method -> "SymbolicSum", ParameterAssumptions -> Domain1]] &, Parts];
 GForm = Total[Map[#["Result"] &, Runs]];
 OmittedQ = ! FreeQ[Map[#["MessagesExpressions"] &, Runs], HoldPattern[MBEvaluate::open]];
 Seconds = Round[AbsoluteTime[] - T0];

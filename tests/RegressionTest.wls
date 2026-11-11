@@ -151,7 +151,8 @@ Check1["Laurent guard: 1/ep + Gamma[ep]", NotEvaluatedQ[MBAnalytica`Private`Laur
 Check1["Laurent guard: a Laurent polynomial", MBAnalytica`Private`LaurentCoefficient[1/ep^2 + 3 - Log[2] ep, ep, 1, "test"] === -Log[2]];
 
 (* R6b. the exact Taylor check of the one-fold series, once per call: Sum_n (-x)^n/(n + e) *)
-Check1["one-fold series through e^3", MBAnalytica`OneFoldHyp`OneFoldHypExpand[Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] x^z, e, {-1, 3}] ===
+Check1["one-fold series through e^3", Block[{MBAnalytica`OneFoldHyp`OneFoldHypDomain = 0 < x < 1},
+  MBAnalytica`OneFoldHyp`OneFoldHypExpand[Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] x^z, e, {-1, 3}]] ===
   <|-1 -> 1, 0 -> -PolyLogTools`G[1, -x], 1 -> PolyLogTools`G[0, 1, -x], 2 -> -PolyLogTools`G[0, 0, 1, -x], 3 -> PolyLogTools`G[0, 0, 0, 1, -x]|>];
 
 (* perf C of the review: the scan of the System symbols is kept under a hash of their rules, and a rule of the summation
@@ -193,20 +194,24 @@ If[StringQ[MBAnalytica`Portable`Private`FindCommand["perl"]],
       RunProcess[{"kill", "-0", ToString[Child]}, "ExitCode"] =!= 0]]];
 
 (* the review of e4f55bd (2026-11-10) *)
-(* R3.1 a negative base is the principal power: solved with a positive phase and continued to Exp[I Pi]; positive bases as
-   before; a base of no fixed sign, or a complex one, is refused *)
+(* R3.1 a negative base is the principal power.  On a domain where it is negative (ParameterAssumptions -> 0 < x < 1) it is
+   solved with a positive phase and continued to Exp[I Pi]; positive bases as before; a base of no fixed sign there, or
+   a complex one, is refused *)
 Value1[R_] := If[Head[R] === ConditionalExpression, First[R], R];
 If[MethodQ["SymbolicSum"],
   Check1["negative base: the full complex value", FullSimplify[Value1[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0},
-    Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] - (2 Pi x + I (1 + 2 x - 2 x Log[2 x]))/(1 + 2 x)^2, 0 < x < 1] === 0];
+    Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True, ParameterAssumptions -> 0 < x < 1]] -
+      (2 Pi x + I (1 + 2 x - 2 x Log[2 x]))/(1 + 2 x)^2, 0 < x < 1] === 0];
   Check1["negative base: the real part", FullSimplify[Value1[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0}, Method -> "SymbolicSum",
-    BarnesReduce -> False]] - 2 Pi x/(1 + 2 x)^2, 0 < x < 1] === 0];
+    BarnesReduce -> False, ParameterAssumptions -> 0 < x < 1]] - 2 Pi x/(1 + 2 x)^2, 0 < x < 1] === 0];
   Check1["negative base: the inverse power", With[{X = -2 x, LX = Log[2 x] + I Pi}, FullSimplify[Value1[MBEvaluate[I BarnesKernel (-2 x)^(-z),
-    {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] - I (X^2 - X - X LX)/(X - 1)^2, 0 < x < 1] === 0]];
+    {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True, ParameterAssumptions -> 0 < x < 1]] -
+      I (X^2 - X - X LX)/(X - 1)^2, 0 < x < 1] === 0]];
   (* the principal power on the negative axis is the limit from above: the contour integral with Log of the base at
      Log[3/2] + I Pi agrees, the one with Log[3/2] - I Pi (the limit from below) differs by 12 Pi/25 *)
   Check1["negative base: the limit from above, not from below", Module[{V, Contours},
-    V = N[Value1[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] /. x -> 3/4, 25];
+    V = N[Value1[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True,
+      ParameterAssumptions -> 0 < x < 1]] /. x -> 3/4, 25];
     Contours = Map[Function[LB, NIntegrate[Evaluate[I BarnesKernel Exp[z LB] /. z -> -1/2 + I t], {t, -60, 60}, WorkingPrecision -> 30]/(2 Pi)],
       {Log[3/2] + I Pi, Log[3/2] - I Pi}];
     Abs[V - Contours[[1]]] < 10^-12 && Abs[Abs[V - Contours[[2]]] - 12 Pi/25] < 10^-12]];
@@ -215,29 +220,33 @@ If[MethodQ["SymbolicSum"],
   Check1["negative base without the analytic regulator", Module[{R},
     MBAnalytica`SymbolicSum`Private`ClearSolveCaches[];
     R = Block[{MBAnalytica`SymbolicSum`Private`MBCHRegSlots = 0}, MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0},
-      Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]];
+      Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True, ParameterAssumptions -> 0 < x < 1]];
     MBAnalytica`SymbolicSum`Private`ClearSolveCaches[];
     R =!= 0 && FullSimplify[Value1[R] - (2 Pi x + I (1 + 2 x - 2 x Log[2 x]))/(1 + 2 x)^2,
       If[Head[R] === ConditionalExpression, R[[2]], True] && 0 < x < 1] === 0]];
   Check1["negative base -x/3 (its charts converge at the probe)", With[{X = -x/3}, FullSimplify[Value1[MBEvaluate[I BarnesKernel (-x/3)^z,
-    {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]] - I (1 - X + X (Log[x/3] + I Pi))/(1 - X)^2, 0 < x < 1] === 0]];
+    {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True, ParameterAssumptions -> 0 < x < 1]] -
+      I (1 - X + X (Log[x/3] + I Pi))/(1 - X)^2, 0 < x < 1] === 0]];
   Check1["positive bases as before, Log[2] not ln2", With[{R = MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
       BarnesReduce -> False, Complex -> True]},
     FreeQ[R, Global`ln2] && FullSimplify[Value1[R] - I (1 - 2 x + 2 x Log[2 x])/(1 - 2 x)^2, 1/2 < x < 1] === 0 &&
       FullSimplify[MBEvaluate[I BarnesKernel (x/3)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True] -
         I (1 - x/3 + x/3 Log[x/3])/(1 - x/3)^2, 0 < x < 1] === 0]];
-  Check1["complex base refused", Check[MBEvaluate[I BarnesKernel (-2 x + I/10)^z, {ep, 0}, Method -> "SymbolicSum", Complex -> True]; False,
-    True, MBEvaluate::open]];
-  Check1["base of changing sign refused", Check[MBEvaluate[I BarnesKernel (1 - 2 x)^z, {ep, 0}, Method -> "SymbolicSum", Complex -> True]; False,
-    True, MBEvaluate::open]];
+  Check1["complex base refused", Check[MBEvaluate[I BarnesKernel (-2 x + I/10)^z, {ep, 0}, Method -> "SymbolicSum", Complex -> True,
+    ParameterAssumptions -> 0 < x < 1]; False, True, MBEvaluate::open]];
+  Check1["complex base: no real values make it positive", Check[MBEvaluate[I BarnesKernel (-2 x + I/10)^z, {ep, 0},
+    Method -> "SymbolicSum", Complex -> True]; False, True, MBEvaluate::bases]];
+  Check1["base of changing sign on the domain refused", Check[MBEvaluate[I BarnesKernel (1 - 2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+    Complex -> True, ParameterAssumptions -> 0 < x < 1]; False, True, MBEvaluate::open]];
   (* (-x)^z: a base that is no symbol, with -X = x below 1 (Mathematica writes (-x/2)^z as (-x)^z/2^z, two powers,
      which is outside the class) *)
-  Check1["one-fold route: the negative base -x", With[{A = MBAnalytica`OneFoldHyp`OneFoldHypExpand[
+  Check1["one-fold route: the negative base -x", Block[{MBAnalytica`OneFoldHyp`OneFoldHypDomain = 0 < x < 1 && 0 < y < 1},
+    With[{A = MBAnalytica`OneFoldHyp`OneFoldHypExpand[
       Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] (-x)^z, e, {-1, 1}],
       B = MBAnalytica`OneFoldHyp`OneFoldHypExpand[Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] y^z, e, {-1, 1}] /. y -> -x},
-    AssociationQ[A] && AssociationQ[B] && AllTrue[Keys[B], Simplify[A[#] - B[#]] === 0 &]]];
-  Check1["one-fold route refuses the argument 2 x", MBAnalytica`OneFoldHyp`OneFoldHypExpand[
-    Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] (-2 x)^z, e, {-1, 1}] === $Failed];
+    AssociationQ[A] && AssociationQ[B] && AllTrue[Keys[B], Simplify[A[#] - B[#]] === 0 &]]]];
+  Check1["one-fold route refuses the argument 2 x", Block[{MBAnalytica`OneFoldHyp`OneFoldHypDomain = 0 < x < 1},
+    MBAnalytica`OneFoldHyp`OneFoldHypExpand[Gamma[-z] Gamma[1 + z] Gamma[e + z]/Gamma[1 + e + z] (-2 x)^z, e, {-1, 1}]] === $Failed];
   (* R3.3 the defaults of SetOptions[MBEvaluate, ...] are read, an explicit option still wins, and the defaults return *)
   Check1["SetOptions of MBEvaluate", Module[{Saved = Options[MBEvaluate], A, B, C1},
     SetOptions[MBEvaluate, Complex -> True];
@@ -253,9 +262,37 @@ If[MethodQ["SymbolicSum"],
     Complex -> True] === Global`MBSymbolicSumPhase/2];
   (* R3.4 an H that is not real on the whole domain keeps its imaginary part in the real projection *)
   Check1["TidyResult of I H[1, 2 x] and I H[1, x/2]", Block[{MBAnalytica`SymbolicSum`Private`MBCHComplex = False,
-      MBAnalytica`SymbolicSum`Private`MBCHScale = {x}},
+      MBAnalytica`SymbolicSum`Private`MBCHScale = {x}, MBAnalytica`SymbolicSum`Private`MBCHDomain = 0 < x < 1},
     MBAnalytica`SymbolicSum`Private`TidyResult[I HarmonicSums`H[1, 2 x]] === -Im[HarmonicSums`H[1, 2 x]] &&
       MBAnalytica`SymbolicSum`Private`TidyResult[I HarmonicSums`H[1, x/2]] === 0]]];
+(* G1. the general kinematics: with nothing assumed, the coefficients are closed forms in the bases as written, solved
+   where every base lies in (0, 1) and holding for any x by analytic continuation, with the principal value of every
+   power; ParameterAssumptions restricts the variables, and Complex -> False takes the real part on the given domain,
+   or for every real value without one *)
+GeneralExact[X_] := I (1 - X + X Log[X])/(1 - X)^2;
+GeneralAgreeQ[R_, Base_, Pts_] := FreeQ[R, ConditionalExpression] && AllTrue[Pts, Function[Pt,
+  Abs[MBAnalytica`Private`NumericValue[R /. x -> Pt] - N[GeneralExact[Base /. x -> Pt], 20]] < 10^-12]];
+Do[If[MethodQ[M],
+    Check1["any x: a negative base with " <> M, GeneralAgreeQ[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0}, Method -> M,
+      BarnesReduce -> False, Complex -> True], -2 x, {-1/4, 1/3, 3/4, 2}]];
+    Check1["any x: a base of changing sign with " <> M, GeneralAgreeQ[MBEvaluate[I BarnesKernel (1 - 2 x)^z, {ep, 0}, Method -> M,
+      BarnesReduce -> False, Complex -> True], 1 - 2 x, {1/4, 3/4, -1}]];
+    Check1["any x: no condition for the base 2 x with " <> M, GeneralAgreeQ[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> M,
+      BarnesReduce -> False, Complex -> True], 2 x, {1/4, 3/4, 2}]]],
+  {M, {"SymbolicSum", "ExpandInt", "Subtraction"}}];
+If[MethodQ["SymbolicSum"],
+  Check1["any x: the real part for every real x", With[{R = MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+      BarnesReduce -> False]},
+    AllTrue[{-1/3, 1/4, 3/4, 2}, Abs[MBAnalytica`Private`NumericValue[R /. x -> #] - Re[N[GeneralExact[2 #]/I, 20]]] < 10^-12 &]]];
+  Check1["any x: the real part on a given domain", With[{R = MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+      BarnesReduce -> False, ParameterAssumptions -> 0 < x < 1/2]},
+    FreeQ[R, Abs | Re | Im] && FullSimplify[R - GeneralExact[2 x]/I, 0 < x < 1/2] === 0]];
+  Check1["ParameterAssumptions on another symbol refused", Check[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+    ParameterAssumptions -> Global`a > 0]; False, True, MBEvaluate::assum]];
+  Check1["an empty domain refused", Check[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+    ParameterAssumptions -> x > 1 && x < 0]; False, True, MBEvaluate::assum]];
+  Check1["bases that are never positive together", Check[MBEvaluate[Gamma[-z] Gamma[1 + z] x^z (-x)^ep, {ep, 0},
+    Method -> "SymbolicSum"]; False, True, MBEvaluate::bases]]];
 (* R3.7 $KernelLaunch = 0 is one subkernel, with a message *)
 Check1["$KernelLaunch = 0", Block[{Global`$KernelLaunch = 0},
   MBAnalytica`Private`KernelCountWarned = False;

@@ -266,7 +266,6 @@ CosmoTreeMB::exact = "The Bessel order `1` is an exact half-integer n + 1/2 with
 CosmoTreeMB::order = "The Bessel order `1` is below -1/2, where the Poisson integrals of the representation do not converge.";
 CosmoTreeMB::inexact = "The exponent or Bessel order `1` contains an inexact number, and the Mellin-Barnes representation needs exact numbers, such as 1/2 instead of 0.5.";
 CosmoTreeMB::names = "The names `1` would denote two different things in the result (kinematic variables, integration variables or symbols of the input), so choose another \"VariableName\" or rename the energies.";
-CosmoTreeMB::unit = "At the given point, the kinematic variables `1` of the orientation with later vertices `2` are not all in the unit interval (values `3`), so the closed forms of MBEvaluate are continued analytically to this point.";
 
 
 CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, Energies, XX, YY, KLegs, Point1, XP, YP,
@@ -323,15 +322,6 @@ CosmoTreeMB[Edges_List, RV_List, NuL_List, OptionsPattern[]] := Module[{NV, NL, 
     Orients], CosmoNameTag];
   If[Results === $Failed, Return[$Failed]];
   Results = Flatten[Results];
-  (* the positive rewriting makes the kinematic variables positive at the point; that they are also below 1, as
-     MBEvaluate assumes, is checked here *)
-  CosmoCheckUnit[Results, Join[Thread[XX -> XP], Thread[YY -> YP], Thread[KLegs[[All, 2]] -> KP[[All, 2]]]]];
+  (* the positive rewriting makes the kinematic variables positive at the point, and MBEvaluate assumes nothing more
+     about them: its closed forms hold there by analytic continuation *)
   Return[Results]];
-
-
-(* a message for every orientation whose kinematic variables are not all in (0, 1) at the point *)
-CosmoCheckUnit[Results_List, PointRules_List] := Scan[Function[R1, Module[{Values1},
-    If[! AssociationQ[R1], Return[Null, Module]];
-    Values1 = N[R1["Variables"][[All, 2]] /. PointRules];
-    If[! AllTrue[Values1, NumericQ[#] && 0 < # < 1 &],
-      Message[CosmoTreeMB::unit, R1["Variables"][[All, 1]], R1["Later"], Values1]]]], Results];

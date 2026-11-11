@@ -348,6 +348,117 @@ LeadingPole[MBInt_, Eps_, Ord_] := Module[{Resolved, Expanded, Powers, Lo},
 
 
 (* ::Section:: *)
+(*The domain of the kinematic variables*)
+
+
+(* the bases of an integral: every power of an expression of the kinematic variables whose exponent is not an integer.
+   A positive numeric factor with the same exponent belongs to the base when one kinematic base has that exponent, as
+   Mathematica writes (2 x)^z as 2^z x^z *)
+KinematicBases[MBInt_, Kinematics_List] := Module[{VarPattern, Powers, Kin, Num, Bases},
+  If[Kinematics === {}, Return[{}]];
+  VarPattern = Alternatives @@ Kinematics;
+  Powers = DeleteDuplicates[Cases[{MBInt}, Power[B_, E1_] /; ! IntegerQ[E1] :> {B, E1}, {0, Infinity}]];
+  Kin = Select[Powers, ! FreeQ[#[[1]], VarPattern] &];
+  Num = Select[Powers, NumericQ[#[[1]]] && TrueQ[Positive[#[[1]]]] &];
+  Bases = Map[Function[P1, Module[{Same, Coef},
+      Same = Select[Kin, #[[2]] === P1[[2]] &];
+      Coef = Times @@ Map[First, Select[Num, #[[2]] === P1[[2]] &]];
+      If[Length[Same] === 1, Coef*P1[[1]], P1[[1]]]]], Kin];
+  Return[DeleteDuplicates[Bases]]];
+
+
+(* the domain on which the methods solve an integral when no domain is given: where every base lies in (0, 1), else
+   where every base is positive, and the unit interval for a variable in no base, whose rational factors need no
+   branch.  The closed form holds for any values of the variables by analytic continuation, with the principal value
+   of every power; False when no real values make every base positive *)
+BasesDomain[MBInt_, Kinematics_List] := Module[{Bases, InBases, Free1, Rest1, Unit, Positive1},
+  If[Kinematics === {}, Return[True]];
+  Bases = KinematicBases[MBInt, Kinematics];
+  InBases = Select[Kinematics, ! FreeQ[Bases, #] &];
+  Free1 = Complement[Kinematics, InBases];
+  Rest1 = And @@ Map[(0 < # < 1) &, Free1];
+  If[Bases === {}, Return[Rest1]];
+  (* a base with a complex number is positive for no real values of the variables *)
+  If[! FreeQ[Bases, Complex], Return[False]];
+  Unit = And @@ Map[(0 < # < 1) &, Bases];
+  Unit = ReduceOrKeep[Unit, InBases];
+  If[Unit =!= False, Return[Unit && Rest1]];
+  Positive1 = And @@ Map[(# > 0) &, Bases];
+  Positive1 = ReduceOrKeep[Positive1, InBases];
+  If[Positive1 === False, Return[False]];
+  Return[Positive1 && Rest1]];
+
+
+(* Reduce over the reals within twenty seconds, or the condition itself when Reduce does not finish or returns unevaluated *)
+ReduceOrKeep[Cond_, Vars_List] := Module[{Res},
+  Res = Quiet[TimeConstrained[Reduce[Cond, Vars, Reals], 20, Cond]];
+  If[! FreeQ[Res, Reduce], Return[Cond]];
+  Return[Res]];
+
+
+(* {a, b} for a projection a < V < b with finite rational ends, else $Failed *)
+IntervalEnds[Proj_, V_] := Module[{Ends},
+  Ends = Replace[Proj, {Inequality[A_, Less, V, Less, B_] :> {A, B}, Less[A_, V, B_] :> {A, B}, _ :> $Failed}];
+  If[Ends === $Failed, Return[$Failed]];
+  If[! VectorQ[Ends, MatchQ[#, _Integer | _Rational] &] || Ends[[1]] >= Ends[[2]], Return[$Failed]];
+  Return[Ends]];
+
+
+(* the affine maps V -> a + (b - a) V that take the projection a < V < b of the derivation domain on each variable to
+   the unit interval, when a and b are finite rationals: the methods were built and validated with kinematic variables
+   in (0, 1).  A variable keeps its name, since the summation packages order the variables by name (renaming the
+   kinematic variables broke EvaluateMultiSums on Appell F1, audit of 2026-11-09), so Forward and Back are rules on the
+   same symbols, applied once each; nothing changes for a projection (0, 1).  The derivation domain in the mapped
+   variables comes third *)
+UnitMaps[Domain1_, Kinematics_List] := Module[{Forward, Back, Mapped},
+  Forward = {};
+  Back = {};
+  Do[Module[{Others, Proj, Ends},
+      Others = DeleteCases[Kinematics, V];
+      Proj = If[Others === {}, Domain1,
+        Quiet[TimeConstrained[Reduce[Exists[Evaluate[Others], Domain1], V, Reals], 20, $Failed]]];
+      Ends = IntervalEnds[Proj, V];
+      If[Ends =!= $Failed && Ends =!= {0, 1},
+        AppendTo[Forward, V -> Ends[[1]] + (Ends[[2]] - Ends[[1]]) V];
+        AppendTo[Back, V -> (V - Ends[[1]])/(Ends[[2]] - Ends[[1]])]]],
+    {V, Kinematics}];
+  If[Forward === {}, Return[{Forward, Back, Domain1}]];
+  Mapped = ReduceOrKeep[Domain1 /. Forward, Kinematics];
+  Return[{Forward, Back, Mapped}]];
+
+
+(* the domains of a call: Derivation, on which the methods solve the integral (the one given with ParameterAssumptions,
+   else where every base lies in (0, 1)), Real, on which Complex -> False takes the real part (the one given, else every
+   real value), the maps Forward and Back of UnitMaps and Mapped, the derivation domain in the mapped variables.  A
+   domain that is no restriction, such as Element[x, Reals], counts as none.  $Failed, with a message, for a given
+   domain that is not a satisfiable condition on the kinematic variables, and when no real values make every base
+   positive *)
+KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Others, Unmentioned, Derive, Real1, Maps},
+  If[Kinematics === {},
+    Return[<|"Derivation" -> True, "Real" -> True, "Forward" -> {}, "Back" -> {}, "Mapped" -> True|>]];
+  User = If[ListQ[Given], And @@ Given, Given];
+  If[User =!= True,
+    Others = Complement[Cases[{User}, S1_Symbol /; Context[S1] =!= "System`", {0, Infinity}], Kinematics];
+    User = If[Others === {}, Quiet[TimeConstrained[Reduce[User, Kinematics, Reals], 20, User]], False];
+    If[User === False || ! FreeQ[User, Reduce],
+      Message[MBEvaluate::assum, Given /. MBEvaluateBackRules, Kinematics /. MBEvaluateBackRules];
+      Return[$Failed]]];
+  (* a variable that the given domain does not restrict is treated as without one: the bases in it lie in (0, 1) *)
+  If[User =!= True,
+    Unmentioned = Select[Kinematics, FreeQ[User, #] &];
+    Derive = If[Unmentioned === {}, User, User && BasesDomain[MBInt, Unmentioned]];
+    Real1 = User,
+    Derive = BasesDomain[MBInt, Kinematics];
+    Real1 = True];
+  If[Derive =!= False && Derive =!= True, Derive = ReduceOrKeep[Derive, Kinematics]];
+  If[Derive === False,
+    Message[MBEvaluate::bases, KinematicBases[MBInt, Kinematics] /. MBEvaluateBackRules];
+    Return[$Failed]];
+  Maps = UnitMaps[Derive, Kinematics];
+  Return[<|"Derivation" -> Derive, "Real" -> Real1, "Forward" -> Maps[[1]], "Back" -> Maps[[2]], "Mapped" -> Maps[[3]]|>]];
+
+
+(* ::Section:: *)
 (*The methods*)
 
 
@@ -358,14 +469,16 @@ RunSymbolicSum[MBInt_, MBVar_, Eps_, Lo_, Hi_, Opts_Association] := Module[{Seri
      and the result is kept only if its Taylor coefficients in X agree exactly with those of the series.  It comes
      before the summation packages are loaded, which it does not need (review of e4f55bd) *)
   If[LoadOneFoldHyp[],
-    OneFold = Quiet[TimeConstrained[MBAnalytica`OneFoldHyp`OneFoldHypExpand[MBInt, Eps, {Lo, Hi}], 900, $Failed]];
+    OneFold = Block[{MBAnalytica`OneFoldHyp`OneFoldHypDomain = Opts["Domain"]},
+      Quiet[TimeConstrained[MBAnalytica`OneFoldHyp`OneFoldHypExpand[MBInt, Eps, {Lo, Hi}], 900, $Failed]]];
     If[AssociationQ[OneFold],
       If[TrueQ[Opts["Verbose"]], Print["  MBEvaluate: SymbolicSum: one-fold series of hypergeometric type, summed in harmonic sums"]];
       Return[OneFold]]];
   If[! LoadSymbolicSum[], Return[FailAll[Lo, Hi, "SymbolicSum", "the method could not be loaded"]]];
   Series1 = Block[{$ContextPath = SymbolicSumContextPath},
     MBAnalytica`SymbolicSum`MBCH2MPL[MBInt, MBVar, {Eps, Hi},
-      Verbose -> Opts["Verbose"], BarnesReduce -> Opts["BarnesReduce"], Complex -> Opts["Complex"]]];
+      Verbose -> Opts["Verbose"], BarnesReduce -> Opts["BarnesReduce"], Complex -> Opts["MethodComplex"],
+      "ParameterAssumptions" -> Opts["Domain"]]];
   (* a resummation that is not a finite expression (Indeterminate from a zero times an infinity, ComplexInfinity, a
      failure) closes no order: the next method is tried instead, and the result is never returned as it stands *)
   If[FailureQ[Series1] || ! FreeQ[Series1, Indeterminate | DirectedInfinity | $Failed | $Aborted],
@@ -407,7 +520,7 @@ EngineCall[MBInt_, Kinematics_List, Eps_, Lo_, Hi_, Route_String, Opts_Associati
   (* a parameter rung may take as long as the benchmark families did (the engine's default is 300 s) *)
   If[Kinematics =!= {},
     Options1 = Join[Options1, {"ExternalParameters" -> Kinematics,
-      "ParameterAssumptions" -> (And @@ Map[(0 < # < 1) &, Kinematics]), "ParameterTimeConstraint" -> EngineSeconds}]];
+      "ParameterAssumptions" -> Opts["Domain"], "ParameterTimeConstraint" -> EngineSeconds}]];
   (* the engine's resources follow $KernelLaunch: piece workers, residue helper processes (main kernels with the
      HPL tables, about 3.5 GB each), native integrator processes and the subkernels of the faithful-cube rung (its own
      policy launched up to one per core: 14 subkernels of 3.8 GB for Subtraction MB4, past any memory cap of a shared
@@ -515,16 +628,21 @@ RunMethod[Method1_String, MBInt_, MBVar_, Kinematics_List, Eps_, Lo_, Hi_, Opts_
 (*MBEvaluate*)
 
 
-Options[MBEvaluate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False};
+Options[MBEvaluate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False,
+  ParameterAssumptions -> True};
 
 
 MBEvaluate::method = "Method -> `1` is not Automatic, \"SymbolicSum\", \"ExpandInt\" or \"Subtraction\".";
 MBEvaluate::unavailable = "The method `1` cannot run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::none = "No method can run on this machine; MBAnalyticaCheck[] shows what is missing.";
 MBEvaluate::pole = "The leading pole of the integral could not be determined (MBresolve or MBexpand failed).";
-MBEvaluate::real = "A coefficient contains a function that is not real for all kinematic variables in 0 < x < 1, so its \
-real part cannot be separated symbolically and its full complex value is returned. Complex -> True returns complex \
-values throughout.";
+MBEvaluate::real = "The real part of a coefficient could not be separated symbolically and checked at two points of the \
+domain of the kinematic variables, so its full complex value is returned. Complex -> True returns complex values \
+throughout.";
+MBEvaluate::assum = "ParameterAssumptions -> `1` is not a satisfiable condition on the kinematic variables `2` of the \
+integral.";
+MBEvaluate::bases = "No real values of the kinematic variables make every base `1` of the integral positive; \
+ParameterAssumptions -> cond gives the region in which to evaluate it.";
 MBEvaluate::open = "No method evaluated the coefficient(s) of `1`, which are omitted from the result (`2`).";
 MBEvaluate::kernels = "$KernelLaunch = `1` is not a positive number of subkernels; one subkernel is used.";
 
@@ -593,9 +711,9 @@ UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration, Prefix, N
    were passed before, and MBEvaluatePrivate then used its own defaults, so that SetOptions[MBEvaluate, Complex -> True]
    had no effect (review of e4f55bd) *)
 MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] := Module[{Rules1, Back, Result, Resolved},
-  Resolved = {Method -> OptionValue[Method], Verbose -> OptionValue[Verbose], BarnesReduce -> OptionValue[BarnesReduce],
-    Complex -> OptionValue[Complex]};
   Rules1 = UserSymbolRules[MBInt, MBVar, Eps];
+  Resolved = {Method -> OptionValue[Method], Verbose -> OptionValue[Verbose], BarnesReduce -> OptionValue[BarnesReduce],
+    Complex -> OptionValue[Complex], ParameterAssumptions -> (OptionValue[ParameterAssumptions] /. Rules1)};
   Back = Map[Reverse, Rules1];
   Result = Block[{MBEvaluateBackRules = Back},
     MBEvaluatePrivate[MBInt /. Rules1, If[MBVar === Automatic, Automatic, MBVar /. Rules1], {Eps, Ord}, Sequence @@ Resolved]];
@@ -607,11 +725,13 @@ MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :
 MBEvaluateBackRules = {};
 
 
-Options[MBEvaluatePrivate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False};
+Options[MBEvaluatePrivate] = {Method -> Automatic, Verbose -> False, BarnesReduce -> True, Complex -> False,
+  ParameterAssumptions -> True};
 
 
 MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
-  {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders, Evaluated},
+  {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders, Evaluated, Domains,
+   MethodInt},
   Method1 = OptionValue[Method];
   If[! MemberQ[{Automatic, "SymbolicSum", "ExpandInt", "Subtraction"}, Method1],
     Message[MBEvaluate::method, Method1];
@@ -627,6 +747,16 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
   Kinematics = KinematicVariables[MBInt, MBVar, Eps];
   Say[Settings["Verbose"], "MBEvaluate: methods ", Methods, ", kinematic variables ",
     If[Kinematics === {}, "none", Kinematics /. MBEvaluateBackRules]];
+  Domains = KinematicDomains[MBInt, Kinematics, OptionValue[ParameterAssumptions]];
+  If[Domains === $Failed, Return[$Failed]];
+  If[Kinematics =!= {},
+    Say[Settings["Verbose"], "MBEvaluate: solved on ", Domains["Derivation"] /. MBEvaluateBackRules,
+      If[Domains["Real"] === True, ", real part for every real value", ", real part on that domain"]]];
+  MethodInt = MBInt /. Domains["Forward"];
+  Settings["Domain"] = Domains["Mapped"];
+  (* without a domain given, the real part is taken for every real value, not on the domain the method solved on: the
+     method returns the full value *)
+  Settings["MethodComplex"] = Settings["Complex"] || (Kinematics =!= {} && Domains["Real"] =!= Domains["Derivation"]);
   Lo = WithoutUserValues[LeadingPole[MBInt, Eps, Ord]];
   If[! IntegerQ[Lo], Message[MBEvaluate::pole]; Return[$Failed]];
   Say[Settings["Verbose"], "MBEvaluate: orders ", Eps, "^", Lo, " through ", Eps, "^", Ord];
@@ -635,8 +765,9 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
     OpenKeys = Select[Keys[Coefficients], Head[Coefficients[#]] === NotEvaluated &];
     If[OpenKeys === {}, Break[]];
     Say[Settings["Verbose"], "MBEvaluate: ", M1, " on ", Eps, "^", Min[OpenKeys], " .. ", Eps, "^", Max[OpenKeys]];
-    Got = WithoutUserValues[RunMethod[M1, MBInt, MBVar, Kinematics, Eps, Min[OpenKeys], Max[OpenKeys], Settings]];
-    Got = WithoutUserValues[Association[KeyValueMap[#1 -> CheckOutputClass[#2, M1, Kinematics, Eps] &, Got]]];
+    Got = WithoutUserValues[RunMethod[M1, MethodInt, MBVar, Kinematics, Eps, Min[OpenKeys], Max[OpenKeys], Settings]];
+    Got = Block[{DerivationDomain = Domains["Mapped"]},
+      WithoutUserValues[Association[KeyValueMap[#1 -> CheckOutputClass[#2, M1, Kinematics, Eps] &, Got]]]];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] =!= NotEvaluated, Coefficients[K1] = Got[K1]]], OpenKeys];
     Scan[Function[K1, If[KeyExistsQ[Got, K1] && Head[Got[K1]] === NotEvaluated, Coefficients[K1] = Got[K1]]],
       Select[OpenKeys, Head[Coefficients[#]] === NotEvaluated &]],
@@ -647,6 +778,8 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
      evaluated, the result is $Failed *)
   Evaluated = KeySelect[Coefficients, ! MemberQ[OpenOrders, #] &];
   If[Evaluated === <||>, Return[$Failed]];
-  Finished = WithoutUserValues[Association[KeyValueMap[#1 -> FinishCoefficient[#2, Kinematics, Settings["Complex"]] &, Evaluated]]];
+  Finished = Block[{DerivationDomain = Domains["Mapped"], RealPartDomain = Domains["Real"]},
+    WithoutUserValues[Association[KeyValueMap[
+      #1 -> FinishCoefficient[#2, Kinematics, Settings["Complex"], Domains["Back"]] &, Evaluated]]]];
   ShowOutputContexts[];
   Return[AssembleSeries[Finished, Eps]]];

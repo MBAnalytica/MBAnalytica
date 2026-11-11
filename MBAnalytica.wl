@@ -46,8 +46,9 @@ Method -> Automatic       tries the methods available on this machine in the ord
 uses that method alone\n  \
 Verbose -> False          prints one line per stage\n  \
 BarnesReduce -> True      applies the Barnes lemmas before the SymbolicSum method solves the integral\n  \
-Complex -> False          returns the real part for real kinematic variables in 0 < x < 1, and True the full complex \
-value\n\n\
+Complex -> False          returns the real part for real kinematic variables, and True the full complex value\n  \
+ParameterAssumptions -> True   assumes nothing about the kinematic variables, while a condition such as 0 < u < 1 \
+restricts them to that domain\n\n\
 Examples:\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}]\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  \
@@ -80,6 +81,16 @@ nu = n + 1/2 with an integer n != 0 is refused, since its representation degener
 BarnesReduce::usage =
 "BarnesReduce is an option of MBEvaluate which specifies whether the first and second Barnes lemmas are applied, \
 with DoAllBarnes, to the expanded integral before it is solved by the SymbolicSum method. Its default value is True.";
+
+
+ParameterAssumptions::usage =
+"ParameterAssumptions is an option of MBEvaluate which gives the domain of the kinematic variables, a condition such \
+as 0 < u < 1 or x > 1. With its default value True nothing is assumed: the coefficients are closed forms in the bases \
+of the integral as written, with the principal value of every power, which hold for any values of the variables by \
+analytic continuation. A domain fixes the branch of a base that is negative on it, and Complex -> False then takes \
+the real part on that domain; without one, it takes the real part for all real values of the variables. A function \
+that is not proved real keeps its Re[...] and Im[...], and a product of several such functions stays inside one \
+Re[...].";
 
 
 (* ::Subsection::Closed:: *)

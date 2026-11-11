@@ -19,10 +19,12 @@ BeginPackage["MBAnalytica`OneFoldHyp`"];
 OneFoldHypExpand::usage = "OneFoldHypExpand[Integrand, Eps, {Lo, Hi}] expands a one-fold MB integral of hypergeometric type through Eps^Hi from its residue series, or returns $Failed outside its class or when the exact check of its Taylor coefficients fails.";
 OneFoldHypQ::usage = "OneFoldHypQ[Integrand, Eps] parses a one-fold MB integrand of hypergeometric type into <|\"Prefactor\", \"Gammas\", \"X\", \"z\"|>, or returns $Failed.";
 OneFoldHypCheckTerms::usage = "OneFoldHypCheckTerms is the number of Taylor coefficients in the kinematic variable that OneFoldHypExpand compares exactly with the series (default 30).";
+OneFoldHypDomain::usage = "OneFoldHypDomain is the domain of the kinematic variables on which OneFoldHypExpand solves the integral, a condition such as 0 < x < 1 (default True, every real value).";
 
 Begin["`Private`"];
 
 OneFoldHypCheckTerms = 30;
+OneFoldHypDomain = True;
 
 
 (* ::Section:: *)
@@ -306,12 +308,13 @@ TaylorCheck[Result_, Norm_, GammaList_, X_, Eps_, Lo_, Hi_] := Module[{NMax = On
 
 (* the G functions of -X with the letters 0 and 1 are single-valued for -X < 1 only: for X <= -1 the letter 1 lies on the
    integration path, and the value of the principal power X^z needs the prescription -X - I 0 there (review of e4f55bd,
-   the branch of a negative base).  Such an integral is left to MBCH2MPL, which continues negative bases *)
+   the branch of a negative base).  Such an integral is left to MBCH2MPL, which continues negative bases.  -X < 1 is
+   proved on the domain OneFoldHypDomain *)
 ArgumentBelowOneQ[Y_] := Module[{Vars, Domain},
   If[! FreeQ[Y, Complex | DirectedInfinity | Indeterminate], Return[False]];
   If[NumericQ[Y], Return[TrueQ[Y < 1]]];
   Vars = Union[Cases[Y, S1_Symbol /; ! NumericQ[S1], {0, Infinity}]];
-  Domain = And @@ Map[(0 < # < 1) &, Vars];
+  Domain = OneFoldHypDomain;
   If[TrueQ[Quiet[Refine[Y < 1, Domain]]], Return[True]];
   Return[TrueQ[Quiet[TimeConstrained[Resolve[ForAll[Vars, Domain, Y < 1], Reals], 10, False]]]]];
 
@@ -329,7 +332,9 @@ OneFoldHypExpand[Integrand_, Eps_Symbol, {Lo_Integer, Hi_Integer}] := Catch[Modu
      refused every such integral *)
   If[Head[X] =!= Symbol,
     Module[{Xs, Res},
-      Res = OneFoldHypExpand[Integrand /. Power[X, Parsed["z"]] -> Power[Xs, Parsed["z"]], Eps, {Lo, Hi}];
+      (* the condition -X < 1 is proved above on the domain of the variables of X, and is what the fresh symbol keeps *)
+      Res = Block[{OneFoldHypDomain = -Xs < 1},
+        OneFoldHypExpand[Integrand /. Power[X, Parsed["z"]] -> Power[Xs, Parsed["z"]], Eps, {Lo, Hi}]];
       Throw[If[AssociationQ[Res], Map[(# /. Xs -> X) &, Res], $Failed], "OneFoldHyp"]]];
   PreFac = Parsed["Prefactor"];
   (* F = Norm Sum_n Y^n/n! Prod (m_i + c_i Eps)_n^k_i, Y = -X *)

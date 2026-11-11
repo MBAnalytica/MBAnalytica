@@ -2,7 +2,7 @@
    TestMB, the one-fold integral of the worked example of the paper (MB1 of Examples.nb), and the real part of its
    expansion through e^0, known in closed form; the Gauss function 2F1(1, e; 1 - e; x) of Section 6.1, an integral in
    the kinematic variable y = 1 - x, and its expansion through e^2, 1 - e Log[1 - x] + e^2 (Li2(x) + Log[1 - x]^2),
-   compared numerically at two values of y. *)
+   compared numerically at two values of y in 0 < y < 1, the domain given to MBEvaluate. *)
 {
   <|
     "Name" -> "TestMB",
@@ -18,6 +18,7 @@
     "Regulator" -> e,
     "Order" -> 2,
     "Variable" -> y,
+    "Assumptions" -> 0 < y < 1,
     "ClosedForm" -> 1 - e Log[y] + e^2 (PolyLog[2, 1 - y] + Log[y]^2),
     "Points" -> {1/3, 3/4}
   |>

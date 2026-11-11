@@ -96,7 +96,9 @@ If[StringQ[Recheck] && Recheck =!= "" && FileExistsQ[Recheck],
   Values1 = {Saved["Value"]};
   Seconds = Saved["Seconds"];
   Print["MBEVAL_RECHECK ", Name, "  the MBEvaluate value saved in ", Recheck],
-  Runs = Map[EvaluationData[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ, Verbose -> VerboseQ]] &, Parts];
+  (* a differential row is the special differential MB of the variable u in the unit interval *)
+  Runs = Map[EvaluationData[MBEvaluate[#, {Eps, Hi}, Method -> Method1, Complex -> ComplexQ, Verbose -> VerboseQ,
+    ParameterAssumptions -> If[Kind === "u", 0 < Global`u < 1, True]]] &, Parts];
   Values1 = Map[#["Result"] &, Runs];
   OmittedQ = ! FreeQ[Map[#["MessagesExpressions"] &, Runs], HoldPattern[MBEvaluate::open]];
   Seconds = Round[AbsoluteTime[] - T0]];
