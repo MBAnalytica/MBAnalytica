@@ -287,8 +287,23 @@ If[MethodQ["SymbolicSum"],
   Check1["any x: the real part on a given domain", With[{R = MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
       BarnesReduce -> False, ParameterAssumptions -> 0 < x < 1/2]},
     FreeQ[R, Abs | Re | Im] && FullSimplify[R - GeneralExact[2 x]/I, 0 < x < 1/2] === 0]];
-  Check1["ParameterAssumptions on another symbol refused", Check[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
-    ParameterAssumptions -> Global`a > 0]; False, True, MBEvaluate::assum]];
+  (* as for Assumptions: a list of conditions, lists in lists, and conditions on other symbols, which restrict nothing,
+     so that one list serves integrals in different variables *)
+  With[{Ref = MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False,
+      ParameterAssumptions -> 0 < x < 1/2],
+    Free = MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False]},
+    Check1["a list of conditions, as for Assumptions", MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+      BarnesReduce -> False, ParameterAssumptions -> {0 < x, x < 1/2}] === Ref];
+    Check1["lists in lists", MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum", BarnesReduce -> False,
+      ParameterAssumptions -> {{0 < x < 1/2}}] === Ref];
+    Check1["one list for integrals in different variables", MBEvaluate[BarnesKernel (2 x)^z, {ep, 0},
+      Method -> "SymbolicSum", BarnesReduce -> False, ParameterAssumptions -> {0 < x < 1/2, 0 < Global`y < 1, ep > 0}] === Ref];
+    Check1["a condition on another symbol restricts nothing", MBEvaluate[BarnesKernel (2 x)^z, {ep, 0},
+      Method -> "SymbolicSum", BarnesReduce -> False, ParameterAssumptions -> Global`a > 0] === Free];
+    Check1["Element[x, Reals] restricts nothing", MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
+      BarnesReduce -> False, ParameterAssumptions -> Element[x, Reals]] === Free]];
+  Check1["contradictory conditions on another symbol refused", Check[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0},
+    Method -> "SymbolicSum", ParameterAssumptions -> {Global`a > 1, Global`a < 0}]; False, True, MBEvaluate::assum]];
   Check1["an empty domain refused", Check[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
     ParameterAssumptions -> x > 1 && x < 0]; False, True, MBEvaluate::assum]];
   Check1["bases that are never positive together", Check[MBEvaluate[Gamma[-z] Gamma[1 + z] x^z (-x)^ep, {ep, 0},

@@ -47,8 +47,8 @@ uses that method alone\n  \
 Verbose -> False          prints one line per stage\n  \
 BarnesReduce -> True      applies the Barnes lemmas before the SymbolicSum method solves the integral\n  \
 Complex -> False          returns the real part for real kinematic variables, and True the full complex value\n  \
-ParameterAssumptions -> True   assumes nothing about the kinematic variables, while a condition such as 0 < u < 1 \
-restricts them to that domain\n\n\
+ParameterAssumptions -> True   assumes nothing about the kinematic variables, while a list of conditions such as \
+{0 < x < 1, 0 < y < 1} restricts them to that domain\n\n\
 Examples:\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}]\n  \
 MBEvaluate[MB1, {\[Epsilon], 0}, Method -> \"ExpandInt\"]\n  \
@@ -84,13 +84,8 @@ with DoAllBarnes, to the expanded integral before it is solved by the SymbolicSu
 
 
 ParameterAssumptions::usage =
-"ParameterAssumptions is an option of MBEvaluate which gives the domain of the kinematic variables, a condition such \
-as 0 < u < 1 or x > 1. With its default value True nothing is assumed: the coefficients are closed forms in the bases \
-of the integral as written, with the principal value of every power, which hold for any values of the variables by \
-analytic continuation. A domain fixes the branch of a base that is negative on it, and Complex -> False then takes \
-the real part on that domain; without one, it takes the real part for all real values of the variables. A function \
-that is not proved real keeps its Re[...] and Im[...], and a product of several such functions stays inside one \
-Re[...].";
+"ParameterAssumptions is an option of MBEvaluate which gives the domain of the kinematic variables as a list of \
+conditions, as for Assumptions, such as {0 < x < 1, 0 < y < 1}. The default True assumes nothing.";
 
 
 (* ::Subsection::Closed:: *)

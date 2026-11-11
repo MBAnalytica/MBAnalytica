@@ -3396,7 +3396,7 @@ MBCH2MPL[MBInt_, MBVar_, {Eps_, Ord_}, OptionsPattern[]] := Module[
   (* the domain of the kinematic variables: the one given, or where the bases of the integral lie in (0, 1), and the
      probe of the checks, a point of it *)
   Dom = OptionValue["ParameterAssumptions"];
-  If[ListQ[Dom], Dom = And @@ Dom];
+  If[ListQ[Dom], Dom = And @@ Flatten[Dom]];
   If[MBCHScale === {}, Dom = True];
   If[Dom === True && MBCHScale =!= {}, Dom = BasesDomain[MBInt, MBCHScale]];
   If[Dom === False,

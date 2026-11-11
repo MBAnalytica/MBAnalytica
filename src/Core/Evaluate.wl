@@ -427,22 +427,42 @@ UnitMaps[Domain1_, Kinematics_List] := Module[{Forward, Back, Mapped},
   Return[{Forward, Back, Mapped}]];
 
 
+(* the domain given with ParameterAssumptions as one condition on the kinematic variables.  As for Assumptions, it is a
+   condition, a list of conditions (lists in lists too) or a logical combination of them.  Only what it implies for the
+   kinematic variables of the integral counts: a condition on other symbols, such as a variable of another integral or
+   the regulator, restricts nothing (Exists over them), so that one list serves integrals in different variables.
+   When that elimination does not finish, the conditions free of the other symbols are kept.  $Failed when no real
+   values satisfy it, or when it is no condition (Reduce returns it unevaluated) *)
+GivenDomain[Given_, Kinematics_List] := Module[{User, Others, Conjuncts, Res},
+  User = If[ListQ[Given], And @@ Flatten[Given], Given];
+  If[User === True, Return[True]];
+  Others = Complement[Cases[{User}, S1_Symbol /; Context[S1] =!= "System`", {0, Infinity}], Kinematics];
+  (* With: Exists holds its arguments *)
+  Res = If[Others === {},
+    Quiet[TimeConstrained[Reduce[User, Kinematics, Reals], 20, User]],
+    With[{Cond = User, Bound = Others},
+      Quiet[TimeConstrained[Reduce[Exists[Bound, Cond], Kinematics, Reals], 20, $Failed]]]];
+  If[Res === $Failed,
+    Conjuncts = If[Head[User] === And, List @@ User, {User}];
+    Res = And @@ Select[Conjuncts, FreeQ[#, Alternatives @@ Others] &];
+    Res = Quiet[TimeConstrained[Reduce[Res, Kinematics, Reals], 20, Res]]];
+  If[Res === False || ! FreeQ[Res, Reduce | Exists], Return[$Failed]];
+  Return[Res]];
+
+
 (* the domains of a call: Derivation, on which the methods solve the integral (the one given with ParameterAssumptions,
    else where every base lies in (0, 1)), Real, on which Complex -> False takes the real part (the one given, else every
    real value), the maps Forward and Back of UnitMaps and Mapped, the derivation domain in the mapped variables.  A
    domain that is no restriction, such as Element[x, Reals], counts as none.  $Failed, with a message, for a given
    domain that is not a satisfiable condition on the kinematic variables, and when no real values make every base
    positive *)
-KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Others, Unmentioned, Derive, Real1, Maps},
+KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, Derive, Real1, Maps},
   If[Kinematics === {},
     Return[<|"Derivation" -> True, "Real" -> True, "Forward" -> {}, "Back" -> {}, "Mapped" -> True|>]];
-  User = If[ListQ[Given], And @@ Given, Given];
-  If[User =!= True,
-    Others = Complement[Cases[{User}, S1_Symbol /; Context[S1] =!= "System`", {0, Infinity}], Kinematics];
-    User = If[Others === {}, Quiet[TimeConstrained[Reduce[User, Kinematics, Reals], 20, User]], False];
-    If[User === False || ! FreeQ[User, Reduce],
-      Message[MBEvaluate::assum, Given /. MBEvaluateBackRules, Kinematics /. MBEvaluateBackRules];
-      Return[$Failed]]];
+  User = GivenDomain[Given, Kinematics];
+  If[User === $Failed,
+    Message[MBEvaluate::assum, Given /. MBEvaluateBackRules, Kinematics /. MBEvaluateBackRules];
+    Return[$Failed]];
   (* a variable that the given domain does not restrict is treated as without one: the bases in it lie in (0, 1) *)
   If[User =!= True,
     Unmentioned = Select[Kinematics, FreeQ[User, #] &];
