@@ -282,26 +282,44 @@ ProbeValues[] := If[Length[MBCHProbePoint] === Length[MBCHScale], MBCHProbePoint
 ScaleDomain[] := MBCHDomain;
 
 
-(* points of the domain Cond of the variables Vars, exact rationals: the same value for every variable first, in the
-   order of Values1, then mixed values, then FindInstance; at most K points *)
+(* exact points of the domain Cond of the variables Vars, at most K of them: the same value for every variable, in the
+   order of Values1, then increasing and decreasing sequences, then the tuples of the first values, generated one at a
+   time and at most 20000 of them, then FindInstance.  The tuples were built all at once and every one was tested even
+   when one point was enough, 2.9 s for 18 variables (review of 07d9877).  A coordinate that FindInstance returns exactly
+   is kept, any other is rationalized only as far as the point stays in the domain: Rationalize to 1/1000 took the
+   point {1/2, 999999/2000000} of 0 < u - v < 10^-6 to {1/2, 1/2}, outside the domain *)
 MBCHPointValues = {1/2, 1/3, 2/3, 1/4, 3/4, 1/5, 4/5, 2/5, 3/5, 1/6, 5/6, 3/2, 2, 5/2, 3, 4, 5,
    -1/2, -1/3, -2/3, -1/4, -3/4, -1/5, -3/2, -2, -3};
 DomainPoints[Cond_, Vars_List, K_Integer] := DomainPoints[Cond, Vars, K, MBCHPointValues];
-DomainPoints[Cond_, Vars_List, K_Integer, Values1_List] := Module[{Found, Try, Width, Mixed, Inst},
+DomainPoints[Cond_, Vars_List, K_Integer, Values1_List] := Module[{N1, Found, Try, Width, M, Total1, Idx, Inst},
   If[Vars === {}, Return[{{}}]];
+  N1 = Length[Vars];
   Found = {};
-  Try[P_] := If[Length[Found] < K && ! MemberQ[Found, P] && TrueQ[Quiet[Cond /. Thread[Vars -> P]]],
+  Try[P_] := If[Length[Found] < K && VectorQ[P] && ! MemberQ[Found, P] && TrueQ[Quiet[Cond /. Thread[Vars -> P]]],
     AppendTo[Found, P]];
-  Scan[Try[ConstantArray[#, Length[Vars]]] &, Values1];
-  If[Length[Found] < K && Length[Vars] > 1,
-    Width = Which[Length[Vars] <= 3, 12, Length[Vars] <= 5, 6, Length[Vars] <= 8, 3, True, 2];
-    Mixed = Tuples[Take[Values1, UpTo[Width]], Length[Vars]];
-    Scan[Try, Mixed]];
+  Scan[Try[ConstantArray[#, N1]] &, Values1];
+  If[Length[Found] < K && N1 > 1,
+    Scan[Try, {Range[N1]/(N1 + 1), Reverse[Range[N1]]/(N1 + 1), Range[N1]/(2 N1 + 2), Reverse[Range[N1]]/(2 N1 + 2),
+      1 + Range[N1], 1 + Reverse[Range[N1]], -Range[N1], -Reverse[Range[N1]]}]];
+  If[Length[Found] < K && N1 > 1,
+    Width = Which[N1 <= 3, 12, N1 <= 5, 6, N1 <= 8, 3, True, 2];
+    M = Min[Width, Length[Values1]];
+    Total1 = Min[M^N1, 20000];
+    Idx = 0;
+    While[Length[Found] < K && Idx < Total1,
+      Try[Values1[[1 + IntegerDigits[Idx, M, N1]]]];
+      Idx++]];
   If[Length[Found] < K,
     Inst = Quiet[TimeConstrained[FindInstance[Cond, Vars, Reals, K], 20, {}]];
-    If[ListQ[Inst],
-      Do[Try[Map[Rationalize[N[#], 1/1000] &, Vars /. Inst1]], {Inst1, Inst}]]];
+    If[ListQ[Inst], Do[Try[ExactPoint[Cond, Vars, Vars /. Inst1]], {Inst1, Inst}]]];
   Return[Found]];
+
+ExactPoint[Cond_, Vars_List, P_List] := Module[{Q},
+  If[VectorQ[P, MatchQ[#, _Integer | _Rational] &], Return[P]];
+  Do[Q = Map[If[MatchQ[#, _Integer | _Rational], #, Rationalize[N[#, 40], 10^-K1]] &, P];
+    If[VectorQ[Q, MatchQ[#, _Integer | _Rational] &] && TrueQ[Quiet[Cond /. Thread[Vars -> Q]]], Return[Q, Module]],
+    {K1, {3, 6, 9, 12, 15, 20}}];
+  Return[$Failed]];
 
 
 (* the bases of an integral: every power of an expression of the kinematic variables whose exponent is not an integer.
@@ -495,12 +513,18 @@ PhasePower[A_, E1_] := Module[{Mono},
   If[Mono === $Failed, Throw[$Failed, "Phase"]];
   Return[Mono[[1]]^E1*Exp[I Pi Mono[[2]] E1]]];
 
+(* the squared modulus of an expression of the real kinematic variables: b^2 bounded a^2 only for a real b, and
+   Log[1 + 2 I P] continued along |P| = 1 to P = -1 kept Log[1 - 2 I], without the 2 Pi I of the winding (review of
+   07d9877) *)
+ModulusSquared[B_] := Simplify[ComplexExpand[B Conjugate[B]]];
+
 PhaseLog[A_] := Module[{Mono, Lin},
   Mono = PhaseMonomial[A];
   If[Mono =!= $Failed, Return[Log[Mono[[1]]] + I Pi Mono[[2]]]];
   Lin = PhaseLinear[A];
   If[Lin === $Failed, Throw[$Failed, "Phase"]];
-  If[! HoldsOnScales[Lin[[1]] > 0, MBCHPhaseRegion] || ! HoldsOnScales[Lin[[2]]^2 < Lin[[1]]^2, MBCHPhaseRegion],
+  If[! HoldsOnScales[Lin[[1]] > 0, MBCHPhaseRegion] ||
+     ! HoldsOnScales[ModulusSquared[Lin[[2]]] < Lin[[1]]^2, MBCHPhaseRegion],
    Throw[$Failed, "Phase"]];
   Return[Log[Lin[[1]] + Lin[[2]] (-1)^Lin[[3]]]]];
 
@@ -515,7 +539,7 @@ PhaseH[Hx_] := Module[{Args, Letters, Arg1, Sign1, New},
       If[FreeQ[L1, MBCHPhase], Return[L1, Module]];
       Mono = PhaseMonomial[L1];
       If[Mono === $Failed || ! IntegerQ[Mono[[2]]], Throw[$Failed, "Phase"]];
-      If[! HoldsOnScales[Mono[[1]]^2 > Arg1^2, MBCHPhaseRegion], Throw[$Failed, "Phase"]];
+      If[! HoldsOnScales[ModulusSquared[Mono[[1]]] > Arg1^2, MBCHPhaseRegion], Throw[$Failed, "Phase"]];
       Sign1 = Sign1*(-1)^Mono[[2]];
       Return[Mono[[1]]*(-1)^Mono[[2]], Module]]], Letters];
   Return[Sign1*(H @@ Append[New, Arg1])]];
@@ -523,7 +547,7 @@ PhaseH[Hx_] := Module[{Args, Letters, Arg1, Sign1, New},
 PhasePolyLog[N1_, A_] := Module[{Mono},
   Mono = PhaseMonomial[A];
   If[Mono === $Failed || ! IntegerQ[Mono[[2]]], Throw[$Failed, "Phase"]];
-  If[! HoldsOnScales[Mono[[1]]^2 < 1, MBCHPhaseRegion], Throw[$Failed, "Phase"]];
+  If[! HoldsOnScales[ModulusSquared[Mono[[1]]] < 1, MBCHPhaseRegion], Throw[$Failed, "Phase"]];
   Return[PolyLog[N1, Mono[[1]] (-1)^Mono[[2]]]]];
 
 
@@ -641,8 +665,8 @@ SetComplex[Flag_] := Module[{},
 
 ClearSolveCaches[] := Module[{Kept},
   MBSolveCache = <||>;
-  Kept = Select[DownValues[MBSolveOne], ! FreeQ[First[#], Pattern] &];
-  DownValues[MBSolveOne] = Kept;
+  Kept = Select[DownValues[MBSolveOneIn], ! FreeQ[First[#], Pattern] &];
+  DownValues[MBSolveOneIn] = Kept;
   If[$KernelID === 0 && $KernelCount > 0 && TrueQ[MBSymbolicSumParallelOk],
     Quiet[ParallelEvaluate[MBAnalytica`SymbolicSum`Private`ClearSolveCaches[]]]];
   Return[Null]];
@@ -1171,9 +1195,18 @@ ConvergentSeries[ResolveOut_, Sub_, Pr_] := Module[{SerOut, Bases, Res},
 (*MBVerify*)
 
 
+(* the keys of the caches: the contour value of a structure depends on the probe, and its solution on the domain, the
+   probe and the comparison as well.  Keyed by the structure alone, a change of the domain within one kernel compared
+   the closed form 1/(1 + y) at y = 1/3 with the contour value 3/5 of the probe y = 2/3 of the previous call, and refused
+   it (review of 07d9877).  The checkpoint records and the memo of MBSolveOne carry the same keys *)
+SolveState[] := {MBCHDomain, ProbeRule[], MBCHComplex, MBCHVerifyDiff, MBCHTol, MBCHPhaseUsed, MBCHNegativeBases};
+VerifyKey[Struct_List] := {Struct, ProbeRule[]};
+SolveKey[Struct_List] := {Struct, SolveState[]};
+
+
 (* ground truth for one structure; scale-ful ones give none unless MBCHVerifyDiff *)
 MBVerify[IntVar_, MBVars_, Num_, Den_] := Module[{Key1, Sub, Pr, Res},
-  Key1 = {IntVar, MBVars, Num, Den};
+  Key1 = VerifyKey[{IntVar, MBVars, Num, Den}];
   If[KeyExistsQ[MBVerifyCache, Key1], Return[MBVerifyCache[Key1]]];
   Sub = Cases[MBVars, Q_Subscript :> (Q -> 1)];
   Pr = If[ScaleFreeQ[MBVars /. Sub], {}, ProbeRule[]];
@@ -2440,7 +2473,7 @@ RecycleMap[Sent_] := Module[{N1, Queue, Running, Out, Submit, Skips, Tries, Mark
     If[MatchQ[R, {"Done", _, _, _}],
      Out[[I1]] = R[[2]];
      (* a solved structure goes to the checkpoint at once *)
-     If[CleanVal[R[[2]]] =!= Indeterminate && ! DirtyQ[R[[2]]], SaveCellRecord["S", Sent[[I1, 2]], R[[2]]]];
+     If[CleanVal[R[[2]]] =!= Indeterminate && ! DirtyQ[R[[2]]], SaveCellRecord["S", SolveKey[Sent[[I1, 2]]], R[[2]]]];
      If[R[[3]] > MBCHKernelMem, RecycleKernel[R[[4]]]],
      (* the subkernel died: retry the structure without the stage it died in, and refill the pool *)
      Module[{Stage},
@@ -2495,7 +2528,7 @@ SolveTask[Task_] := Module[{Val},
   MBSymbolicSumJ = Task[[1]];
   (* a task sent to the subkernels that comes back to the master means the pool died: do not risk the master *)
   If[Length[Task] > 2 && $KernelID === 0, Return[$Failed]];
-  If[Length[Task] > 2 && NumericQ[Task[[3]]], MBVerifyCache[Task[[2]]] = Task[[3]]];
+  If[Length[Task] > 2 && NumericQ[Task[[3]]], MBVerifyCache[VerifyKey[Task[[2]]]] = Task[[3]]];
   If[Length[Task] > 4,
    MBCHSkip = Task[[4]];
    MBCHMarkFile = Task[[5]]];
@@ -2523,14 +2556,14 @@ CleanVal[Val_] := If[Val === $Failed || ! FreeQ[Val, $Aborted], Indeterminate, V
 (* structures are independent: solve the new ones in parallel; a crash costs one kernel *)
 SolveAll[Tasks_] := Module[{New, Res, Sent},
   LoadCellCache[];
-  New = Select[Tasks, ! KeyExistsQ[MBSolveCache, #[[2]]] &];
+  New = Select[Tasks, ! KeyExistsQ[MBSolveCache, SolveKey[#[[2]]]] &];
   New = DeleteDuplicatesBy[New, Last];
   Which[
    New === {}, Null,
    Length[New] > 1 && WorkersReady[],
     SyncWorkers[];
     Say["Solving " <> ToString[Length[New]] <> " structures on " <> ToString[$KernelCount] <> " kernels ..."];
-    Sent = Map[Append[#, Lookup[MBVerifyCache, Key[#[[2]]], $Failed]] &, New];
+    Sent = Map[Append[#, Lookup[MBVerifyCache, Key[VerifyKey[#[[2]]]], $Failed]] &, New];
     If[TrueQ[MBCHKernelMem < Infinity],
      Res = RecycleMap[Sent],
      Res = Block[{Parallel`Settings`$RecoveryMode = "Abandon"},
@@ -2539,8 +2572,8 @@ SolveAll[Tasks_] := Module[{New, Res, Sent},
    True,
     Res = Map[SolveTask, New]];
   If[New =!= {},
-   Do[MBSolveCache[New[[K, 2]]] = CleanVal[Res[[K]]], {K, Length[New]}]];
-  Return[Map[MBSolveCache[#[[2]]] &, Tasks]]];
+   Do[MBSolveCache[SolveKey[New[[K, 2]]]] = CleanVal[Res[[K]]], {K, Length[New]}]];
+  Return[Map[MBSolveCache[SolveKey[#[[2]]]] &, Tasks]]];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -3171,8 +3204,9 @@ ReduceSolve[IntVar_, MBVars_, Num_, Den_, Ref_] := Module[{Vars, Vals, Gt, Psis,
 (*Solving One Structure*)
 
 
-MBSolveOne[IntVar_, MBVars_, Num_, Den_] :=
- MBSolveOne[IntVar, MBVars, Num, Den] = Module[
+MBSolveOne[IntVar_, MBVars_, Num_, Den_] := MBSolveOneIn[IntVar, MBVars, Num, Den, SolveState[]];
+MBSolveOneIn[IntVar_, MBVars_, Num_, Den_, State_] :=
+ MBSolveOneIn[IntVar, MBVars, Num, Den, State] = Module[
   {Sub, Ref, Got, ResolveOut, Order1, Kind, Val, Best, Clean, Spent, T0, Pr, Res, Verdict, Direct},
   MBSeriesCache = <||>;
   Sub = Cases[MBVars, Q_Subscript :> (Q -> 1)];
@@ -3480,7 +3514,7 @@ PrimeVerify[Structs_] := Module[{Args, New, Batches, Got},
   If[Got > 0, Say["Checkpoint: " <> ToString[Got] <> " records of an earlier run"]];
   Args = Select[Structs, #[[2]] =!= Null &];
   Args = DeleteDuplicates[Map[#[[2 ;; 5]] &, Args]];
-  New = Select[Args, ! KeyExistsQ[MBVerifyCache, #] &];
+  New = Select[Args, ! KeyExistsQ[MBVerifyCache, VerifyKey[#]] &];
   If[Length[New] < 2 || ! WorkersReady[], Return[Null]];
   SyncWorkers[];
   Say["Contour values of " <> ToString[Length[New]] <> " structures on " <> ToString[$KernelCount] <> " kernels ..."];
@@ -3492,8 +3526,8 @@ PrimeVerify[Structs_] := Module[{Args, New, Batches, Got},
     (* only a structure whose subkernel died is left for the master to integrate *)
     Do[
      If[MatchQ[Refs[[K]], {"Done", _}],
-      MBVerifyCache[Bt[[K]]] = Refs[[K, 2]];
-      SaveCellRecord["V", Bt[[K]], Refs[[K, 2]]]],
+      MBVerifyCache[VerifyKey[Bt[[K]]]] = Refs[[K, 2]];
+      SaveCellRecord["V", VerifyKey[Bt[[K]]], Refs[[K, 2]]]],
      {K, Length[Bt]}]],
    {Bt, Batches}];
   Return[Null]];

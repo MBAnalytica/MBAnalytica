@@ -228,6 +228,19 @@ derivativeGate[primp_,Sfib_,x_,gnum_]:=Module[{tp=First[gatePts],h=10^-9,pP,pM,s
   pP=gnum[primp/.x->tp+h];pM=gnum[primp/.x->tp-h];sv=gnum[Sfib/.x->tp];
   dv=If[NumericQ[pP]&&NumericQ[pM]&&NumericQ[sv],(pP-pM)/(2h)-sv,"NUMERIC_FAILED"];
   <|"Pass"->(NumericQ[dv]&&Abs[dv]<10^-8 Max[1,Abs[sv]]),"Residual"->dv|>];
+(* an endpoint coefficient vanishes: a number exactly, and an expression in G functions when its value is below 10^-12
+   and below 10^-12 of the largest prefactor of its terms (each term with its G functions set to 1), so that a small
+   prefactor does not pass for a cancellation.  The absolute bound alone took the exact coefficient 1/10^13 of the
+   divergent primitive of (G[0,x] - G[1,x])/(10^13 x) for zero and returned Pi^2/(6 10^13) (review of 07d9877) *)
+endpointZeroQ[c_,gnum_]:=Module[{e=Expand[c/.backRules[]],v,terms,scale},
+  If[e===0,Return[True,Module]];
+  If[NumericQ[e],Return[TrueQ[PossibleZeroQ[e]],Module]];
+  v=gnum[e];
+  If[!NumericQ[v]||Abs[v]>=10^-12,Return[False,Module]];
+  terms=If[Head[e]===Plus,List@@e,{e}];
+  scale=Quiet[Max[Abs[Map[gnum[#/.{_G->1,_HPL`HPL->1}]&,terms]]]];
+  If[!NumericQ[scale],Return[True,Module]];
+  Abs[v]<=10^-12 Max[scale,10^-300]];
 mbeLastFoldIntegrate[Sfib_,rb_List,x_Symbol,gnum_]:=Module[{primp,at1p,at0p,regc,regn,zw,cz,val},
   xv=x;refusal=None;   (* rootBack/sqBack: the module state of the preceding mbeLastFoldFibrate call (rb is its explicit form) *)
   primp=Catch[Total[Map[integrateTerm,List@@(Expand[Sfib]+Global`zzz)/.Global`zzz->0]],lastfold];
@@ -239,15 +252,15 @@ mbeLastFoldIntegrate[Sfib_,rb_List,x_Symbol,gnum_]:=Module[{primp,at1p,at0p,regc
   at1p=at1p/.HPL`HPL[{1},1]->Global`lfReg;
   regc=Table[Coefficient[Expand[at1p],Global`lfReg,j],{j,1,Max[1,Exponent[at1p,Global`lfReg]]}];
   regn=gnum[#/.backRules[]]&/@regc;
-  If[!AllTrue[regn,NumericQ[#]&&Abs[#]<10^-12&],Return[<|"Status"->"REG_NONCANCEL","RegulatorCoefficients"->regn,"Primitive"->primp|>]];
+  If[!AllTrue[regc,endpointZeroQ[#,gnum]&],Return[<|"Status"->"REG_NONCANCEL","RegulatorCoefficients"->regn,"Primitive"->primp|>]];
   at1p=at1p/.Global`lfReg->0;
   If[!FreeQ[at1p,ComplexInfinity|Indeterminate|DirectedInfinity],Return[<|"Status"->"ENDPOINT_POLE_AT_ONE","Primitive"->primp|>]];   (* coefficient pole at x=1: needs the reflected fibration *)
   at0p=Catch[regLimitZero[primp,x],lastfold];
   If[at0p===$Failed,Return[<|"Status"->refusal,"Primitive"->primp|>]];
-  Module[{lc=Table[gnum[Coefficient[Coefficient[at0p,x,0],Lsym,j]/.backRules[]],{j,1,Max[1,Exponent[at0p,Lsym]]}],
-      pc=Flatten[Table[gnum[Coefficient[Coefficient[at0p,x,-k],Lsym,j]/.backRules[]],{k,1,Max[1,-Exponent[at0p,x,Min]]},{j,0,Max[0,Exponent[at0p,Lsym]]}]]},
-    cz=Join[lc,pc];   (* every x^-k L^j and x^0 L^(j>=1) coefficient must vanish numerically *)
-    If[!AllTrue[cz,NumericQ[#]&&Abs[#]<10^-12&],Return[<|"Status"->"ZERO_NONCANCEL","ZeroWordCoefficient"->cz,"Primitive"->primp|>]]];
+  Module[{lcx=Table[Coefficient[Coefficient[at0p,x,0],Lsym,j],{j,1,Max[1,Exponent[at0p,Lsym]]}],
+      pcx=Flatten[Table[Coefficient[Coefficient[at0p,x,-k],Lsym,j],{k,1,Max[1,-Exponent[at0p,x,Min]]},{j,0,Max[0,Exponent[at0p,Lsym]]}]]},
+    cz=Map[gnum[#/.backRules[]]&,Join[lcx,pcx]];   (* every x^-k L^j and x^0 L^(j>=1) coefficient must vanish *)
+    If[!AllTrue[Join[lcx,pcx],endpointZeroQ[#,gnum]&],Return[<|"Status"->"ZERO_NONCANCEL","ZeroWordCoefficient"->cz,"Primitive"->primp|>]]];
   at0p=Coefficient[Coefficient[Expand[at0p],Lsym,0],x,0];   (* the x^0 L^0 coefficient; the gated negative powers vanish identically but not syntactically *)
   val=(at1p-at0p)/.backRules[];
   If[!FreeQ[val,_Symbol?(StringStartsQ[SymbolName[#],"lfRoot"|"lfSq"]&)],Return[<|"Status"->"BACKSUB_INCOMPLETE","Primitive"->primp|>]];
@@ -267,10 +280,10 @@ mbeLastFoldIntegrateHalf[Sfib_,rb_List,x_Symbol,gnum_]:=Module[{primp,atH,at0p,c
   If[!FreeQ[atH,ComplexInfinity|Indeterminate|DirectedInfinity],Return[<|"Status"->"MIDPOINT_POLE","Primitive"->primp|>]];
   at0p=Catch[regLimitZero[primp,x],lastfold];
   If[at0p===$Failed,Return[<|"Status"->refusal,"Primitive"->primp|>]];
-  Module[{lc=Table[gnum[Coefficient[Coefficient[at0p,x,0],Lsym,j]/.backRules[]],{j,1,Max[1,Exponent[at0p,Lsym]]}],
-      pc=Flatten[Table[gnum[Coefficient[Coefficient[at0p,x,-k],Lsym,j]/.backRules[]],{k,1,Max[1,-Exponent[at0p,x,Min]]},{j,0,Max[0,Exponent[at0p,Lsym]]}]]},
-    cz=Join[lc,pc];
-    If[!AllTrue[cz,NumericQ[#]&&Abs[#]<10^-12&],Return[<|"Status"->"ZERO_NONCANCEL","ZeroWordCoefficient"->cz,"Primitive"->primp|>]]];
+  Module[{lcx=Table[Coefficient[Coefficient[at0p,x,0],Lsym,j],{j,1,Max[1,Exponent[at0p,Lsym]]}],
+      pcx=Flatten[Table[Coefficient[Coefficient[at0p,x,-k],Lsym,j],{k,1,Max[1,-Exponent[at0p,x,Min]]},{j,0,Max[0,Exponent[at0p,Lsym]]}]]},
+    cz=Map[gnum[#/.backRules[]]&,Join[lcx,pcx]];
+    If[!AllTrue[Join[lcx,pcx],endpointZeroQ[#,gnum]&],Return[<|"Status"->"ZERO_NONCANCEL","ZeroWordCoefficient"->cz,"Primitive"->primp|>]]];
   at0p=Coefficient[Coefficient[Expand[at0p],Lsym,0],x,0];
   val=(atH-at0p)/.backRules[];
   If[!FreeQ[val,_Symbol?(StringStartsQ[SymbolName[#],"lfRoot"|"lfSq"]&)],Return[<|"Status"->"BACKSUB_INCOMPLETE","Primitive"->primp|>]];

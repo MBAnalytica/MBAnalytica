@@ -508,28 +508,36 @@ GivenDomain[Given_, Kinematics_List] := Module[{User, Others, Conjuncts, Res},
 
 
 (* the domains of a call: Derivation, on which the methods solve the integral (the one given with ParameterAssumptions,
-   else where every base lies in (0, 1)), Real, on which Complex -> False takes the real part (the one given, else every
-   real value), the maps Forward and Back of UnitMaps, Mapped, the derivation domain in the mapped variables, and
-   Integrand, the integrand of the methods in the mapped variables.  A
+   else where every base lies in (0, 1)), Real, the given domain, the maps Forward and Back of UnitMaps, Mapped, the
+   derivation domain in the mapped variables, Integrand, the integrand of the methods in the mapped variables, Bases,
+   the bases of the integral, and Extension, where every base is positive in the variables that the given domain does
+   not restrict (all of them when none is given).  A
    domain that is no restriction, such as Element[x, Reals], counts as none.  $Failed, with a message, for a given
    domain that is not a satisfiable condition on the kinematic variables, and when no real values make every base
    positive *)
 KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, Derive, Real1, Maps, NoInversion,
-    Integrand},
+    Integrand, Bases, Extension},
   If[Kinematics === {},
     Return[<|"Derivation" -> True, "Real" -> True, "Forward" -> {}, "Back" -> {}, "Mapped" -> True,
-      "Integrand" -> MBInt|>]];
+      "Integrand" -> MBInt, "Bases" -> {}, "Extension" -> True|>]];
   User = GivenDomain[Given, Kinematics];
   If[User === $Failed,
     Message[MBEvaluate::assum, Given /. MBEvaluateBackRules, Kinematics /. MBEvaluateBackRules];
     Return[$Failed]];
   (* a variable that the given domain does not restrict is treated as without one: the bases in it lie in (0, 1) *)
+  Unmentioned = If[User === True, Kinematics, Select[Kinematics, FreeQ[User, #] &]];
   If[User =!= True,
-    Unmentioned = Select[Kinematics, FreeQ[User, #] &];
     Derive = If[Unmentioned === {}, User, User && BasesDomain[MBInt, Unmentioned]];
     Real1 = User,
     Derive = BasesDomain[MBInt, Kinematics];
     Real1 = True];
+  (* where the result holds in the variables that no domain restricts: where every base in them is positive, unless
+     its closed form is proved for all their values (MBEvaluatePrivate) *)
+  Bases = KinematicBases[MBInt, Kinematics];
+  Extension = True;
+  If[Unmentioned =!= {},
+    Extension = And @@ Map[(# > 0) &, Select[Bases, ! FreeQ[#, Alternatives @@ Unmentioned] &]];
+    If[Extension =!= True, Extension = ReduceOrKeep[Extension, Kinematics]]];
   If[Derive =!= False && Derive =!= True, Derive = ReduceOrKeep[Derive, Kinematics]];
   If[Derive === False,
     Message[MBEvaluate::bases, KinematicBases[MBInt, Kinematics] /. MBEvaluateBackRules];
@@ -542,7 +550,7 @@ KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, 
     If[Integrand[[1]] =!= $Failed, Break[]];
     NoInversion = If[Integrand[[2]] === {}, Kinematics, Join[NoInversion, Integrand[[2]]]]];
   Return[<|"Derivation" -> Derive, "Real" -> Real1, "Forward" -> Maps["Forward"], "Back" -> Maps["Back"],
-    "Mapped" -> Maps["Mapped"], "Integrand" -> Integrand[[1]]|>]];
+    "Mapped" -> Maps["Mapped"], "Integrand" -> Integrand[[1]], "Bases" -> Bases, "Extension" -> Extension|>]];
 
 
 (* ::Section:: *)
@@ -750,9 +758,11 @@ MBEvaluate[MBInt_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] :=
    MBSymbolicSumIntVar1, ... and the phase MBSymbolicSumPhase of a negative base, the engine its Euler variables fcv1, ...
    and parameters psParameter1, ...; a parameter called MBSymbolicSumIntVar1 became the integration variable and the
    result -1/6 instead of MBSymbolicSumIntVar1/2 (review of e4f55bd) *)
+(* LinInf and sinf are the markers of EvaluateMultiSums for a divergent sum and an inner sum it could not do, in Global`:
+   a parameter of either name made SymbolicSum refuse the Barnes kernel (review of 07d9877) *)
 DependencyNameQ[S1_Symbol] := Module[{Name},
   Name = SymbolName[S1];
-  Return[StringMatchQ[Name, RegularExpression["(z|ln|Log|li|et)[0-9].*"]] || MemberQ[{"S", "H", "G"}, Name] ||
+  Return[StringMatchQ[Name, RegularExpression["(z|ln|Log|li|et)[0-9].*"]] || MemberQ[{"S", "H", "G", "LinInf", "sinf"}, Name] ||
     StringMatchQ[Name, RegularExpression["(MBSymbolicSumIntVar|MBSymbolicSumPhase|fcv|fcd|fcuL|psParameter|MBtmpVar|MBTreg)[0-9]*"]]]];
 
 
@@ -782,13 +792,17 @@ FreshPrefix[Input_, Count_Integer] := Module[{Prefix, Free},
   Return[Prefix]];
 
 
-UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration, Prefix, Names1},
+(* the private names are chosen free of every symbol of the input: the integral, the kinematic variables, the regulator
+   and the assumptions.  With the integral and the variables only, an assumption on a symbol named like the private
+   name of z2, Global`mbaUserSymbol0001 < 1, became z2 < 1, and a regulator of that name became z2 (review of 07d9877) *)
+UserSymbolRules[MBInt_, MBVar_, Eps_] := UserSymbolRules[MBInt, MBVar, Eps, True];
+UserSymbolRules[MBInt_, MBVar_, Eps_, Assum_] := Module[{Symbols, Integration, Prefix, Names1},
   Symbols = Cases[{MBInt, If[MBVar === Automatic, {}, MBVar]}, S1_Symbol /; Context[S1] =!= "System`" && S1 =!= Eps,
     {0, Infinity}];
   Integration = Cases[Cases[MBInt, (Gamma | PolyGamma)[A__] :> {A}, {0, Infinity}], S1_Symbol, {0, Infinity}];
   Symbols = Select[Sort[DeleteDuplicates[Symbols]], DependencyNameQ[#] && ! MemberQ[Integration, #] &];
   If[Symbols === {}, Return[{}]];
-  Prefix = FreshPrefix[{MBInt, MBVar}, Length[Symbols]];
+  Prefix = FreshPrefix[{MBInt, MBVar, Eps, Assum}, Length[Symbols]];
   Names1 = Table[Prefix <> IntegerString[K1, 10, 4], {K1, Length[Symbols]}];
   PrivateSymbolNames = DeleteDuplicates[Join[PrivateSymbolNames, Names1]];
   Return[MapThread[#1 -> Symbol["Global`" <> #2] &, {Symbols, Names1}]]];
@@ -798,7 +812,7 @@ UserSymbolRules[MBInt_, MBVar_, Eps_] := Module[{Symbols, Integration, Prefix, N
    were passed before, and MBEvaluatePrivate then used its own defaults, so that SetOptions[MBEvaluate, Complex -> True]
    had no effect (review of e4f55bd) *)
 MBEvaluate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, Opts : OptionsPattern[]] := Module[{Rules1, Back, Result, Resolved},
-  Rules1 = UserSymbolRules[MBInt, MBVar, Eps];
+  Rules1 = UserSymbolRules[MBInt, MBVar, Eps, OptionValue[ParameterAssumptions]];
   Resolved = {Method -> OptionValue[Method], Verbose -> OptionValue[Verbose], BarnesReduce -> OptionValue[BarnesReduce],
     Complex -> OptionValue[Complex], ParameterAssumptions -> (OptionValue[ParameterAssumptions] /. Rules1)};
   Back = Map[Reverse, Rules1];
@@ -818,7 +832,7 @@ Options[MBEvaluatePrivate] = {Method -> Automatic, Verbose -> False, BarnesReduc
 
 MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
   {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders, Evaluated, Domains,
-   MethodInt},
+   MethodInt, Validity, RealDomain, Result},
   Method1 = OptionValue[Method];
   If[! MemberQ[{Automatic, "SymbolicSum", "ExpandInt", "Subtraction"}, Method1],
     Message[MBEvaluate::method, Method1];
@@ -838,7 +852,8 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
   If[Domains === $Failed, Return[$Failed]];
   If[Kinematics =!= {},
     Say[Settings["Verbose"], "MBEvaluate: solved on ", Domains["Derivation"] /. MBEvaluateBackRules,
-      If[Domains["Real"] === True, ", real part for every real value", ", real part on that domain"]]];
+      If[Domains["Extension"] === True, "", ", holds where " <> ToString[Domains["Extension"] /. MBEvaluateBackRules,
+        InputForm] <> " unless its closed form holds for all values"]]];
   MethodInt = Domains["Integrand"];
   Settings["Domain"] = Domains["Mapped"];
   (* without a domain given, the real part is taken for every real value, not on the domain the method solved on: the
@@ -865,8 +880,24 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
      evaluated, the result is $Failed *)
   Evaluated = KeySelect[Coefficients, ! MemberQ[OpenOrders, #] &];
   If[Evaluated === <||>, Return[$Failed]];
-  Finished = Block[{DerivationDomain = Domains["Mapped"], RealPartDomain = Domains["Real"]},
-    WithoutUserValues[Association[KeyValueMap[
-      #1 -> FinishCoefficient[#2, Kinematics, Settings["Complex"], Domains["Back"]] &, Evaluated]]]];
+  Finished = Block[{DerivationDomain = Domains["Mapped"]},
+    WithoutUserValues[Association[KeyValueMap[#1 -> GFormCoefficient[#2, Kinematics, Domains["Back"]] &, Evaluated]]]];
+  (* the domain of validity, for the variables that no given domain restricts: the closed form is derived where their
+     bases lie in (0, 1) and holds where they are positive.  It holds for all their values only when it is a rational
+     function of the variables, of the logarithms of the bases and of their powers (ClosedInBasesQ), after the
+     logarithms of monomials in the bases became sums of logarithms of the bases (FaithfulLogs); otherwise the result
+     carries the condition that these bases are positive, and the real part is taken there (review of 07d9877) *)
+  Validity = True;
+  If[Domains["Extension"] =!= True,
+    Finished = Block[{DerivationDomain = Domains["Derivation"]}, Module[{Positive1},
+      Positive1 = Select[Domains["Bases"], HoldsOnDomain[# > 0, Kinematics, Domains["Derivation"]] &];
+      WithoutUserValues[Map[FaithfulLogs[#, Positive1, Kinematics] &, Finished]]]];
+    If[! AllTrue[Values[Finished], ClosedInBasesQ[#, Domains["Bases"], Kinematics] &],
+      Validity = Domains["Extension"]]];
+  RealDomain = If[Validity === True, Domains["Real"], Domains["Real"] && Validity];
+  Finished = Block[{DerivationDomain = Domains["Mapped"], RealPartDomain = RealDomain},
+    WithoutUserValues[Map[RealCoefficient[#, Kinematics, Settings["Complex"]] &, Finished]]];
   ShowOutputContexts[];
-  Return[AssembleSeries[Finished, Eps]]];
+  Result = AssembleSeries[Finished, Eps];
+  If[Validity =!= True, Result = ConditionalExpression[Result, Validity]];
+  Return[Result]];

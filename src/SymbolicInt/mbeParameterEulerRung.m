@@ -32,7 +32,25 @@ parameterPoints[pars_, dom_] := Module[{grid, pt, spread},
   (* points with pairwise distinct coordinates first: equal parameters lie on spurious singularities of many candidate
      representations (letters u_i - u_j), where no candidate evaluates and the source gate refused correct results *)
   grid = Join[Select[grid, DuplicateFreeQ[Values[#]] &], Select[grid, ! DuplicateFreeQ[Values[#]] &]];
-  pt = Select[grid, TrueQ[dom /. #] &]; Take[pt, UpTo[2]]];
+  pt = Select[grid, TrueQ[dom /. #] &];
+  (* a domain that no grid point reaches, such as 0 < u - v < 1/100, gets points of FindInstance, exact, and with
+     distinct coordinates first: with no point the source gate refused every closure on it (review of 07d9877) *)
+  If[Length[pt] < 2, pt = DeleteDuplicates[Join[pt, domainInstances[pars, dom]]]];
+  Take[pt, UpTo[2]]];
+(* exact points of the domain dom of the parameters pars from FindInstance; a coordinate that is not exact is rationalized
+   only as far as the point stays in the domain *)
+domainInstances[pars_, dom_] := Module[{inst, exact, pts},
+  inst = Quiet[TimeConstrained[FindInstance[dom, pars, Reals, 6], 20, {}]];
+  If[! ListQ[inst], Return[{}, Module]];
+  exact[p_] := Module[{q},
+    If[VectorQ[p, MatchQ[#, _Integer | _Rational] &], Return[p, Module]];
+    Do[q = Map[If[MatchQ[#, _Integer | _Rational], #, Rationalize[N[#, 40], 10^-k]] &, p];
+      If[VectorQ[q, MatchQ[#, _Integer | _Rational] &] && TrueQ[dom /. Thread[pars -> q]], Return[q, Module]],
+      {k, {3, 6, 9, 12, 15, 20}}];
+    $Failed];
+  pts = Select[Map[exact[pars /. #] &, inst], VectorQ[#] && TrueQ[dom /. Thread[pars -> #]] &];
+  pts = Join[Select[pts, DuplicateFreeQ], Select[pts, ! DuplicateFreeQ[#] &]];
+  Map[Thread[pars -> #] &, pts]];
 parseScaled[ig_, vars_, dom_] := Module[{ff = factors[ig], kin, p},
   kin = Select[ff, MatchQ[#, _Power] && !FreeQ[#[[2]], Alternatives @@ vars] &];
   If[!AllTrue[kin, FreeQ[#[[1]], Alternatives @@ vars] &&

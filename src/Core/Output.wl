@@ -321,36 +321,151 @@ TidyMapped[Expr_] := Module[{Res, Functions},
   Return[Res]];
 
 
+(* exact points of the domain Cond of the variables Vars, at most K of them: the same value for every variable, in the
+   order of Values1, then increasing and decreasing sequences, then the tuples of the first Width values, generated one
+   at a time and at most Cap of them, then FindInstance.  The tuples were built all at once and every one of them was
+   tested even when the first point was enough: 2^18 tuples for 18 variables (review of 07d9877).  A coordinate that
+   FindInstance returns exactly is kept, any other is rationalized only as far as the point stays in the domain:
+   Rationalize to 1/1000 took the point {1/2, 999999/2000000} of 0 < u - v < 10^-6 to {1/2, 1/2}, outside the domain *)
+DomainSample[Cond_, Vars_List, K_Integer, Values1_List, Width_Integer, Cap_Integer] := Module[{N1, Found, Try, M,
+    Total1, Idx, Inst},
+  N1 = Length[Vars];
+  If[N1 === 0, Return[{{}}]];
+  Found = {};
+  Try[P_] := If[Length[Found] < K && VectorQ[P] && ! MemberQ[Found, P] && TrueQ[Quiet[Cond /. Thread[Vars -> P]]],
+    AppendTo[Found, P]];
+  Scan[Try[ConstantArray[#, N1]] &, Values1];
+  If[Length[Found] < K && N1 > 1,
+    Scan[Try, {Range[N1]/(N1 + 1), Reverse[Range[N1]]/(N1 + 1), Range[N1]/(2 N1 + 2), Reverse[Range[N1]]/(2 N1 + 2),
+      1 + Range[N1], 1 + Reverse[Range[N1]], -Range[N1], -Reverse[Range[N1]]}]];
+  If[Length[Found] < K && N1 > 1,
+    M = Min[Width, Length[Values1]];
+    Total1 = Min[M^N1, Cap];
+    Idx = 0;
+    While[Length[Found] < K && Idx < Total1,
+      Try[Values1[[1 + IntegerDigits[Idx, M, N1]]]];
+      Idx++]];
+  If[Length[Found] < K,
+    Inst = Quiet[TimeConstrained[FindInstance[Cond, Vars, Reals, K], 20, {}]];
+    If[ListQ[Inst], Do[Try[ExactPoint[Cond, Vars, Vars /. Inst1]], {Inst1, Inst}]]];
+  Return[Found]];
+
+ExactPoint[Cond_, Vars_List, P_List] := Module[{Q},
+  If[VectorQ[P, MatchQ[#, _Integer | _Rational] &], Return[P]];
+  Do[Q = Map[If[MatchQ[#, _Integer | _Rational], #, Rationalize[N[#, 40], 10^-K1]] &, P];
+    If[VectorQ[Q, MatchQ[#, _Integer | _Rational] &] && TrueQ[Quiet[Cond /. Thread[Vars -> Q]]], Return[Q, Module]],
+    {K1, {3, 6, 9, 12, 15, 20}}];
+  Return[$Failed]];
+
+
 (* two points of the domain for the probes of the real part: 1/3 and 5/7 for every variable when they lie in it,
    else other exact points *)
-DomainProbes[Domain1_, Vars_List] := Module[{Candidates, Found, Width},
-  Candidates = {1/3, 5/7, 1/5, 3/4, 2/3, 1/7, 3/2, 7/3, 4, -1/3, -5/7, -3/2, -7/3};
-  Found = Select[Map[ConstantArray[#, Length[Vars]] &, Candidates],
-    TrueQ[Quiet[Domain1 /. Thread[Vars -> #]]] &];
-  If[Length[Found] < 2,
-    Width = Which[Length[Vars] <= 3, 6, Length[Vars] <= 6, 3, True, 2];
-    Found = Join[Found, Select[Tuples[Take[Candidates, Width], Length[Vars]],
-      TrueQ[Quiet[Domain1 /. Thread[Vars -> #]]] &]]];
-  (* an unbounded domain such as 0 < x < 1 && y > 1 needs the values above 1 and below 0 for some of the variables *)
-  If[Length[Found] < 2 && Length[Vars] <= 3,
-    Found = Join[Found, Select[Tuples[Candidates, Length[Vars]], TrueQ[Quiet[Domain1 /. Thread[Vars -> #]]] &]]];
-  Return[Take[DeleteDuplicates[Found], UpTo[2]]]];
+DomainProbes[Domain1_, Vars_List] := DomainSample[Domain1, Vars, 2,
+  {1/3, 5/7, 1/5, 3/4, 2/3, 1/7, 3/2, 7/3, 4, -1/3, -5/7, -3/2, -7/3},
+  Which[Length[Vars] <= 3, 13, Length[Vars] <= 6, 3, True, 2], 20000];
+
+
+(* ::Section:: *)
+(*The domain of validity*)
+
+
+(* {c, {a1, ..., ak}} with A = c B1^a1 ... Bk^ak for the bases Bi, integer exponents, unique, and a nonzero real number
+   c; $Failed when A is not such a monomial.  Irreducible factors are compared up to their sign *)
+CanonicalFactor[F_] := Module[{E1 = Expand[F]}, If[OrderedQ[{E1, Expand[-E1]}], E1, Expand[-E1]]];
+FactorExponents[E1_, VarPattern_] := Module[{R1, Num, Den, Pairs},
+  R1 = Together[E1];
+  Num = FactorList[Numerator[R1]];
+  Den = FactorList[Denominator[R1]];
+  Pairs = Join[Num, Map[{#[[1]], -#[[2]]} &, Den]];
+  Pairs = Select[Pairs, ! FreeQ[#[[1]], VarPattern] &];
+  Return[Merge[Map[CanonicalFactor[#[[1]]] -> #[[2]] &, Pairs], Total]]];
+BaseMonomial[A_, Bases_List, Vars_List] := Module[{VarPattern, BaseExps, AExps, Keys1, Matrix1, Vec, Sol, C1},
+  VarPattern = Alternatives @@ Vars;
+  If[Bases === {} || FreeQ[A, VarPattern], Return[$Failed]];
+  BaseExps = Map[FactorExponents[#, VarPattern] &, Bases];
+  AExps = FactorExponents[A, VarPattern];
+  Keys1 = Union[Flatten[Map[Keys, BaseExps]]];
+  If[! SubsetQ[Keys1, Keys[AExps]], Return[$Failed]];
+  Matrix1 = Transpose[Map[Function[E1, Map[Lookup[E1, Key[#], 0] &, Keys1]], BaseExps]];
+  Vec = Map[Lookup[AExps, Key[#], 0] &, Keys1];
+  If[NullSpace[Matrix1] =!= {}, Return[$Failed]];
+  Sol = Quiet[LinearSolve[Matrix1, Vec]];
+  If[! VectorQ[Sol, IntegerQ] || Matrix1 . Sol =!= Vec, Return[$Failed]];
+  C1 = Together[A/(Times @@ MapThread[Power, {Bases, Sol}])];
+  If[! NumericQ[C1] || ! TrueQ[Element[C1, Reals]] || C1 == 0, Return[$Failed]];
+  Return[{C1, Sol}]];
+
+
+(* the logarithms and powers of a coefficient whose argument is a monomial c B1^a1 ... Bk^ak in the bases of the
+   integral that are positive on the derivation domain, as Log[c] + a1 Log[B1] + ... + ak Log[Bk] and c^q B1^(a1 q) ...
+   An identity where every such base is positive, and the continuation of the integral, which depends on the kinematic
+   variables through the principal logarithms of its bases.  The principal logarithm of the monomial is not: SymbolicSum
+   wrote the value of Gamma[-s]^3 Gamma[1 + s]^3 x^s y^s with Log[1/(x y)], which at x = y = -1 lacks the 2 Pi I of
+   Log[x] + Log[y] (review of 07d9877).  Only monomials in the bases are rewritten, no other logarithm *)
+SignedLog[C1_] := If[TrueQ[C1 > 0], Log[C1], Log[-C1] + I Pi];
+FaithfulLogs[Coef_ConditionalExpression, Bases_List, Vars_List] :=
+  ConditionalExpression[FaithfulLogs[First[Coef], Bases, Vars], Coef[[2]]];
+FaithfulLogs[Coef_, Bases_List, Vars_List] := Module[{VarPattern, Logs, Powers, Rules1},
+  If[Bases === {} || Head[Coef] === NotEvaluated, Return[Coef]];
+  VarPattern = Alternatives @@ Vars;
+  Logs = DeleteDuplicates[Cases[{Coef}, Log[A_] /; ! FreeQ[A, VarPattern], {0, Infinity}]];
+  Powers = DeleteDuplicates[Cases[{Coef}, Power[A_, Q_] /; ! FreeQ[A, VarPattern] && FreeQ[Q, VarPattern] &&
+    NumericQ[Q] && ! IntegerQ[Q], {0, Infinity}]];
+  Rules1 = Join[
+    Map[Function[L1, Module[{Mono = BaseMonomial[L1[[1]], Bases, Vars]},
+      If[Mono === $Failed, Nothing, L1 -> SignedLog[Mono[[1]]] + Mono[[2]] . Map[Log, Bases]]]], Logs],
+    Map[Function[P1, Module[{Mono = BaseMonomial[P1[[1]], Bases, Vars]},
+      If[Mono === $Failed, Nothing, P1 -> Mono[[1]]^P1[[2]]*(Times @@ MapThread[Power[#1, #2*P1[[2]]] &, {Bases, Mono[[2]]}])]]],
+      Powers]];
+  If[Rules1 === {}, Return[Coef]];
+  Return[Coef /. Dispatch[Rules1]]];
+
+
+(* True when the coefficient is a rational function of the kinematic variables, of the logarithms of the bases and of
+   their powers, and the bases are one or each a function of its own variable: then the closed form holds for every
+   value of the variables at which the integral converges, with the principal powers of the bases, since the integral
+   depends on the variables through their principal logarithms.  Any other function of the variables (a G function, a
+   logarithm of another expression) has branches of its own, which need not follow the bases: ExpandInt wrote Log[x]
+   as G[x/(x - 1), 1], and the value of Gamma[-s]^3 Gamma[1 + s]^3 x^(2 s) at x = -1 was 5 Pi^2/4 instead of
+   -3 Pi^2/4 (review of 07d9877) *)
+SeparableBasesQ[Bases_List, Vars_List] := Module[{Owners},
+  If[Length[Bases] <= 1, Return[True]];
+  Owners = Map[Select[Vars, Function[V, ! FreeQ[#, V]]] &, Bases];
+  Return[AllTrue[Owners, Length[#] === 1 &] && DuplicateFreeQ[Flatten[Owners]]]];
+ClosedInBasesQ[Coef_ConditionalExpression, Bases_List, Vars_List] := ClosedInBasesQ[First[Coef], Bases, Vars];
+ClosedInBasesQ[Coef_, Bases_List, Vars_List] := Module[{VarPattern, BasePattern, Held, Heads1, Powers},
+  If[Head[Coef] === NotEvaluated, Return[True]];
+  VarPattern = Alternatives @@ Vars;
+  If[FreeQ[Coef, VarPattern], Return[True]];
+  If[! SeparableBasesQ[Bases, Vars], Return[False]];
+  BasePattern = Alternatives @@ Bases;
+  (* integer powers of the bases are rational and stay: replacing them hid the variables inside G functions *)
+  Held = Coef /. {Log[BasePattern] -> MBAnalytica`Private`ClosedHolder,
+    Power[BasePattern, Q_ /; FreeQ[Q, VarPattern] && ! IntegerQ[Q]] -> MBAnalytica`Private`ClosedHolder};
+  Heads1 = Cases[Held, F1_[Args___] /; ! MemberQ[{Plus, Times, Power, Complex, Rational}, F1] && ! FreeQ[{Args}, VarPattern],
+    {0, Infinity}, Heads -> False];
+  Powers = Cases[Held, Power[A_, E1_] /; ! FreeQ[{A, E1}, VarPattern] && ! IntegerQ[E1], {0, Infinity}];
+  Return[Heads1 === {} && Powers === {}]];
 
 
 (* coefficients: an association order -> coefficient (or NotEvaluated[...]).  The harmonic polylogarithms become G on
    the derivation domain, then Back takes the variables of the method to those of the user (the affine maps of
-   MBEvaluate), and the real part is taken on RealPartDomain *)
-FinishCoefficient[Coef_, Vars_List, ComplexQ_] := FinishCoefficient[Coef, Vars, ComplexQ, {}];
-FinishCoefficient[Coef_, Vars_List, ComplexQ_, Back_List] := Module[{Res, Real1},
+   MBEvaluate) (GFormCoefficient), and the real part is taken on RealPartDomain (RealCoefficient) *)
+GFormCoefficient[Coef_, Vars_List, Back_List] := Module[{Res},
   If[Head[Coef] === NotEvaluated, Return[Coef]];
   Res = ToGBasis[Coef, Vars];
   If[Back =!= {}, Res = TidyMapped[Res /. Back]];
-  If[TrueQ[ComplexQ], Return[Res]];
-  Real1 = RealPart[Res, Vars];
+  Return[Res]];
+RealCoefficient[Coef_, Vars_List, ComplexQ_] := Module[{Real1},
+  If[Head[Coef] === NotEvaluated || TrueQ[ComplexQ], Return[Coef]];
+  Real1 = RealPart[Coef, Vars];
   If[Real1 === $Failed,
     Message[MBEvaluate::real];
-    Return[Res]];
+    Return[Coef]];
   Return[Real1]];
+FinishCoefficient[Coef_, Vars_List, ComplexQ_] := FinishCoefficient[Coef, Vars, ComplexQ, {}];
+FinishCoefficient[Coef_, Vars_List, ComplexQ_, Back_List] :=
+  RealCoefficient[GFormCoefficient[Coef, Vars, Back], Vars, ComplexQ];
 
 
 AssembleSeries[Coefficients_Association, Eps_] := Module[{Orders, Terms},

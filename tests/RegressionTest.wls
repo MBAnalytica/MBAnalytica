@@ -265,20 +265,64 @@ If[MethodQ["SymbolicSum"],
       MBAnalytica`SymbolicSum`Private`MBCHScale = {x}, MBAnalytica`SymbolicSum`Private`MBCHDomain = 0 < x < 1},
     MBAnalytica`SymbolicSum`Private`TidyResult[I HarmonicSums`H[1, 2 x]] === -Im[HarmonicSums`H[1, 2 x]] &&
       MBAnalytica`SymbolicSum`Private`TidyResult[I HarmonicSums`H[1, x/2]] === 0]]];
-(* G1. the general kinematics: with nothing assumed, the coefficients are closed forms in the bases as written, solved
-   where every base lies in (0, 1) and holding for any x by analytic continuation, with the principal value of every
-   power; ParameterAssumptions restricts the variables, and Complex -> False takes the real part on the given domain,
-   or for every real value without one *)
+(* G1. the general kinematics: with nothing assumed, the closed form is derived where every base lies in (0, 1) and holds
+   where every base is positive.  It holds for every value, with the principal powers, when it is a rational function
+   of the logarithms and powers of the bases, as the values of SymbolicSum below, and otherwise it carries the condition
+   that every base is positive (review of 07d9877).  ParameterAssumptions restricts the variables, and Complex -> False
+   takes the real part where the result holds *)
 GeneralExact[X_] := I (1 - X + X Log[X])/(1 - X)^2;
 GeneralAgreeQ[R_, Base_, Pts_] := FreeQ[R, ConditionalExpression] && AllTrue[Pts, Function[Pt,
   Abs[MBAnalytica`Private`NumericValue[R /. x -> Pt] - N[GeneralExact[Base /. x -> Pt], 20]] < 10^-12]];
+(* every value that the result claims is exact: with a condition, the positivity of the base, exact inside and Undefined
+   outside; without one, exact everywhere *)
+ClaimedAgreeQ[R_, Base_, PtsIn_, PtsOut_] := Module[{Cond, Agree},
+  Cond = If[Head[R] === ConditionalExpression, R[[2]], True];
+  Agree[Pt_] := Abs[MBAnalytica`Private`NumericValue[R /. x -> Pt] - N[GeneralExact[Base /. x -> Pt], 20]] < 10^-12;
+  (Cond === True || TrueQ[Reduce[Equivalent[Cond, Base > 0], x, Reals]]) && AllTrue[PtsIn, Agree] &&
+    AllTrue[PtsOut, If[Cond === True, Agree[#], (R /. x -> #) === Undefined] &]];
+If[MethodQ["SymbolicSum"],
+  Check1["any x: a negative base with SymbolicSum", GeneralAgreeQ[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0},
+    Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True], -2 x, {-1/4, 1/3, 3/4, 2}]];
+  Check1["any x: a base of changing sign with SymbolicSum", GeneralAgreeQ[MBEvaluate[I BarnesKernel (1 - 2 x)^z, {ep, 0},
+    Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True], 1 - 2 x, {1/4, 3/4, -1}]];
+  Check1["any x: no condition for the base 2 x with SymbolicSum", GeneralAgreeQ[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0},
+    Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True], 2 x, {1/4, 3/4, 2, -1}]]];
 Do[If[MethodQ[M],
-    Check1["any x: a negative base with " <> M, GeneralAgreeQ[MBEvaluate[I BarnesKernel (-2 x)^z, {ep, 0}, Method -> M,
-      BarnesReduce -> False, Complex -> True], -2 x, {-1/4, 1/3, 3/4, 2}]];
-    Check1["any x: a base of changing sign with " <> M, GeneralAgreeQ[MBEvaluate[I BarnesKernel (1 - 2 x)^z, {ep, 0}, Method -> M,
-      BarnesReduce -> False, Complex -> True], 1 - 2 x, {1/4, 3/4, -1}]];
-    Check1["any x: no condition for the base 2 x with " <> M, GeneralAgreeQ[MBEvaluate[I BarnesKernel (2 x)^z, {ep, 0}, Method -> M,
-      BarnesReduce -> False, Complex -> True], 2 x, {1/4, 3/4, 2}]]],
+    Check1["a negative base with " <> M <> ": exact where it holds", ClaimedAgreeQ[MBEvaluate[I BarnesKernel (-2 x)^z,
+      {ep, 0}, Method -> M, BarnesReduce -> False, Complex -> True], -2 x, {-1/4, -2}, {1/3, 2}]];
+    Check1["a base of changing sign with " <> M <> ": exact where it holds", ClaimedAgreeQ[MBEvaluate[I BarnesKernel (1 - 2 x)^z,
+      {ep, 0}, Method -> M, BarnesReduce -> False, Complex -> True], 1 - 2 x, {1/4, -1}, {3/4}]];
+    Check1["the base 2 x with " <> M <> ": exact where it holds", ClaimedAgreeQ[MBEvaluate[I BarnesKernel (2 x)^z,
+      {ep, 0}, Method -> M, BarnesReduce -> False, Complex -> True], 2 x, {1/4, 3/4, 2}, {-1}]]],
+  {M, {"ExpandInt", "Subtraction"}}];
+(* G3. independent powers keep their phases (review of 07d9877): Gamma[-s]^3 Gamma[1 + s]^3 times x^s y^s, (x y)^s,
+   x^(2 s), (x^2)^s and x^-s against the contour integral with the principal powers on Re s = -1/2, at 40 digits.  Every
+   value that a result claims is exact.  SymbolicSum writes these values in the logarithms of the bases, which hold for
+   every value; at 07d9877 its Log[1/(x y)] gave Pi^2/4 at x = y = -1, where the integral is -3 Pi^2/4.  The G functions
+   of ExpandInt and Subtraction carry the condition that every base is positive, and are Undefined at negative bases;
+   at 07d9877 ExpandInt gave 5 Pi^2/4 for x^(2 s) at x = -1 *)
+BranchKernel = Gamma[-s]^3 Gamma[1 + s]^3;
+BranchContour[Pow_, Pt_] := BranchContour[Pow, Pt] = NIntegrate[Evaluate[(BranchKernel Pow) /. s -> -1/2 + I t /. Pt],
+  {t, -Infinity, Infinity}, WorkingPrecision -> 40, PrecisionGoal -> 20, MaxRecursion -> 40]/(2 Pi);
+BranchCases = {
+  {x^s y^s, Exp[s (Log[x] + Log[y])], {{x -> -1, y -> -1}, {x -> -1, y -> 1/2}, {x -> -1/2, y -> -3}, {x -> 2, y -> 3}}},
+  {(x y)^s, Exp[s Log[x y]], {{x -> -1, y -> -1}, {x -> -1, y -> 1/2}, {x -> 1/2, y -> 3}}},
+  {x^(2 s), Exp[2 s Log[x]], {{x -> -1}, {x -> -1/2}, {x -> 3}}},
+  {(x^2)^s, Exp[s Log[x^2]], {{x -> -1}, {x -> -1/2}, {x -> 1/3}}},
+  {x^-s, Exp[-s Log[x]], {{x -> -2}, {x -> 1/3}, {x -> 4}}}};
+(* at each point: True or False for a value of the result against the contour, Undefined where the result does not
+   hold or has no value (a letter of a G function that is infinite there, such as 1/(x^2 - 1) at x = -1) *)
+BranchClaimed[R_, Pow_, Pts_] := Map[Function[Pt, Module[{V = R /. Pt, Num},
+  Num = If[V === Undefined, $Failed, Quiet[MBAnalytica`Private`NumericValue[V]]];
+  Which[! NumberQ[Num], Undefined, Abs[Num - BranchContour[Pow, Pt]] < 10^-15, True, True, False]]], Pts];
+Do[If[MethodQ[M], Do[With[{C1 = C2},
+      Check1["phases of independent powers, " <> ToString[C1[[1]], InputForm] <> " with " <> M,
+        Module[{R = MBEvaluate[BranchKernel C1[[1]], {ep, 0}, Method -> M, BarnesReduce -> False, Complex -> True], V},
+          (* Subtraction refuses (x y)^s and (x^2)^s, which is no wrong value *)
+          If[R === $Failed, M === "Subtraction" && MemberQ[{(x y)^s, (x^2)^s}, C1[[1]]],
+            V = BranchClaimed[R, C1[[2]], C1[[3]]];
+            ! MemberQ[V, False] && MemberQ[V, True] && If[M === "SymbolicSum", FreeQ[V, Undefined], True]]]]],
+      {C2, BranchCases}]],
   {M, {"SymbolicSum", "ExpandInt", "Subtraction"}}];
 If[MethodQ["SymbolicSum"],
   Check1["any x: the real part for every real x", With[{R = MBEvaluate[BarnesKernel (2 x)^z, {ep, 0}, Method -> "SymbolicSum",
@@ -308,6 +352,49 @@ If[MethodQ["SymbolicSum"],
     ParameterAssumptions -> x > 1 && x < 0]; False, True, MBEvaluate::assum]];
   Check1["bases that are never positive together", Check[MBEvaluate[Gamma[-z] Gamma[1 + z] x^z (-x)^ep, {ep, 0},
     Method -> "SymbolicSum"]; False, True, MBEvaluate::bases]]];
+(* R4.2 the private names are free of the regulator and of the assumptions: an assumption on a symbol of the name that
+   z2 gets restricted z2, and a regulator of that name became z2 (review of 07d9877) *)
+If[MethodQ["SymbolicSum"],
+  Check1["private name of a parameter in the assumptions", Module[{Alias, R1, R2},
+    Alias = Last[First[MBAnalytica`Private`UserSymbolRules[Global`z2 BarnesKernel, Automatic, ep]]];
+    MBEvaluate[Global`z2 BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True];
+    R1 = MBEvaluate[I Log[1 - Global`z2] BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+      ParameterAssumptions -> {Global`z2 > 0, Alias < 1}];
+    R2 = MBEvaluate[Global`z2 BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True,
+      ParameterAssumptions -> {Global`z2 > 1, Alias < 0}];
+    Abs[N[R1 /. Global`z2 -> 2] + Pi/2] < 10^-12 && R2 === Global`z2/2]];
+  Check1["private name of a parameter as the regulator", Module[{Alias},
+    Alias = Last[First[MBAnalytica`Private`UserSymbolRules[Global`z2 BarnesKernel, Automatic, ep]]];
+    MBEvaluate[Global`z2 BarnesKernel, {Alias, 0}, Method -> "SymbolicSum", Complex -> True] === Global`z2/2]];
+  (* R4.5 the markers LinInf and sinf of EvaluateMultiSums as parameter names *)
+  Check1["parameters named LinInf and sinf", MBEvaluate[Global`LinInf BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+    Complex -> True] === Global`LinInf/2 && MBEvaluate[Global`sinf BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+    Complex -> True] === Global`sinf/2];
+  (* R4.3 the contour values and the solutions are kept per probe and domain: in one kernel the closed form 1/(1 + y) at
+     the probe y = 1/3 was compared with the contour value 3/5 of the probe y = 2/3 of the previous call and refused *)
+  Check1["a change of domain in one kernel", Block[{$ContextPath = MBAnalytica`Private`SymbolicSumContextPath,
+      MBAnalytica`SymbolicSum`Private`MBCHVerifyDiff = True},
+    AllTrue[{{0 < x < Global`y < 1, True}, {0 < Global`y < x < 1, False}, {0 < x < Global`y < 1, True}}, Function[A1,
+      Simplify[MBAnalytica`SymbolicSum`MBCH2MPL[Gamma[-z] Gamma[1 + z] Global`y^z, {x, Global`y}, {ep, 0},
+        Complex -> A1[[2]], "ParameterAssumptions" -> A1[[1]]] - 1/(1 + Global`y)] === 0]]]];
+  (* R4.4 the points of a domain: exact points of a thin domain, and the tuples generated one at a time *)
+  Check1["domain points of a thin domain", With[{P = MBAnalytica`SymbolicSum`Private`DomainPoints[
+      0 < Global`u < 1 && 0 < Global`v < 1 && 0 < Global`u - Global`v < 1/10^6, {Global`u, Global`v}, 2]},
+    P =!= {} && AllTrue[P, VectorQ[#, MatchQ[#, _Integer | _Rational] &] &&
+      TrueQ[0 < #[[1]] < 1 && 0 < #[[2]] < 1 && 0 < #[[1]] - #[[2]] < 1/10^6] &]]];
+  Check1["domain points of 18 variables", With[{Vs = Table[Symbol["Global`vv" <> ToString[K1]], {K1, 18}]},
+    With[{Cond = (And @@ Map[0 < # < 1 &, Vs]) && Vs[[1]] > Vs[[2]]},
+      First[AbsoluteTiming[MBAnalytica`SymbolicSum`Private`DomainPoints[Cond, Vs, 1]]] < 1 &&
+        First[AbsoluteTiming[MBAnalytica`Private`DomainProbes[Cond, Vs]]] < 1 &&
+        Length[MBAnalytica`Private`DomainProbes[Cond, Vs]] === 2]]];
+  (* R4.6 the continuation along |P| = 1 needs the modulus of a complex coefficient: Log[1 + 2 I P] winds around 0 and
+     was continued to Log[1 - 2 I] without its 2 Pi I; it is refused, and Log[1 + I P/2] keeps its principal value *)
+  Check1["phase continuation with complex coefficients", Block[{MBAnalytica`SymbolicSum`Private`MBCHScale = {},
+      MBAnalytica`SymbolicSum`Private`MBCHDomain = True, MBAnalytica`SymbolicSum`Private`MBCHPhaseRegion = True},
+    MBAnalytica`SymbolicSum`Private`PhaseContinue[Log[1 + 2 I Global`MBSymbolicSumPhase]] === $Failed &&
+      MBAnalytica`SymbolicSum`Private`PhaseContinue[PolyLog[2, 2 I Global`MBSymbolicSumPhase]] === $Failed &&
+      MBAnalytica`SymbolicSum`Private`PhaseContinue[Log[1 + I/2 Global`MBSymbolicSumPhase]] === Log[1 - I/2] &&
+      MBAnalytica`SymbolicSum`Private`PhaseContinue[PolyLog[2, I/2 Global`MBSymbolicSumPhase]] === PolyLog[2, -I/2]]]];
 (* G2. an unbounded projection, V > c with c > 0 or V < c with c < 0, is inverted to the unit interval, V -> c/V, and
    every power of a base with V is split into the powers of its factors, each positive there.  SymbolicSum summed no
    series solution of the two-fold product on y > 1 before *)
@@ -412,6 +499,32 @@ If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
       Fold1[PolyLogTools`G[0, x]] === <|"Status" -> "ok", "Value" -> -1|> &&
       Fold1[-PolyLogTools`G[1, x]/x] === <|"Status" -> "ok", "Value" -> Pi^2/6|> &&
       Fold1[PolyLogTools`G[0, x]/(x (1 + x)) - PolyLogTools`G[0, x]/x] === <|"Status" -> "ok", "Value" -> Pi^2/12|>]];
+  (* R4.5B an exact endpoint coefficient is zero only exactly: the coefficient 1/10^13 passed the bound 10^-12 and the
+     divergent integral of (G[0,x] - G[1,x])/(10^13 x) got the value Pi^2/(6 10^13) (review of 07d9877) *)
+  Check1["last folds: a small exact divergence refused", Module[{Gnum, Fold1},
+    Gnum[E1_] := N[E1 /. {HoldPattern[PolyLogTools`G[0, A_]] :> Log[A], HoldPattern[PolyLogTools`G[1, A_]] :> Log[1 - A],
+      HoldPattern[PolyLogTools`G[0, 0, A_]] :> Log[A]^2/2, HoldPattern[PolyLogTools`G[0, 1, A_]] :> -PolyLog[2, A]}, 40];
+    Fold1[F_] := MBAnalytica`Private`WithoutSymbolicSumRules[Block[{MBExactLastFold`Private`gatePts = {1/3, 2/3}},
+      KeyTake[MBExactLastFold`mbeLastFoldIntegrate[F, {}, x, Gnum], {"Status", "Value"}]]];
+    Fold1[(PolyLogTools`G[0, x] - PolyLogTools`G[1, x])/(10^13 x)]["Status"] === "ZERO_NONCANCEL" &&
+      Fold1[-PolyLogTools`G[1, x]/(10^13 x)] === <|"Status" -> "ok", "Value" -> Pi^2/(6 10^13)|>]];
+  (* R4.5A a corner through pole faces where a face variable stays away from its end: the maximal faced corner alone
+     missed it, and the cube gave 0 instead of 1/(5 eps^3) (review of 07d9877) *)
+  Check1["corner letters: a face variable away from its end", Sort[Global`fcuCornerLetters[x^(-1 + ep) z^(-1 + ep) y^4*
+      (x + y^2)^(-2 + ep) (x z + y)^(-1 + ep), {x, y, z}, ep]] === Sort[{x + y^2, y + x z}]];
+  Check1["cube with that corner refused", FailureQ[MBAnalytica`Private`WithoutSymbolicSumRules[MBParameterSubtraction`PSPrepareCube[
+    <|"Cube" -> x^(-1 + ep) z^(-1 + ep) y^4 (x + y^2)^(-2 + ep) (x z + y)^(-1 + ep), "Variables" -> {x, y, z}, "Prefactor" -> 1|>,
+    ep, -3, -3, {}]]]];
+  (* R4.4A the source gate on a domain that no grid point reaches *)
+  Check1["source-gate points of a thin domain", With[{P = MBParameter`Private`parameterPoints[{Global`u, Global`v},
+      0 < Global`u < 1 && 0 < Global`v < 1 && 0 < Global`u - Global`v < 1/100]},
+    Length[P] === 2 && AllTrue[P, TrueQ[(0 < Global`u < 1 && 0 < Global`v < 1 && 0 < Global`u - Global`v < 1/100) /. #] &]]];
+  If[MethodQ["ExpandInt"],
+    Check1["ExpandInt on a thin domain", With[{R = MBEvaluate[Gamma[-s] Gamma[1 + s] Gamma[-t] Gamma[1 + t]*
+        Gamma[1 + s + t]/Gamma[2 + s + t] Global`u^s Global`v^t, {ep, 0}, Method -> "ExpandInt",
+        ParameterAssumptions -> {0 < Global`u < 1, 0 < Global`v < 1, 0 < Global`u - Global`v < 1/100}]},
+      R =!= $Failed && Abs[MBAnalytica`Private`NumericValue[R /. {Global`u -> 1/2, Global`v -> 99/200}] -
+        N[(Log[3/2] - Log[299/200])/(1/200), 30]] < 10^-15]]];
   (* R3.6 the residue store repairs a corrupt value and an ownerless claim; every start of helpers has its own job
      directory, and an abort during the start stops the helpers already started *)
   If[TrueQ[Global`$orsInstalled],

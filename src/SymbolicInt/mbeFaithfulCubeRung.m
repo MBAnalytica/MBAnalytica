@@ -818,6 +818,8 @@ Module[{},
      face is counted with its own exponent along the diagonal only, as before (the face subtraction changes its power
      along the other directions).  An incomplete search is Missing["Incomplete"], never "no corner". *)
   If[! IntegerQ[Global`$fcuCornerBudget], Global`$fcuCornerBudget = 4096];
+  If[! IntegerQ[Global`$fcuCornerProgramBudget], Global`$fcuCornerProgramBudget = 20000];
+  Global`$fcuCornerPrograms = 0;
   If[! AssociationQ[Global`$fcuNewtonMemo], Global`$fcuNewtonMemo = <||>];
   (* the minimal vanishing sets and the local supports of a letter, kept for the terms of one call *)
   SetAttributes[Global`fcuCornerMemo, HoldRest];
@@ -900,7 +902,12 @@ Module[{},
     nw = Length[cost];
     ns = Length[supports];
     opts = Map[Function[f, Flatten[Table[If[m[[f]] > 0, {{j, m}}, {}], {j, ns}, {m, supports[[j]]}], 2]], faces];
-    If[MemberQ[opts, {}] || Times @@ Map[Length, opts] > Global`$fcuCornerBudget, Throw[Missing["Incomplete"], "fcuCorners"]];
+    If[MemberQ[opts, {}], Throw[Missing["Incomplete"], "fcuCorners"]];
+    (* or the face variable stays away from its end: weight 0 *)
+    opts = MapThread[Append[#1, {"Away", #2}] &, {opts, faces}];
+    If[Times @@ Map[Length, opts] > Global`$fcuCornerBudget, Throw[Missing["Incomplete"], "fcuCorners"]];
+    Global`$fcuCornerPrograms += Times @@ Map[Length, opts];
+    If[Global`$fcuCornerPrograms > Global`$fcuCornerProgramBudget, Throw[Missing["Incomplete"], "fcuCorners"]];
     value = AnyTrue[Tuples[opts], Function[choice, Module[{rows = {}, rhs = {}, obj, sol},
         Do[Do[AppendTo[rows, Join[m, -UnitVector[ns, j]]];
             AppendTo[rhs, 0],
@@ -908,9 +915,12 @@ Module[{},
           {j, ns}];
         AppendTo[rows, Join[ConstantArray[0, nw], poles]];
         AppendTo[rhs, 1];
-        Do[Do[AppendTo[rows, Join[m2 - ch[[2]], ConstantArray[0, ns]]];
+        Do[If[ch[[1]] === "Away",
+            AppendTo[rows, Join[-UnitVector[nw, ch[[2]]], ConstantArray[0, ns]]];
             AppendTo[rhs, 0],
-            {m2, supports[[ch[[1]]]]}],
+            Do[AppendTo[rows, Join[m2 - ch[[2]], ConstantArray[0, ns]]];
+              AppendTo[rhs, 0],
+              {m2, supports[[ch[[1]]]]}]],
           {ch, choice}];
         obj = Join[cost, ConstantArray[0, ns]];
         sol = Quiet[Check[Check[LinearProgramming[obj, rows, rhs], "Unbounded", LinearProgramming::lpsub], "Infeasible",
@@ -969,7 +979,11 @@ Module[{},
         If[Global`fcuNewtonDangerQ[Map[cost, S], supports, letters[[vanish, 2]]],
           AppendTo[out, <|"Set" -> S, "Letters" -> letters[[vanish, 1]]|>]]],
       {S, maximal}];
-    (* the maximal corners with a pole face, along the directions where every face variable is active *)
+    (* the maximal corners with a pole face, along the directions where every face variable is active or stays away
+       from its end (fcuActiveFaceDangerQ).  Requiring every face variable to be active missed a divergence:
+       x^(-1+eps) z^(-1+eps) y^4 (x+y^2)^(-2+eps) (x z+y)^(-1+eps) diverges along x ~ y^2 with z generic, the corner
+       {x, y} -> 0 inside {x, y, z} -> 0, and the detector returned no letter and the cube 0 instead of 1/(5 eps^3)
+       (review of 07d9877).  A face variable that stays away from its end has weight 0, which is that smaller corner *)
     faced = Select[cands, ! AllTrue[#, cost[#] > 0 &] &];
     faced = Select[faced, Function[S, ! AnyTrue[faced, Function[T, T =!= S && SubsetQ[T, S]]]]];
     Do[Module[{ords, vanish, idx, supports, faces},
@@ -984,7 +998,7 @@ Module[{},
           AppendTo[out, <|"Set" -> S, "Letters" -> letters[[vanish, 1]]|>]]],
       {S, faced}];
     out];
-  Global`fcuCornerSets[expr_, vars_, eps_] := Block[{Global`$fcuCornerCache = <||>},
+  Global`fcuCornerSets[expr_, vars_, eps_] := Block[{Global`$fcuCornerCache = <||>, Global`$fcuCornerPrograms = 0},
     Catch[Module[{terms, out = {}},
       terms = If[Head[#] === Plus, List @@ #, {#}] &[Expand[expr]];
       Do[out = Join[out, Global`fcuTermCorners[t, vars, eps]], {t, terms}];
