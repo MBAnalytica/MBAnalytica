@@ -367,10 +367,17 @@ KinematicBases[MBInt_, Kinematics_List] := Module[{VarPattern, Powers, Kin, Num,
   Return[DeleteDuplicates[Bases]]];
 
 
-(* a rational function of the variables, whose value has no branch: Log[2] (1 + x)/x is one, Log[-x] and Sqrt[x] are not *)
-RationalFunctionQ[F_, Vars_List] := Module[{Together1},
-  Together1 = Together[F];
-  Return[PolynomialQ[Numerator[Together1], Vars] && PolynomialQ[Denominator[Together1], Vars]]];
+(* a rational function of the variables, whose value has no branch: Log[2] (1 + x)/x is one, Log[-x] and Sqrt[x] are not.
+   Read off the structure: an expression free of the variables, a variable, a sum or product of rational expressions,
+   or an integer power of one.  Any other function of the variables counts as not rational, and taking such a factor out
+   of the integral is always exact.  Together built the common denominator first: a prefactor of 100 logarithms over
+   x + k took more than 15 s to classify (review of c51fb0a) *)
+RationalFunctionQ[F_, Vars_List] := Which[
+  FreeQ[F, Alternatives @@ Vars], True,
+  MemberQ[Vars, F], True,
+  Head[F] === Plus || Head[F] === Times, AllTrue[List @@ F, RationalFunctionQ[#, Vars] &],
+  Head[F] === Power && IntegerQ[F[[2]]], RationalFunctionQ[F[[1]], Vars],
+  True, False];
 
 
 (* {prefactor, rest} of an integrand: the prefactor is the product of its factors that are free of the integration

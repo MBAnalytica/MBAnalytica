@@ -432,6 +432,40 @@ If[MethodQ["SymbolicSum"],
       MBAnalytica`SymbolicSum`Private`MBCHVerifyDiff = True;
       On1 = MBAnalytica`SymbolicSum`Private`MBVerify[{Global`s -> -1/2}, {Global`x}, {-Global`s, 1 + Global`s}, {}];
       Off1 === $Failed && NumericQ[On1] && Abs[On1 - 2/3] < 10^-15]]]];
+(* R6.4 the prefactor is classified by its structure: Together built the common denominator of 100 logarithms over x + k
+   first and took more than 15 s (review of c51fb0a).  A sum or product of rational terms and an integer power of one
+   stay rational, anything else is taken out as written *)
+Check1["prefactor of 100 logarithms classified at once", With[{P100 = Sum[Log[1 + K1 x]/(x + K1), {K1, 1, 100}]},
+  With[{T = AbsoluteTiming[MBAnalytica`Private`RationalFunctionQ[P100, {x}]]}, T[[1]] < 1 && T[[2]] === False]]];
+Check1["rational sums stay rational", MBAnalytica`Private`RationalFunctionQ[(1 + x)/(x^2 + 3) + x^2/(x - 2) + Log[2] x, {x}] &&
+  MBAnalytica`Private`RationalFunctionQ[((1 + x) (2 - x))^-3, {x}] && ! MBAnalytica`Private`RationalFunctionQ[Sqrt[x^2], {x}] &&
+  ! MBAnalytica`Private`RationalFunctionQ[x + Log[x], {x}] && MBAnalytica`Private`RationalFunctionQ[Pi^2/6, {x}]];
+If[MethodQ["SymbolicSum"],
+  Check1["prefactor of 100 logarithms", With[{P100 = Sum[Log[1 + K1 x]/(x + K1), {K1, 1, 100}]},
+    Expand[MBEvaluate[P100 BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True] - P100/2] === 0]]];
+(* R6.6 the coefficients after the pushes in one pass, in a topological order of the oriented tree: the same sums as the
+   NV rounds of propagation of c51fb0a (copied below), for every orientation and push map of a star and a branched tree,
+   and the same first push of a chain of 14 vertices (review of c51fb0a) *)
+OldCosmoPushed[Edges_List, Push_List, C0_List] := Module[{Cs, Prev, Earlier},
+  Cs = C0;
+  Prev = C0;
+  Do[Cs = C0;
+    Do[If[Push[[V]] =!= 0, Earlier = First[DeleteCases[Edges[[Push[[V]]]], V]]; Cs[[Earlier]] = Cs[[Earlier]] + Prev[[V]]],
+      {V, Length[C0]}];
+    Prev = Cs, {Length[C0]}];
+  Cs];
+Check1["cosmological pushes in one pass", AllTrue[{Table[{1, K1}, {K1, 2, 6}], {{1, 2}, {2, 3}, {2, 4}, {4, 5}, {4, 6}, {1, 7}}},
+  Function[Edges, Module[{NV = Max[Flatten[Edges]], C0},
+    C0 = Array[Symbol["Global`cc" <> ToString[#]] &, NV];
+    AllTrue[Tuples[{1, 2}, Length[Edges]], Function[Orient, Module[{Later, Order1},
+      Later = MapThread[#1[[#2]] &, {Edges, Orient}];
+      Order1 = MBAnalytica`Private`CosmoPushOrder[Edges, Later, NV];
+      AllTrue[Tuples[Table[Join[{0}, Select[Range[Length[Edges]], Later[[#]] === V &]], {V, NV}]], Function[P1,
+        Expand[MBAnalytica`Private`CosmoPushed[Edges, P1, C0] - OldCosmoPushed[Edges, P1, C0]] === ConstantArray[0, NV] &&
+          Expand[MBAnalytica`Private`CosmoPushed[Edges, P1, C0, Order1] - OldCosmoPushed[Edges, P1, C0]] === ConstantArray[0, NV]]]]]]]]]];
+Check1["first push of a chain of 14 vertices", With[{N1 = 14}, MBAnalytica`Private`CosmoPushChoices[Table[{J1, J1 + 1}, {J1, N1 - 1}],
+    Range[N1 - 1], Join[ConstantArray[1, N1 - 1], {N1^2}], Table[N1^2 - 2 (J1 - 1), {J1, N1 - 1}], {},
+    Join[ConstantArray[1, N1 - 1], {N1^2}], Table[N1^2 - 2 (J1 - 1), {J1, N1 - 1}], {}, 1] === {Join[Range[12], {0, 0}]}]];
 (* G2. an unbounded projection, V > c with c > 0 or V < c with c < 0, is inverted to the unit interval, V -> c/V, and
    every power of a base with V is split into the powers of its factors, each positive there.  SymbolicSum summed no
    series solution of the two-fold product on y > 1 before *)
@@ -590,6 +624,61 @@ If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
       Check1["prefactor Log[-x] with " <> M, With[{R = MBEvaluate[Log[-x] x^ep BarnesKernel, {ep, 1}, Method -> M]},
         (R /. x -> -1) === 0 && Simplify[(R /. x -> 2) - (Log[2]/2 + ep Log[2]^2/2)] === 0]]],
     {M, {"ExpandInt", "Subtraction"}}];
+  (* R6.1 points with distinct coordinates for any number of parameters: with nine, only diagonal points were left, u = v,
+     where the candidates of (Log[1 + u] - Log[1 + v])/(u - v) have a removable singularity, and ExpandInt refused the
+     integral (review of c51fb0a).  Up to eight parameters the points are those of before *)
+  Check1["source-gate points with distinct coordinates for 9 to 12 parameters", AllTrue[Range[9, 12], Function[N1,
+    With[{Ps = Array[Symbol["Global`pp" <> ToString[#]] &, N1]}, With[{Dom = And @@ Map[0 < # < 1 &, Ps]},
+      With[{P = MBParameter`Private`parameterPoints[Ps, Dom]},
+        Length[P] === 2 && AllTrue[P, DuplicateFreeQ[Values[#]] && TrueQ[Dom /. #] &]]]]]]];
+  Check1["source-gate points of eight parameters as before", With[{Ps = Array[Symbol["Global`pp" <> ToString[#]] &, 8]},
+    Map[Values, MBParameter`Private`parameterPoints[Ps, And @@ Map[0 < # < 1 &, Ps]]] ===
+      {{1/3, 2/5, 3/7, 4/9, 5/11, 6/13, 7/15, 8/17}, {1/2, 2/7, 3/8, 2/9, 5/12, 3/10, 4/11, 5/13}}]];
+  If[MethodQ["ExpandInt"],
+    Check1["ExpandInt with nine parameters", Module[{Ps, W1, R},
+      Ps = Join[{Global`u, Global`v}, Array[Symbol["Global`ww" <> ToString[#]] &, 7]];
+      W1 = Times @@ Drop[Ps, 2];
+      R = MBEvaluate[W1 Gamma[-s] Gamma[1 + s] Gamma[-t] Gamma[1 + t] Gamma[1 + s + t]/Gamma[2 + s + t] Global`u^s Global`v^t,
+        {ep, 0}, Method -> "ExpandInt", Complex -> True, ParameterAssumptions -> And @@ Map[0 < # < 1 &, Ps]];
+      R =!= $Failed && Abs[MBAnalytica`Private`NumericValue[(R - W1 (Log[1 + Global`u] - Log[1 + Global`v])/(Global`u - Global`v)) /.
+        Thread[Ps -> Range[9]/23]]] < 10^-20]]];
+  (* R6.2 the Newton expansion of a Barnes polynomial through its degree: (v+1)...(v+41) gave 41 zeros, and the reduction
+     of P Gamma[1 + v]^2 Gamma[1 - v]^2/(41! 10^13), whose value is 42/(43 44 10^13) by Barnes' first lemma, returned no
+     term (review of c51fb0a) *)
+  Check1["Newton expansions of degree 40 and 41", AllTrue[{40, 41}, Function[D1, With[{P = Product[Global`vv + 1 + J1, {J1, 0, D1 - 1}]},
+      With[{C1 = Global`mbeBPRNewton[P, Global`vv, 1]}, ListQ[C1] && Length[C1] === D1 + 1 &&
+        Expand[P - Sum[C1[[K1 + 1]] Product[Global`vv + 1 + J1, {J1, 0, K1 - 1}], {K1, 0, Length[C1] - 1}]] === 0]]]] &&
+    Global`mbeBPRNewton[Global`vv + Log[Global`vv], Global`vv, 1] === $Failed];
+  Check1["Barnes reduction of a degree-41 polynomial", With[{R = Global`mbeBPRReduceVar[Product[Global`vv + 1 + J1, {J1, 0, 40}]*
+      Gamma[1 + Global`vv]^2 Gamma[1 - Global`vv]^2/(41! 10^13), Global`vv, {Global`vv}, {Global`vv -> -1/2}]},
+    ListQ[R] && Together[Total[R] - 42/(43 44 10^13)] === 0]];
+  (* R6.3 a root is merged with a registered one only through the ratio of the principal roots: with -u registered first,
+     Sqrt[u] became I Sqrt[-u] = -Sqrt[u] (review of c51fb0a) *)
+  Check1["last folds: principal roots in either order", Module[{U = Global`psParameter1, A, B, Back},
+    Back[E1_] := (E1 /. MBExactLastFold`Private`backRules[]) /. U -> 1/3;
+    MBExactLastFold`mbeLastFoldFibrate[0, x, U/2];
+    A = MBExactLastFold`Private`sqSym[-U];
+    B = MBExactLastFold`Private`sqSym[U];
+    With[{Neg = {Back[A], Back[B]}},
+      MBExactLastFold`mbeLastFoldFibrate[0, x, U/2];
+      B = MBExactLastFold`Private`sqSym[U];
+      A = MBExactLastFold`Private`sqSym[-U];
+      Simplify[Neg - {I/Sqrt[3], 1/Sqrt[3]}] === {0, 0} && Simplify[{Back[A], Back[B]} - {I/Sqrt[3], 1/Sqrt[3]}] === {0, 0}]]];
+  Check1["last folds: a fibration through both roots", With[{R = MBAnalytica`Private`WithoutSymbolicSumRules[MBExactLastFold`mbeLastFoldFibrate[
+      Sqrt[-Global`psParameter1] + 2 Sqrt[Global`psParameter1], x, Global`psParameter1/2]]},
+    Simplify[((R["Sfib"] /. R["RootBack"]) /. Global`psParameter1 -> 1/3) - (2 + I)/Sqrt[3]] === 0]];
+  (* R6.5 the keys of the pieces carry the code of the engine: a value computed before a fix of the solvers was served
+     after it, with the same key for 5045340 and c51fb0a (review of c51fb0a) *)
+  Check1["piece keys change with the code of the engine", Module[{Dir = CreateDirectory[], Src, A, B},
+    Src = MBAnalytica`SymbolicInt`Private`$mbtSourceDirectory;
+    Scan[CopyFile[#, FileNameJoin[{Dir, FileNameTake[#]}]] &, FileNames["mbe*Barnes*.m", Src]];
+    A = MBAnalytica`SymbolicInt`Private`mbtCodeStateOf[Dir];
+    With[{St = OpenAppend[FileNameJoin[{Dir, "mbeBarnesPreReduce.m"}]]}, WriteString[St, "\n(* a fix *)\n"]; Close[St]];
+    B = MBAnalytica`SymbolicInt`Private`mbtCodeStateOf[Dir];
+    MBAnalytica`SymbolicInt`Private`$mbtCacheVersion === 6 && A =!= B &&
+      MBAnalytica`SymbolicInt`Private`mbtFingerprintOf[A] =!= MBAnalytica`SymbolicInt`Private`mbtFingerprintOf[B] &&
+      MBAnalytica`SymbolicInt`Private`mbtNativeFingerprint[] ===
+        MBAnalytica`SymbolicInt`Private`mbtFingerprintOf[MBAnalytica`SymbolicInt`Private`mbtCodeState[]]]];
   (* R5.3 a divergent endpoint coefficient is zero only exactly, or for a certified job by the numbers: the constant
      G[0, 1 + 1/10^13] = Log[1 + 1/10^13] passed as zero through a scale with its G set to 1, and the divergent integral of
      G[0, 1 + 1/10^13] (G[0, x] - G[1, x])/x got Pi^2 G[0, 1 + 1/10^13]/6 (review of 5045340) *)

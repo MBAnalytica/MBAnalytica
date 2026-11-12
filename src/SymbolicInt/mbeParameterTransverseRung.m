@@ -113,6 +113,8 @@ fixedBarnesVariableUncached[ig_, v_, vars_, ctr_] := Module[
   If[derivativeIndex =!= None, shifted[[derivativeIndex]] += aux];
   a = (shifted[[plus]] /. v -> 0); b = (shifted[[minus]] /. v -> 0);
   cs = Global`mbeBPRNewton[p["poly"], v, First[a]];
+  (* an incomplete expansion is a refusal: its coefficients do not give back the polynomial (review of c51fb0a) *)
+  If[! ListQ[cs], Return[$Failed, Module]];
   terms = Table[cs[[j + 1]] Times @@ Flatten[Outer[Gamma[#1 + #2] &, a + {j, 0}, b]]/
     Gamma[Total[a] + Total[b] + j], {j, 0, Length[cs] - 1}];
   Do[sign = Coefficient[legs[[i]], v];

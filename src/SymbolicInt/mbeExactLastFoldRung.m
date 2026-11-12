@@ -78,9 +78,20 @@ rootReg=<||>;rootBack={};rootCounter=0;fibCache=<||>;basepoint=u/2;xv=Null;refus
    of the fibration (Together/Apart/FactorList) never rationalizes a conjugate pair into an unsplit quadratic
    (MB14au r51 s2: FIB_BAD_WORD).  Back substitution: backRules[] = lfRoot -> explicit roots, lfSq -> Sqrt[d]. *)
 sqReg=<||>;sqBack={};sqCounter=0;
+(* a radicand r is written through a registered one r0 only when Sqrt[r] = c Sqrt[r0] holds for the PRINCIPAL roots
+   on 0 < u < 1, with c free of roots: c is the ratio of the principal roots, c^2 r0 = r exactly, and the identity holds
+   at three points of the domain.  Sqrt[r/r0] alone is no such ratio: with -u registered first, Sqrt[u] became
+   Sqrt[u/(-u)] Sqrt[-u] = I Sqrt[-u], which is -Sqrt[u] for u > 0 (review of c51fb0a).  Otherwise r gets a
+   placeholder of its own *)
+sqRatio[r_,r0_]:=Module[{c},
+  c=Quiet@TimeConstrained[Simplify[Sqrt[r]/Sqrt[r0],Assumptions->0<u<1],10,$Failed];
+  If[c===$Failed||!FreeQ[c,Power[_,_Rational]|Abs|Sqrt|Arg|Sign|Re|Im|ConditionalExpression|Piecewise],Return[$Failed,Module]];
+  If[!TrueQ[Together[c^2 r0-r]===0],Return[$Failed,Module]];
+  If[!AllTrue[{1/3,2/7,5/9},Function[u0,With[{d=Quiet@N[(c Sqrt[r0]-Sqrt[r])/.u->u0,30],m=Quiet@N[Abs[Sqrt[r]]/.u->u0,30]},
+      NumericQ[d]&&NumericQ[m]&&Abs[d]<=10^-20 Max[1,m]]]],Return[$Failed,Module]];
+  c];
 sqSym[r_]:=sqSym[r]=Module[{hit=None},
-  Do[Module[{q,sq},q=Simplify[r/r0,Assumptions->0<u<1];sq=Simplify[Sqrt[q],Assumptions->0<u<1];
-    If[FreeQ[sq,Power[_,_Rational]]&&FreeQ[sq,Abs]&&FreeQ[sq,Sqrt],hit=sq*sqReg[r0];Break[]]],{r0,Keys[sqReg]}];
+  Do[Module[{c=sqRatio[r,r0]},If[c=!=$Failed,hit=c*sqReg[r0];Break[]]],{r0,Keys[sqReg]}];
   If[hit=!=None,Return[hit]];
   Module[{sym=Symbol["Global`lfSq"<>ToString[++sqCounter]]},sqReg[r]=sym;sqBack=Join[sqBack,{sym->Sqrt[r]}];sym]];
 (* a radicand carrying perfect-square factors in the fibration variable (engine root realizations such as

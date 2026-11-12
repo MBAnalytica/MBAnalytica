@@ -641,13 +641,34 @@ $mbtFailedPieces = {};
    HarmonicSums-Indeterminate fast-path cache poisoning found on 2026-08-28; v4 (2026-11-09) drops every value computed
    before the native integrators refused cubes with nonlinear factors and before the complete corner search; v5
    (2026-11-10) every value computed before the corner search counted the unions of the vanishing sets and the vanishing
-   orders of the letters (a corner it missed could give a cube without its pole). *)
-$mbtCacheVersion = 5;
-(* the SHA-256 hashes of the native integrators (the plain and the guarded HyperFLINT) are part of every piece key, so
-   that a value computed by another build of the integrators is never reused (2026-11-09) *)
-mbtNativeFingerprint[] := mbtNativeFingerprint[] = Hash[{
+   orders of the letters (a corner it missed could give a cube without its pole); v6 (2026-11-12) every value computed
+   before the exact endpoint tests, the faced corners that stay away from their ends, the split of square factors and
+   the complete Newton expansion of the Barnes polynomials (reviews of 07d9877, 5045340 and c51fb0a). *)
+$mbtCacheVersion = 6;
+(* the SHA-256 hashes of the native integrators (the plain and the guarded HyperFLINT), the dependencies and the code of
+   the engine are part of every piece key, so that a value computed by another build of the integrators, of a dependency
+   or of the engine itself is never reused (2026-11-09).  The keys of the pieces named the integrators and the
+   dependencies only, so that a value computed before a fix of the engine's own solvers was still served after it, the
+   same key for 5045340 and c51fb0a (review of c51fb0a); the residue store had its own code state *)
+mbtNativeFingerprint[] := mbtNativeFingerprint[] = mbtFingerprintOf[mbtCodeState[]];
+mbtFingerprintOf[CodeState_] := Hash[{
   Map[If[StringQ[#] && FileExistsQ[#], FileHash[#, "SHA256"], None] &,
-    {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], mbtDependencyState[]}, "SHA256"];
+    {Global`$MBStandardHyperFLINTBinary, Global`$MBStandardHyperFLINTGuardedBinary}], mbtDependencyState[], CodeState}, "SHA256"];
+(* the code of the engine: every code file of the engine folder and of its subfolders of closers, and the MB tools of
+   dep/MB, by name and content, computed once per kernel.  Paths are relative, so that a package moved to another folder
+   keeps its keys *)
+$mbtSourceDirectory = DirectoryName[$InputFileName];
+mbtCodeState[] := mbtCodeState[] = mbtCodeStateOf[$mbtSourceDirectory];
+mbtCodeStateOf[d_] := Module[{mb, files},
+  mb = If[StringQ[Global`$MBStandardVendorDir], FileNameJoin[{Global`$MBStandardVendorDir, "MB"}], None];
+  files = If[! StringQ[d] || ! DirectoryQ[d], {}, Join[
+    FileNames[{"*.m", "*.wl", "*.py", "*.wls"}, d],
+    FileNames[{"*.m", "*.wl", "*.py"}, FileNameJoin[{d, "multifold_close"}]],
+    FileNames[{"*.m", "*.wl", "*.py"}, FileNameJoin[{d, "intvolflint"}]],
+    FileNames[{"*.m", "*.wl"}, FileNameJoin[{d, "mbtools"}]],
+    If[StringQ[mb] && DirectoryQ[mb], FileNames[{"*.m", "*.wl"}, mb], {}]]];
+  files = Select[DeleteDuplicates[files], FileExistsQ[#] && ! DirectoryQ[#] &];
+  Hash[Map[{FileNameTake[#, -2], FileHash[#, "SHA256"]} &, Sort[files]], "SHA256"]];
 (* the identity of what a value depends on besides the integrators and the code of the engine: the Wolfram version, the
    third-party packages (PolyLogTools, HPL with the manifest of its tables, HypExp, HyperIntica, the manifests of the
    downloaded files and the patches), the sixth-root tables, the MZV reductions of the integrator and the GiNaC shell.

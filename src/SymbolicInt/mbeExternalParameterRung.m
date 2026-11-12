@@ -104,6 +104,7 @@ eliminate[f_, v_, vars_, ep_, dom_] := Module[{sc, p, pl, mn, a, b, yy, cs, valu
   If[yy =!= 1 && Length[a] === 2,
     b = SortBy[b, Total[Abs[(a + #) /. ep -> 0]] &]];
   cs = Global`mbeBPRNewton[p["poly"], v, First[a]];
+  If[! ListQ[cs], Return[$Failed, Module]];
   value = Sum[
     If[Length[a] === 1,
       cs[[n + 1]] yy^b[[1]] Gamma[a[[1]] + n + b[[1]]]/(1 + yy)^(a[[1]] + n + b[[1]]),

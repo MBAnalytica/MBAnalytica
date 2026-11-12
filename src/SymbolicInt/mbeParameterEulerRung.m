@@ -19,24 +19,40 @@ If[DownValues[baseVarSymbolQ] === {},
 If[DownValues[baseFresh] === {},
   DownValues[baseFresh] = DownValues[Global`bwsFresh] /. Global`bwsFresh -> baseFresh];
 
-parameterPoints[pars_, dom_] := Module[{grid, pt, spread},
+(* the families of points with pairwise distinct coordinates, for any number of parameters: the four families of eight
+   coordinates of 2026-10, unchanged, and their continuation.  With nine parameters no family was long enough and only
+   diagonal points were left, u = v at all of them, where the candidates of (Log[1 + u] - Log[1 + v])/(u - v) have a
+   removable singularity, and ExpandInt refused the integral (review of c51fb0a) *)
+spreadFamilies[n_Integer] := Module[{families},
+  families = {Table[k/(2 k + 1), {k, n}],
+    Join[{1/2, 2/7, 3/8, 2/9, 5/12, 3/10, 4/11, 5/13}, Table[k/(3 k + 1), {k, 9, Max[9, n]}]],
+    Table[(k + 1)/(2 k + 1), {k, n}],
+    Join[{2, 3}, Table[(2 k - 1)/(k - 1), {k, 3, Max[3, n]}]]};
+  Map[Take[#, n] &, Select[families, Length[#] >= n && DuplicateFreeQ[Take[#, n]] &]]];
+(* the admissible points of the domain, those with pairwise distinct coordinates first: up to three parameters the full
+   grid, more (a three-site cosmological sector has four or more) the families above, then the diagonal grid points, and
+   points of FindInstance when fewer than two have distinct coordinates *)
+parameterPointList[pars_, dom_] := Module[{grid, pt, distinctQ},
   If[pars === {}, Return[{{}, {}}, Module]];
-  (* up to three parameters: the full grid; more (a three-site cosmological sector has four or more): well-spread
-     points with distinct coordinates, so that no two parameters coincide, then the diagonal grid points *)
-  spread = {{1/3, 2/5, 3/7, 4/9, 5/11, 6/13, 7/15, 8/17}, {1/2, 2/7, 3/8, 2/9, 5/12, 3/10, 4/11, 5/13},
-    {2/3, 3/5, 4/7, 5/9, 6/11, 7/13, 8/15, 9/17}, {2, 3, 5/2, 7/3, 9/4, 11/5, 13/6, 15/7}};
+  distinctQ[p_] := DuplicateFreeQ[Values[p]];
   grid = If[Length[pars] <= 3, Tuples[{1/3, 2/3, 1/2, 2, 3}, Length[pars]],
-    Join[Map[Take[#, Length[pars]] &, Select[spread, Length[#] >= Length[pars] &]],
-      Map[ConstantArray[#, Length[pars]] &, {1/3, 2/3, 1/2, 2, 3}]]];
+    Join[spreadFamilies[Length[pars]], Map[ConstantArray[#, Length[pars]] &, {1/3, 2/3, 1/2, 2, 3}]]];
   grid = Thread[pars -> #] & /@ grid;
   (* points with pairwise distinct coordinates first: equal parameters lie on spurious singularities of many candidate
      representations (letters u_i - u_j), where no candidate evaluates and the source gate refused correct results *)
-  grid = Join[Select[grid, DuplicateFreeQ[Values[#]] &], Select[grid, ! DuplicateFreeQ[Values[#]] &]];
+  grid = Join[Select[grid, distinctQ], Select[grid, ! distinctQ[#] &]];
   pt = Select[grid, TrueQ[dom /. #] &];
-  (* a domain that no grid point reaches, such as 0 < u - v < 1/100, gets points of FindInstance, exact, and with
-     distinct coordinates first: with no point the source gate refused every closure on it (review of 07d9877) *)
-  If[Length[pt] < 2, pt = DeleteDuplicates[Join[pt, domainInstances[pars, dom]]]];
-  Take[pt, UpTo[2]]];
+  (* a domain that no grid point with distinct coordinates reaches, such as 0 < u - v < 1/100, gets points of
+     FindInstance, exact, and with distinct coordinates first: with no point the source gate refused every closure on it
+     (review of 07d9877); two diagonal points did not count as enough (review of c51fb0a) *)
+  If[Count[pt, _?distinctQ] < 2,
+    pt = DeleteDuplicates[Join[pt, domainInstances[pars, dom]]];
+    pt = Join[Select[pt, distinctQ], Select[pt, ! distinctQ[#] &]]];
+  pt];
+parameterPoints[pars_, dom_] := Take[parameterPointList[pars, dom], UpTo[2]];
+(* the admissible points beyond the two of a closure, for the source gate: a candidate without a value at one of its
+   points is checked at the next of them (Block in closePiece) *)
+gateSparePoints = {};
 (* exact points of the domain dom of the parameters pars from FindInstance; a coordinate that is not exact is rationalized
    only as far as the point stays in the domain *)
 domainInstances[pars_, dom_] := Module[{inst, exact, pts},
@@ -171,15 +187,21 @@ parameterNumericValue[expr_, seconds_: 25] := Module[{here = Directory[], value,
     If[Directory[] =!= here, SetDirectory[here]]];
   If[NumericQ[value], value, $Failed]];
 
-sourceGate[ig_, ctr_, vars_, val_, pars_, points_] := Module[{preds, ast, tmp, req, resp, proc, answer, python, sampleKey, samples, candidateKey, saved},
-  candidateKey = Hash[{"CandidateCheck", ig, ctr, vars, pars, points, Expand[val]}, "SHA256"];
+sourceGate[ig_, ctr_, vars_, val_, pars_, points0_] := Module[{preds, ast, tmp, req, resp, proc, answer, python, sampleKey, samples, candidateKey, saved, points},
+  candidateKey = Hash[{"CandidateCheck", ig, ctr, vars, pars, points0, gateSparePoints, Expand[val]}, "SHA256"];
   saved = If[AssociationQ[$sourceGateSamples], Lookup[$sourceGateSamples, candidateKey, None], None];
   If[AssociationQ[saved], $lastSourceGate = saved; Return[TrueQ[Lookup[saved, "pass", False]], Module]];
   $lastSourceGate = <|"pass" -> False, "reason" -> "Source diagnostic not completed."|>;
   ast = sourceAST[ig, vars, pars]; If[!FreeQ[ast, $Failed], Return[False, Module]];
-  preds = Table[With[{v = parameterNumericValue[val /. pt]},
-    If[!NumericQ[v], Return[False, Module]];
-    <|"parameters" -> N[pars /. pt], "value" -> N[{Re[v], Im[v]}]|>], {pt, points}];
+  (* a candidate without a value at one of the points (a removable singularity of its representation, such as u = v)
+     is checked at the next admissible point of the domain instead, never at fewer points (review of c51fb0a) *)
+  preds = {};
+  points = {};
+  Do[If[Length[points] < Length[points0], With[{v = parameterNumericValue[val /. pt]},
+      If[NumericQ[v], AppendTo[points, pt];
+        AppendTo[preds, <|"parameters" -> N[pars /. pt], "value" -> N[{Re[v], Im[v]}]|>]]]],
+    {pt, Join[points0, Select[gateSparePoints, ! MemberQ[points0, #] &]]}];
+  If[Length[points] < Length[points0], Return[False, Module]];
   tmp = CreateDirectory[]; req = FileNameJoin[{tmp, "request.json"}]; resp = FileNameJoin[{tmp, "response.json"}];
   sampleKey = Hash[{ig, ctr, vars, pars, points}, "SHA256"];
   samples = If[AssociationQ[$sourceGateSamples], Lookup[$sourceGateSamples, sampleKey, <||>], <||>];
@@ -496,7 +518,7 @@ closePiece[ig_, ctr_, vars_, pars_, dom_, seconds_] := Module[{key, saved, value
   centered = centerParameterContour[kernel, ctr, vars, dom];
   If[FailureQ[centered], Return[centered, Module]];
   evaluationContour = If[AssociationQ[centered], centered["Contour"], ctr];
-  value = TimeConstrained[closePieceUncached[kernel, evaluationContour, vars, pars, dom, seconds],
+  value = TimeConstrained[Block[{gateSparePoints = {}}, closePieceUncached[kernel, evaluationContour, vars, pars, dom, seconds]],
     seconds, fail["Coefficient closure timed out.", <|"SecondsAllowed" -> seconds|>]];
   (* the last fallback: the trig-pair Barnes-to-Euler closer (mbeParameterTrigPairRung.m), with its own exactness
      contract and source gate *)
@@ -530,7 +552,10 @@ closePieceUncached[ig_, ctr_, vars_, pars_, dom_, seconds_] := Module[{points, c
      workflow: construct their Euler cubes directly first. Transverse
      reductions remain a fallback when that construction or closure fails. *)
   If[Length[vars] > 5, Return[fail["Coupled parameter source gate supports at most five remaining MB folds after transverse reduction."], Module]];
-  points = parameterPoints[pars, dom]; If[Length[points] < 2, Return[fail["Could not select two parameter points satisfying the domain."], Module]];
+  points = parameterPointList[pars, dom];
+  gateSparePoints = Drop[points, UpTo[2]];
+  points = Take[points, UpTo[2]];
+  If[Length[points] < 2, Return[fail["Could not select two parameter points satisfying the domain."], Module]];
   direct = slopeTwo[ig, ctr, vars, dom];
   If[direct =!= $Failed && exactQ[direct, pars] && sourceGate[ig, ctr, vars, direct, pars, points], Return[direct, Module]];
   If[DownValues[sixGammaClose] =!= {},

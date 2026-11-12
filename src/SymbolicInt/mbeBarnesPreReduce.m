@@ -54,11 +54,19 @@ mbeBPRDenToPoly[p_, v_] := Module[{num = p["num"], den = p["den"], poly = p["pol
      poly *= Product[d + j, {j, 0, k - 1}]], {d, den}];
   If[! ok, $Failed, Join[p, <|"num" -> num, "den" -> {}, "poly" -> Expand[poly]|>]]];
 
-(* Newton expansion of the polynomial P(v) in the basis (v+a)_j : P = Sum c_j Prod_{i<j}(v+a+i) *)
-mbeBPRNewton[P_, v_, a_] := Module[{Q = Expand[P], cs = {}, j = 0, c},
-  While[Q =!= 0 && j <= 40,
+(* Newton expansion of the polynomial P(v) in the basis (v+a)_j : P = Sum c_j Prod_{i<j}(v+a+i), through the degree of
+   P, or $Failed when P is no polynomial in v or the coefficients do not give back P exactly.  The loop stopped after
+   j = 40 and returned the coefficients so far: the degree-41 polynomial (v+1)...(v+41) gave 41 zeros, which reproduce
+   0, and the reduction of a small integral with it passed the numerical gate as 0 (review of c51fb0a) *)
+mbeBPRNewton[P_, v_, a_] := Module[{Q = Expand[P], cs = {}, j = 0, c, deg},
+  If[! PolynomialQ[Q, v], Return[$Failed, Module]];
+  deg = If[Q === 0, -1, Exponent[Q, v]];
+  While[Q =!= 0 && j <= deg,
     c = Simplify[Q /. v -> -a - j]; AppendTo[cs, c];
     Q = Expand[Cancel[Together[(Q - c)/(v + a + j)]]]; j++];
+  If[Q =!= 0, Return[$Failed, Module]];
+  If[! TrueQ[Expand[Sum[cs[[k + 1]] Product[v + a + i, {i, 0, k - 1}], {k, 0, Length[cs] - 1}] - P] === 0],
+    Return[$Failed, Module]];
   cs];
 
 mbeBPRRe[e_, ctr_] := Quiet@Check[Re[N[e /. ctr, 30]], $Failed];
@@ -102,6 +110,7 @@ mbeBPRReduceVar[intg_, v_, vars_, ctr_] := Module[{p, left, right, a, a2, b, b2,
   If[AnyTrue[cross, Abs[If[#[[1]] === "right", mbeBPRRe[#[[2]] + #[[3]], ctr], mbeBPRRe[-#[[2]] - #[[3]], ctr]] - cv] < 10^-9 &],
     mbeBPRLog["variable ", v, ": a pole lies on the contour -> refused"]; Return[$Failed]];
   cs = mbeBPRNewton[p["poly"], v, a];
+  If[! ListQ[cs], mbeBPRLog["variable ", v, ": the Newton expansion of the polynomial is incomplete -> refused"]; Return[$Failed]];
   mbeBPRLog["variable ", v, ": legs (", a, "+v)(", a2, "+v)(", b, "-v)(", b2, "-v), polynomial degree ", Length[cs] - 1,
     " -> first lemma with ", Length[cross], " crossed pole(s) ", cross];
   terms = Table[With[{j = k - 1},

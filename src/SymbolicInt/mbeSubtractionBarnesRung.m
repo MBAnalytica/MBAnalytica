@@ -51,6 +51,7 @@ sbrReduceVar[f_, v_, vars_List, ctr0_List, ep_] := Catch[Module[
   Do[Do[AppendTo[cross, {"right", b, j}], {j, 0, Ceiling[cv - realAt[b]] - 1}], {b, bb}];
   Do[Do[AppendTo[cross, {"left", a, j}], {j, 0, Ceiling[-realAt[a] - cv] - 1}], {a, aa}];
   cs = mbeBPRNewton[p["poly"], v, aa[[1]]];
+  If[! ListQ[cs], sbrFail["Newton expansion did not reproduce the entire polynomial"]];
   polynomialCheck = Expand[Sum[cs[[j + 1]] Pochhammer[v + aa[[1]], j], {j, 0, Length[cs] - 1}] - p["poly"]];
   If[! TrueQ[Simplify[polynomialCheck] === 0], sbrFail["Newton expansion did not reproduce the entire polynomial"]];
   terms = Table[p["rest"] cs[[j + 1]]

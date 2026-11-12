@@ -51,19 +51,26 @@ CosmoVertexCoefficients[Edges_List, Later_List, XX_List, YY_List, KLegs_List] :=
   {V, Length[XX]}];
 
 
-(* the coefficients after the pushes: a pushed vertex carries everything pushed into it *)
-CosmoPushed[Edges_List, Push_List, C0_List] := Module[{Cs, Prev, Earlier},
+(* the coefficients after the pushes: a pushed vertex carries everything pushed into it.  A vertex pushes along a line
+   on which it is the later end, so the pushes follow the oriented tree, which has no cycle, and every vertex pushes into
+   at most one other.  One pass in a topological order of the oriented tree (every later end before the earlier end of
+   its line) adds each accumulated coefficient to its target: the same sums as the NV rounds of propagation over all
+   vertices before, which took 3.8 s for the push search of a chain of 14 vertices (review of c51fb0a).  The order is the
+   same for every push map of an orientation: CosmoPushChoices computes it once *)
+CosmoPushOrder[Edges_List, Later_List, NV_Integer] :=
+  TopologicalSort[Graph[Range[NV], MapThread[DirectedEdge[#2, First[DeleteCases[#1, #2]]] &, {Edges, Later}]]];
+CosmoPushed[Edges_List, Push_List, C0_List] := Module[{NV, Target, Depth},
+  NV = Length[C0];
+  Target = Table[If[Push[[V]] === 0, 0, First[DeleteCases[Edges[[Push[[V]]]], V]]], {V, NV}];
+  Depth = Table[Module[{D1 = 0, W = V},
+      While[Target[[W]] =!= 0 && D1 < NV, W = Target[[W]]; D1++];
+      D1], {V, NV}];
+  Return[CosmoPushed[Edges, Push, C0, Ordering[Depth, All, Greater]]]];
+CosmoPushed[Edges_List, Push_List, C0_List, Order_List] := Module[{Cs, T1},
   Cs = C0;
-  Prev = C0;
-  Do[
-   Cs = C0;
-   Do[
-    If[Push[[V]] =!= 0,
-     Earlier = First[DeleteCases[Edges[[Push[[V]]]], V]];
-     Cs[[Earlier]] = Cs[[Earlier]] + Prev[[V]]],
-    {V, Length[C0]}];
-   Prev = Cs,
-   {Length[C0]}];
+  Scan[If[Push[[#]] =!= 0,
+      T1 = First[DeleteCases[Edges[[Push[[#]]]], #]];
+      Cs[[T1]] = Cs[[T1]] + Cs[[#]]] &, Order];
   Return[Cs]];
 
 
@@ -73,12 +80,13 @@ CosmoPushed[Edges_List, Push_List, C0_List] := Module[{Cs, Prev, Earlier},
    number of pushes at a time and the search stops after Wanted valid ones: all Tuples of the options were formed and
    tested before, while the call needs the first one or the "PushChoice"-th (review of e4f55bd) *)
 CosmoPushChoices[Edges_List, Later_List, XP_List, YP_List, KP_List, XX_List, YY_List, KLegs_List, Wanted_ : Infinity] :=
- Module[{NV, Options1, C0, CS, ValidQ, Good = {}, Level},
+ Module[{NV, Options1, C0, CS, ValidQ, Good = {}, Level, Order1},
   NV = Length[XP];
   Options1 = Table[Join[{0}, Select[Range[Length[Edges]], Later[[#]] === V &]], {V, NV}];
   C0 = CosmoVertexCoefficients[Edges, Later, XP, YP, KP];
   CS = CosmoVertexCoefficients[Edges, Later, XX, YY, KLegs];
-  ValidQ[Push_] := Module[{Cn = CosmoPushed[Edges, Push, C0], Cs = CosmoPushed[Edges, Push, CS]},
+  Order1 = CosmoPushOrder[Edges, Later, NV];
+  ValidQ[Push_] := Module[{Cn = CosmoPushed[Edges, Push, C0, Order1], Cs = CosmoPushed[Edges, Push, CS, Order1]},
     AllTrue[Range[NV], PossibleZeroQ[Cs[[#]]] || TrueQ[Cn[[#]] > 0] &] && ! AllTrue[Cs, PossibleZeroQ]];
   Do[
    Level = Sort[CosmoPushLevel[Options1, K1]];
