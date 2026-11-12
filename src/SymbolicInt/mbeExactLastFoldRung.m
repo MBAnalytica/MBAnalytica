@@ -84,10 +84,19 @@ sqSym[r_]:=sqSym[r]=Module[{hit=None},
   If[hit=!=None,Return[hit]];
   Module[{sym=Symbol["Global`lfSq"<>ToString[++sqCounter]]},sqReg[r]=sym;sqBack=Join[sqBack,{sym->Sqrt[r]}];sym]];
 (* a radicand carrying perfect-square factors in the fibration variable (engine root realizations such as
-   Sqrt[(1-x)^2 x^2 d(u)]) is split: the even powers come out (sign fixed on (0,1)), the rest must be free of x *)
+   Sqrt[(1-x)^2 x^2 d(u)]) is split: the even powers of a factor with a fixed sign on 0 < x < 1, 0 < u < 1 come out,
+   and the rest must be free of x.  A factor with a zero there stays in the radicand, and the fibration refuses it.
+   The sign was read at x = 1/2 alone: (1 - 2 x)^2 came out as 0, so that Sqrt[u (1 - 2 x)^2] became 0 everywhere and
+   a finite integral got a wrong value (review of 5045340) *)
+squareFactorSign[f_]:=squareFactorSign[f]=Module[{zero},
+  (* With: Exists holds its arguments *)
+  zero=With[{X=xv,U=u,F=f},Quiet@TimeConstrained[Reduce[Exists[{X,U},0<X<1&&0<U<1&&F==0],Reals],30,$Failed]];
+  If[zero=!=False,Return[0,Module]];
+  Sign[f/.{xv->1/2,u->1/3}]];
 squareSplit[r_]:=Module[{fl=FactorList[Together[r]],sqf=1,rest=1,sg},
   Do[Module[{f=fac[[1]],m=fac[[2]]},
-    If[EvenQ[m]&&!FreeQ[f,xv],sg=Sign[N[f/.xv->1/2/.u->1/3]];sqf=sqf (sg f)^(m/2),rest=rest f^m]],{fac,fl}];
+    sg=If[EvenQ[m]&&!FreeQ[f,xv],squareFactorSign[f],0];
+    If[sg===1||sg===-1,sqf=sqf (sg f)^(m/2),rest=rest f^m]],{fac,fl}];
   {sqf,Together[rest]}];
 algebraize[e_]:=(e/.Power[r_,Rational[pp_,2]]/;!FreeQ[r,xv]&&!FreeQ[r,u]:>With[{ss=squareSplit[r]},If[FreeQ[ss[[2]],xv],ss[[1]]^pp Power[ss[[2]],pp/2],Power[r,pp/2]]])/.Power[r_,Rational[pp_,2]]/;FreeQ[r,xv]&&!FreeQ[r,u]:>sqSym[Together[r]]^pp;
 backRules[]:=Join[rootBack/.sqBack,sqBack];
@@ -228,19 +237,46 @@ derivativeGate[primp_,Sfib_,x_,gnum_]:=Module[{tp=First[gatePts],h=10^-9,pP,pM,s
   pP=gnum[primp/.x->tp+h];pM=gnum[primp/.x->tp-h];sv=gnum[Sfib/.x->tp];
   dv=If[NumericQ[pP]&&NumericQ[pM]&&NumericQ[sv],(pP-pM)/(2h)-sv,"NUMERIC_FAILED"];
   <|"Pass"->(NumericQ[dv]&&Abs[dv]<10^-8 Max[1,Abs[sv]]),"Residual"->dv|>];
-(* an endpoint coefficient vanishes: a number exactly, and an expression in G functions when its value is below 10^-12
-   and below 10^-12 of the largest prefactor of its terms (each term with its G functions set to 1), so that a small
-   prefactor does not pass for a cancellation.  The absolute bound alone took the exact coefficient 1/10^13 of the
-   divergent primitive of (G[0,x] - G[1,x])/(10^13 x) for zero and returned Pi^2/(6 10^13) (review of 07d9877) *)
-endpointZeroQ[c_,gnum_]:=Module[{e=Expand[c/.backRules[]],v,terms,scale},
+(* an endpoint coefficient of a divergent term vanishes when that is established exactly: it is 0 after the expansion
+   or after the rational coefficients of each product of G functions are combined; a constant (free of the parameter)
+   vanishes only when it is exactly 0 once its G functions of numbers are written as logarithms and harmonic
+   polylogarithms.  A value below a bound is no zero: 1/10^13 passed as zero (review of 07d9877), and so did
+   G[0, 1 + 1/10^13] = Log[1 + 1/10^13] through a scale with the G functions set to 1, so that the divergent integral of
+   G[0, 1 + 1/10^13] (G[0, x] - G[1, x])/x got a finite value (review of 5045340).
+   A function of the parameter that cancels only through identities of its G functions (letters rational and algebraic
+   in u, at u/2 and at 1, MB12u) is not decided exactly here.  It counts as zero only for a job with the exact
+   convergence certificate (endpointCertified, mbeExactLastFold), for which the convergence makes it vanish; the
+   numerical comparison then checks the computation and can only refuse: at two values of the parameter, 40 digits,
+   below 10^-30 of its largest term, and never for a single term.  Any other coefficient is refused (REG_NONCANCEL,
+   ZERO_NONCANCEL). *)
+endpointCertified=False;
+endpointExtraGnums={};
+endpointZeroQ[c_,gnum_]:=Module[{e=Expand[c/.backRules[]],exact},
+  exact=endpointExactZeroQ[e];
+  If[exact=!=Undecided,Return[exact,Module]];
+  If[!TrueQ[endpointCertified],Return[False,Module]];
+  AllTrue[Prepend[endpointExtraGnums,gnum],endpointCancelsQ[e,#]&]];
+endpointExactZeroQ[e_]:=Module[{gs,collected,constant},
   If[e===0,Return[True,Module]];
-  If[NumericQ[e],Return[TrueQ[PossibleZeroQ[e]],Module]];
-  v=gnum[e];
-  If[!NumericQ[v]||Abs[v]>=10^-12,Return[False,Module]];
-  terms=If[Head[e]===Plus,List@@e,{e}];
-  scale=Quiet[Max[Abs[Map[gnum[#/.{_G->1,_HPL`HPL->1}]&,terms]]]];
-  If[!NumericQ[scale],Return[True,Module]];
-  Abs[v]<=10^-12 Max[scale,10^-300]];
+  gs=DeleteDuplicates[Cases[e,_G|_HPL`HPL,{0,Infinity}]];
+  collected=If[gs==={},Together[e],Expand[Collect[e,gs,Together]]];
+  If[collected===0,Return[True,Module]];
+  If[FreeQ[collected,u|xv],
+    constant=exactGConstants[collected];
+    Return[FreeQ[constant,_G|_HPL`HPL]&&TrueQ[Quiet[TimeConstrained[FullSimplify[constant],20,constant]]===0],Module]];
+  (* one product vanishes only with a factor, and no G function of the parameter vanishes identically *)
+  If[Head[collected]=!=Plus,Return[False,Module]];
+  Undecided];
+endpointCancelsQ[e_,gn_]:=Module[{v,tv},
+  v=gn[e];
+  tv=Map[gn,List@@e];
+  NumericQ[v]&&VectorQ[tv,NumericQ]&&Abs[v]<=10^-30 Max[Abs[tv]]];
+(* the G functions of numbers that are known in closed form: weight one and the words of zeros as logarithms, and the
+   words in {-1, 0, 1} at a number as harmonic polylogarithms, which HPL evaluates in its constants; any other is kept *)
+exactGConstants[e_]:=Module[{r},
+  r=e/.{G[a_?NumericQ,z_?NumericQ]:>If[a===0,Log[z],Log[1-z/a]],
+    G[w__?NumericQ,z_?NumericQ]/;Union[{w}]==={0}:>Log[z]^Length[{w}]/Length[{w}]!};
+  r/.g:G[w__,z_?NumericQ]/;SubsetQ[{-1,0,1},Union[{w}]]:>PolyLogTools`GToHPL[g]];
 mbeLastFoldIntegrate[Sfib_,rb_List,x_Symbol,gnum_]:=Module[{primp,at1p,at0p,regc,regn,zw,cz,val},
   xv=x;refusal=None;   (* rootBack/sqBack: the module state of the preceding mbeLastFoldFibrate call (rb is its explicit form) *)
   primp=Catch[Total[Map[integrateTerm,List@@(Expand[Sfib]+Global`zzz)/.Global`zzz->0]],lastfold];
@@ -340,7 +376,7 @@ mbeLastFoldCertificate[job_Association]:=Module[{f=ToExpression[job["request"]["
 (* ---- the rung ---- *)
 Options[mbeExactLastFold]={"Order"->Automatic,"Engine"->Automatic,"TestPoint"->1/3,"Basepoint"->Automatic,
   "OutSuffix"->"","RequestsFile"->Automatic,"Write"->True,"CrossCheck"->False,"EngineSeconds"->2400,"Log"->Print,"RequireCertificate"->True,"SplitAtHalf"->False};
-mbeExactLastFold[gdir_String,jid_String,OptionsPattern[]]:=Module[{log=OptionValue["Log"],reqFile,req,job,order,xName,x,head,st,S0,fb,Sfib,rb,cands,u0,gnum,gnumAny,gate1,co,ig,value,vnum,cc,rec,file,t0,tf,cert},
+mbeExactLastFold[gdir_String,jid_String,OptionsPattern[]]:=Module[{log=OptionValue["Log"],reqFile,req,job,order,xName,x,head,st,S0,SNative,fb,Sfib,rb,cands,u0,gnum,gnumAny,gate1,co,ig,value,vnum,cc,rec,file,t0,tf,cert,certified,extraGnums},
   reqFile=If[OptionValue["RequestsFile"]===Automatic,gdir<>"/requests.json",OptionValue["RequestsFile"]];
   req=Import[reqFile,"RawJSON"];If[!KeyExistsQ[req,"jobs"],req=<|"jobs"->{req}|>];job=SelectFirst[req["jobs"],#["id"]===jid&];
   If[!AssociationQ[job],Return[<|"Status"->"NO_SUCH_JOB"|>]];
@@ -356,6 +392,9 @@ mbeExactLastFold[gdir_String,jid_String,OptionsPattern[]]:=Module[{log=OptionVal
   st=mbeLastFoldStage1[gdir,job,order,"Engine"->lastFoldEngine[OptionValue["Engine"]],"OutSuffix"->OptionValue["OutSuffix"],"RequestsFile"->reqFile,"EngineSeconds"->OptionValue["EngineSeconds"]];
   If[st["Status"]=!="ok",log[st["Status"]," ",Lookup[st,"Reason",""]];Return[st]];
   S0=st["S"];
+  (* the native expression, untouched: the first gate compares the fibration with it.  It compared with the rewritten
+     expression of mbeLastFoldFibrate, which carried the defect of the rewriting into both sides (review of 5045340) *)
+  SNative=S0;
   log["STAGE1 ok ",Round[AbsoluteTime[]-t0]," s, terms ",st["Terms"]];
   log["S: ",Length[List@@(S0+Global`zzz)]-1," terms, ",Length[DeleteDuplicates[Cases[S0,_G,{0,Infinity}]]]," words"];
   tf=AbsoluteTime[];
@@ -372,12 +411,18 @@ mbeExactLastFold[gdir_String,jid_String,OptionsPattern[]]:=Module[{log=OptionVal
   log["TESTPOINT after fibration u0 = ",u0];
   gnum=makeGnum[u0];
   gnumAny=Function[e,Module[{r="NUMERIC_FAILED"},Do[r=makeGnum[uc][e];If[NumericQ[r],u0=uc;Break[]],{uc,Prepend[DeleteCases[cands,u0],u0]}];r]];   (* the exact result never depends on the test point *)
-  gate1=Table[{xp,gnum[S0/.x->xp],gnum[(Sfib/.rb)/.x->xp]},{xp,gatePts}];
+  gate1=Table[{xp,gnum[SNative/.x->xp],gnum[(Sfib/.rb)/.x->xp]},{xp,gatePts}];
   Do[log["GATE1 x=",g[[1]]," S ",g[[2]]," Sfib ",g[[3]]],{g,gate1}];
   If[!AllTrue[gate1,NumericQ[#[[2]]]&&NumericQ[#[[3]]]&&Abs[#[[2]]-#[[3]]]<10^-12&],log["GATE1_FAILED ",lastNumericFailure];Return[<|"Status"->"GATE1_FAILED","Gate1"->gate1,"Reason"->lastNumericFailure|>]];
   co=mbeLastFoldCoalescenceQ[S0,x,u0];
   log["COALESCENCE ",co["Coalescing"]," endpoint hits ",Length[co["EndpointHits"]]," pair hits ",Length[co["PairHits"]]];
-  ig=If[TrueQ[OptionValue["SplitAtHalf"]],<|"Status"->"ENDPOINT_POLE_AT_ONE"|>,mbeLastFoldIntegrate[Sfib,rb,x,gnumAny]];
+  (* the certificate makes the divergent coefficients of the primitive vanish: a cancellation that is not exact is
+     checked at u0 and at a second value of the parameter (endpointZeroQ) *)
+  certified=TrueQ[cert["Certified"]];
+  extraGnums=Module[{u1=SelectFirst[DeleteCases[cands,u0],Function[uc,NumericQ[makeGnum[uc][(Sfib/.rb)/.x->First[gatePts]]]],None]},
+    If[u1===None,{},{makeGnum[u1]}]];
+  ig=If[TrueQ[OptionValue["SplitAtHalf"]],<|"Status"->"ENDPOINT_POLE_AT_ONE"|>,
+    Block[{endpointCertified=certified,endpointExtraGnums=extraGnums},mbeLastFoldIntegrate[Sfib,rb,x,gnumAny]]];
   If[ig["Status"]==="ENDPOINT_POLE_AT_ONE",
     (* split at 1/2: [0,1/2] from the fibration above, [1/2,1] from the fibration of the reflected integrand S(1-y) *)
     Module[{igA,SR,fbR,igB,sp,ls},
@@ -388,14 +433,14 @@ mbeExactLastFold[gdir_String,jid_String,OptionsPattern[]]:=Module[{log=OptionVal
       If[sp===None,log["SPLITPOINT_REFUSED"];Return[<|"Status"->"SPLITPOINT_REFUSED"|>]];
       splitPoint=sp;
       log["SPLIT_AT ",sp,": reflected fibration for the [",sp,",1] half"];
-      igA=mbeLastFoldIntegrateHalf[Sfib,rb,x,gnumAny];
+      igA=Block[{endpointCertified=certified,endpointExtraGnums=extraGnums},mbeLastFoldIntegrateHalf[Sfib,rb,x,gnumAny]];
       If[igA["Status"]=!="ok",log["HALF_A ",igA["Status"]," ",Lookup[igA,"ZeroWordCoefficient",Lookup[igA,"Residual",""]]," numeric failure: ",lastNumericFailure];Return[Join[KeyDrop[igA,"Primitive"],<|"Stage1"->KeyDrop[st,"S"]|>]]];
       SR=Expand[S0/.x->1-x];SR=SR/.G[ws__,1]:>G[Sequence@@(Together/@{ws}),1];
       splitPoint=1-sp;   (* the reflected half runs over y in [0,1-sp] *)
       fbR=mbeLastFoldFibrate[SR,x,(1-sp)/2];
       If[fbR["Status"]=!="ok",log["HALF_B_FIB ",fbR["Status"]];Return[<|"Status"->fbR["Status"],"Stage1"->KeyDrop[st,"S"]|>]];
       log["REFLECTED FIBRATION done; algebraic constants ",Length[fbR["AlgebraicConstants"]]];
-      igB=mbeLastFoldIntegrateHalf[fbR["Sfib"],fbR["RootBack"],x,gnumAny];
+      igB=Block[{endpointCertified=certified,endpointExtraGnums=extraGnums},mbeLastFoldIntegrateHalf[fbR["Sfib"],fbR["RootBack"],x,gnumAny]];
       If[igB["Status"]=!="ok",log["HALF_B ",igB["Status"]," ",Lookup[igB,"ZeroWordCoefficient",Lookup[igB,"Residual",""]]," numeric failure: ",lastNumericFailure];Return[Join[KeyDrop[igB,"Primitive"],<|"Stage1"->KeyDrop[st,"S"]|>]]];
       log["HALVES ",gnumAny[igA["Value"]]," + ",gnumAny[igB["Value"]]];
       ig=<|"Status"->"ok","Value"->igA["Value"]+igB["Value"],"RegulatorCoefficients"->{0},"ZeroWordCoefficient"->Join[igA["ZeroWordCoefficient"],igB["ZeroWordCoefficient"]],"Primitive"->igA["Primitive"]|>]];

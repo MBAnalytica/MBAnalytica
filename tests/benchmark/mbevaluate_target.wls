@@ -205,8 +205,10 @@ If[Kind === "inc",
   Do[Module[{C1, B1, Exact1, Num1, Rel},
      C1 = Coefficient[Expand[GForm], Eps, K];
      B1 = SeriesCoefficient[Val, {Eps, 0, K}];
-     Exact1 = ExactZeroQ[Re[C1 /. HPL`HPLs8a -> Zeta[8] + Zeta[5, 3]] - B1];
-     Rel = If[Exact1, 0, Module[{X = NumberOf[Re[C1], 40], Y = NumberOf[B1, 40]},
+     (* the complete value, not its real part: an imaginary part of the result is a difference too, and 7 + I passed
+        against 7 (review of 5045340) *)
+     Exact1 = ExactZeroQ[(C1 /. HPL`HPLs8a -> Zeta[8] + Zeta[5, 3]) - B1];
+     Rel = If[Exact1, 0, Module[{X = NumberOf[C1, 40], Y = NumberOf[B1, 40]},
        If[NumericQ[X] && NumericQ[Y], N[Abs[X - Y]/(1 + Abs[Y]), 3], Infinity]]];
      OrderPass[K] = Exact1 || Rel < 10^-30;
      Print["MBEVAL_ORDER ", Name, " eps^", K, "  ", If[Exact1, "exact difference 0", "relative difference " <> ToString[Rel]],
@@ -267,7 +269,7 @@ If[Kind === "u" && Method1 === "SymbolicSum",
      (* without HarmonicSums loaded (a recheck) the bare H of the record is Global`H *)
      Ref = Ref /. Global`H -> HarmonicSums`H;
      Rel = Table[Module[{A = NumberOf[GC /. Global`u -> P, 30], B = HValue[ZetaSym[Ref], P]},
-       If[NumericQ[A] && NumericQ[B], N[Abs[Re[A] - Re[B]]/Max[1, Abs[Re[B]]], 3], Infinity]], {P, {31/100, 7/100}}];
+       If[NumericQ[A] && NumericQ[B], N[Abs[A - B]/Max[1, Abs[B]], 3], Infinity]], {P, {31/100, 7/100}}];
      OrderPass[K] = Max[Rel] < 10^-12;
      Print["MBEVAL_ORDER ", Name, " eps^", K, "  vs record at u = 31/100, 7/100: ", Rel, If[OrderPass[K], "  EQUAL", "  UNEQUAL"]]],
    {K, Lo, Hi}]];

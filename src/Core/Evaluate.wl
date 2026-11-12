@@ -367,6 +367,43 @@ KinematicBases[MBInt_, Kinematics_List] := Module[{VarPattern, Powers, Kin, Num,
   Return[DeleteDuplicates[Bases]]];
 
 
+(* a rational function of the variables, whose value has no branch: Log[2] (1 + x)/x is one, Log[-x] and Sqrt[x] are not *)
+RationalFunctionQ[F_, Vars_List] := Module[{Together1},
+  Together1 = Together[F];
+  Return[PolynomialQ[Numerator[Together1], Vars] && PolynomialQ[Denominator[Together1], Vars]]];
+
+
+(* {prefactor, rest} of an integrand: the prefactor is the product of its factors that are free of the integration
+   variables and of the regulator and are not rational in the kinematic variables, such as Log[-x] or Sqrt[1 - x].
+   The methods solve the rest, and the coefficients are multiplied by the prefactor as the user wrote it, with its
+   principal branch, before the real part is taken.  Inside the methods Log[-x] became Log[x] + I Pi, exact on the
+   derivation domain 0 < x < 1, and that was continued to every x as if it came from the integral: the value of
+   Log[-x] x^ep Gamma[-z] Gamma[1 - z] Gamma[1 + z]^2 at x = -1 was I Pi instead of 0 (review of 5045340) *)
+SplitPrefactor[MBInt_, Kinematics_List, Eps_] := Module[{Inside, Factors, Outside, Others},
+  If[Kinematics === {} || Head[MBInt] =!= Times, Return[{1, MBInt}]];
+  Inside = Alternatives @@ Append[IntegrationVariables[MBInt, Eps], Eps];
+  Factors = List @@ MBInt;
+  Outside = Select[Factors, FreeQ[#, Inside] && ! FreeQ[#, Alternatives @@ Kinematics] &&
+    ! RationalFunctionQ[#, Kinematics] &];
+  If[Outside === {}, Return[{1, MBInt}]];
+  Others = Select[Factors, ! MemberQ[Outside, #] &];
+  Return[{Times @@ Outside, Times @@ Others}]];
+
+
+(* True when the integrand of the methods still has a function of the kinematic variables with branches of its own,
+   outside the powers of its bases and the Gamma functions: a logarithm or a root in a sum, or one whose argument
+   contains the regulator, which SplitPrefactor cannot take out.  The methods may write it on the derivation domain
+   in a form whose continuation is not the principal branch the user wrote, so the result then holds on that domain *)
+InputBranchQ[MBInt_, Kinematics_List, Eps_] := Module[{Inside, VarPattern, Heads1, Powers},
+  If[Kinematics === {}, Return[False]];
+  Inside = Alternatives @@ Append[IntegrationVariables[MBInt, Eps], Eps];
+  VarPattern = Alternatives @@ Kinematics;
+  Heads1 = Cases[{MBInt}, F1_[Args___] /; ! MemberQ[{List, Plus, Times, Power, Gamma, PolyGamma, Complex, Rational}, F1] &&
+    ! FreeQ[{Args}, VarPattern], {0, Infinity}, Heads -> False];
+  Powers = Cases[{MBInt}, Power[A_, E1_] /; ! FreeQ[A, VarPattern] && ! IntegerQ[E1] && FreeQ[E1, Inside], {0, Infinity}];
+  Return[Heads1 =!= {} || Powers =!= {}]];
+
+
 (* the domain on which the methods solve an integral when no domain is given: where every base lies in (0, 1), else
    where every base is positive, and the unit interval for a variable in no base, whose rational factors need no
    branch.  The closed form holds for any values of the variables by analytic continuation, with the principal value
@@ -510,16 +547,17 @@ GivenDomain[Given_, Kinematics_List] := Module[{User, Others, Conjuncts, Res},
 (* the domains of a call: Derivation, on which the methods solve the integral (the one given with ParameterAssumptions,
    else where every base lies in (0, 1)), Real, the given domain, the maps Forward and Back of UnitMaps, Mapped, the
    derivation domain in the mapped variables, Integrand, the integrand of the methods in the mapped variables, Bases,
-   the bases of the integral, and Extension, where every base is positive in the variables that the given domain does
-   not restrict (all of them when none is given).  A
+   the bases of the integral, Extension, where every base is positive in the variables that the given domain does
+   not restrict (all of them when none is given), Unmentioned, these variables, and UnmentionedDerivation, the
+   derivation domain in them.  A
    domain that is no restriction, such as Element[x, Reals], counts as none.  $Failed, with a message, for a given
    domain that is not a satisfiable condition on the kinematic variables, and when no real values make every base
    positive *)
 KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, Derive, Real1, Maps, NoInversion,
-    Integrand, Bases, Extension},
+    Integrand, Bases, Extension, UnmentionedDerive},
   If[Kinematics === {},
     Return[<|"Derivation" -> True, "Real" -> True, "Forward" -> {}, "Back" -> {}, "Mapped" -> True,
-      "Integrand" -> MBInt, "Bases" -> {}, "Extension" -> True|>]];
+      "Integrand" -> MBInt, "Bases" -> {}, "Extension" -> True, "Unmentioned" -> {}, "UnmentionedDerivation" -> True|>]];
   User = GivenDomain[Given, Kinematics];
   If[User === $Failed,
     Message[MBEvaluate::assum, Given /. MBEvaluateBackRules, Kinematics /. MBEvaluateBackRules];
@@ -527,9 +565,11 @@ KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, 
   (* a variable that the given domain does not restrict is treated as without one: the bases in it lie in (0, 1) *)
   Unmentioned = If[User === True, Kinematics, Select[Kinematics, FreeQ[User, #] &]];
   If[User =!= True,
-    Derive = If[Unmentioned === {}, User, User && BasesDomain[MBInt, Unmentioned]];
+    UnmentionedDerive = If[Unmentioned === {}, True, BasesDomain[MBInt, Unmentioned]];
+    Derive = User && UnmentionedDerive;
     Real1 = User,
     Derive = BasesDomain[MBInt, Kinematics];
+    UnmentionedDerive = Derive;
     Real1 = True];
   (* where the result holds in the variables that no domain restricts: where every base in them is positive, unless
      its closed form is proved for all their values (MBEvaluatePrivate) *)
@@ -550,7 +590,8 @@ KinematicDomains[MBInt_, Kinematics_List, Given_] := Module[{User, Unmentioned, 
     If[Integrand[[1]] =!= $Failed, Break[]];
     NoInversion = If[Integrand[[2]] === {}, Kinematics, Join[NoInversion, Integrand[[2]]]]];
   Return[<|"Derivation" -> Derive, "Real" -> Real1, "Forward" -> Maps["Forward"], "Back" -> Maps["Back"],
-    "Mapped" -> Maps["Mapped"], "Integrand" -> Integrand[[1]], "Bases" -> Bases, "Extension" -> Extension|>]];
+    "Mapped" -> Maps["Mapped"], "Integrand" -> Integrand[[1]], "Bases" -> Bases, "Extension" -> Extension,
+    "Unmentioned" -> Unmentioned, "UnmentionedDerivation" -> UnmentionedDerive|>]];
 
 
 (* ::Section:: *)
@@ -832,7 +873,7 @@ Options[MBEvaluatePrivate] = {Method -> Automatic, Verbose -> False, BarnesReduc
 
 MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] := Module[
   {Method1, Settings, Methods, Kinematics, Lo, Coefficients, OpenKeys, Got, Finished, OpenOrders, Evaluated, Domains,
-   MethodInt, Validity, RealDomain, Result},
+   MethodInt, Validity, RealDomain, Result, Split, Prefactor, MBInt1, BranchInput},
   Method1 = OptionValue[Method];
   If[! MemberQ[{Automatic, "SymbolicSum", "ExpandInt", "Subtraction"}, Method1],
     Message[MBEvaluate::method, Method1];
@@ -848,7 +889,14 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
   Kinematics = KinematicVariables[MBInt, MBVar, Eps];
   Say[Settings["Verbose"], "MBEvaluate: methods ", Methods, ", kinematic variables ",
     If[Kinematics === {}, "none", Kinematics /. MBEvaluateBackRules]];
-  Domains = KinematicDomains[MBInt, Kinematics, OptionValue[ParameterAssumptions]];
+  (* the prefactor keeps the branch the user wrote; the methods solve the rest *)
+  Split = SplitPrefactor[MBInt, Kinematics, Eps];
+  Prefactor = Split[[1]];
+  MBInt1 = Split[[2]];
+  If[Prefactor =!= 1, Say[Settings["Verbose"], "MBEvaluate: prefactor ", Prefactor /. MBEvaluateBackRules,
+    " taken out of the integral"]];
+  BranchInput = InputBranchQ[MBInt1, Kinematics, Eps];
+  Domains = KinematicDomains[MBInt1, Kinematics, OptionValue[ParameterAssumptions]];
   If[Domains === $Failed, Return[$Failed]];
   If[Kinematics =!= {},
     Say[Settings["Verbose"], "MBEvaluate: solved on ", Domains["Derivation"] /. MBEvaluateBackRules,
@@ -858,8 +906,12 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
   Settings["Domain"] = Domains["Mapped"];
   (* without a domain given, the real part is taken for every real value, not on the domain the method solved on: the
      method returns the full value *)
-  Settings["MethodComplex"] = Settings["Complex"] || (Kinematics =!= {} && Domains["Real"] =!= Domains["Derivation"]);
-  Lo = WithoutUserValues[LeadingPole[MBInt, Eps, Ord]];
+  (* with a prefactor taken out, the methods return the full value too: the real part of the rest alone, I/2 for
+     I Log[1 - x] Gamma[-z] Gamma[1 - z] Gamma[1 + z]^2 on x > 0, was 0, and so was the result, instead of the real part
+     -Arg[1 - x]/2 of the product *)
+  Settings["MethodComplex"] = Settings["Complex"] || Prefactor =!= 1 ||
+    (Kinematics =!= {} && Domains["Real"] =!= Domains["Derivation"]);
+  Lo = WithoutUserValues[LeadingPole[MBInt1, Eps, Ord]];
   If[! IntegerQ[Lo], Message[MBEvaluate::pole]; Return[$Failed]];
   Say[Settings["Verbose"], "MBEvaluate: orders ", Eps, "^", Lo, " through ", Eps, "^", Ord];
   Coefficients = Association[Map[# -> NotEvaluated[{"not attempted"}] &, Range[Lo, Ord]]];
@@ -887,13 +939,21 @@ MBEvaluatePrivate[MBInt_, MBVar_, {Eps_Symbol, Ord_Integer}, OptionsPattern[]] :
      function of the variables, of the logarithms of the bases and of their powers (ClosedInBasesQ), after the
      logarithms of monomials in the bases became sums of logarithms of the bases (FaithfulLogs); otherwise the result
      carries the condition that these bases are positive, and the real part is taken there (review of 07d9877) *)
+  (* a function with branches of its own left in the integrand of the methods (InputBranchQ): the result holds on the
+     domain on which the methods derived it *)
   Validity = True;
-  If[Domains["Extension"] =!= True,
-    Finished = Block[{DerivationDomain = Domains["Derivation"]}, Module[{Positive1},
-      Positive1 = Select[Domains["Bases"], HoldsOnDomain[# > 0, Kinematics, Domains["Derivation"]] &];
-      WithoutUserValues[Map[FaithfulLogs[#, Positive1, Kinematics] &, Finished]]]];
-    If[! AllTrue[Values[Finished], ClosedInBasesQ[#, Domains["Bases"], Kinematics] &],
-      Validity = Domains["Extension"]]];
+  Which[
+    BranchInput && Domains["Unmentioned"] =!= {},
+      Validity = Domains["UnmentionedDerivation"];
+      Say[Settings["Verbose"], "MBEvaluate: a function of the kinematic variables with branches of its own is inside ",
+        "the integral, the result holds where it was derived"],
+    Domains["Extension"] =!= True,
+      Finished = Block[{DerivationDomain = Domains["Derivation"]}, Module[{Positive1},
+        Positive1 = Select[Domains["Bases"], HoldsOnDomain[# > 0, Kinematics, Domains["Derivation"]] &];
+        WithoutUserValues[Map[FaithfulLogs[#, Positive1, Kinematics] &, Finished]]]];
+      If[! AllTrue[Values[Finished], ClosedInBasesQ[#, Domains["Bases"], Kinematics] &],
+        Validity = Domains["Extension"]]];
+  If[Prefactor =!= 1, Finished = Map[Prefactor*# &, Finished]];
   RealDomain = If[Validity === True, Domains["Real"], Domains["Real"] && Validity];
   Finished = Block[{DerivationDomain = Domains["Mapped"], RealPartDomain = RealDomain},
     WithoutUserValues[Map[RealCoefficient[#, Kinematics, Settings["Complex"]] &, Finished]]];

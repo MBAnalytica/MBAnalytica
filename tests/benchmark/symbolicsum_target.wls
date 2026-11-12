@@ -90,8 +90,9 @@ If[DiffQ,
      If[! FileExistsQ[File1], Print["RESUM_DIFF ", Name, " eps^", K, " no reference"]; Pass = False; Continue[]];
      (* the records write H without its context *)
      Ref = Block[{$ContextPath = Prepend[$ContextPath, "HarmonicSums`"]}, Get[File1]];
+     (* the complete value, not its real part: an imaginary part is a difference too (review of 5045340) *)
      Rel = Table[Module[{A = GValue[GC, P], B = HValue[ZetaSym[Ref], P]},
-       If[NumericQ[A] && NumericQ[B], N[Abs[Re[A] - Re[B]]/Max[1, Abs[Re[B]]], 3], Infinity]], {P, {31/100, 7/100}}];
+       If[NumericQ[A] && NumericQ[B], N[Abs[A - B]/Max[1, Abs[B]], 3], Infinity]], {P, {31/100, 7/100}}];
      If[! (Max[Rel] < 10^-12), Pass = False];
      Print["RESUM_DIFF ", Name, " eps^", K, "  MBEvaluate vs record at u = 31/100, 7/100: ", Rel,
        If[Max[Rel] < 10^-12, "  EQUAL", "  UNEQUAL"]]],

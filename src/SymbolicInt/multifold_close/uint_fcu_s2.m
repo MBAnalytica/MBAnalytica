@@ -335,9 +335,12 @@ s2JetOne[primp_,x_,gnum_]:=Module[{y=Global`s2py,pr,at,lc,pc,Lsym=MBExactLastFol
   pr=primp/.HoldPattern[PolyLogTools`G[w__,x]]:>Sum[MBMellinTower`Private`mtGreg[Drop[{w},k],1] (PolyLogTools`G@@Append[1-Take[{w},k],y]),{k,0,Length[{w}]}];
   pr=Expand[pr/.x->1-y];
   at=s2RegLimitZero[pr,y];
-  lc=Table[gnum[Coefficient[Coefficient[at,y,0],Lsym,j]],{j,1,Max[1,Exponent[at,Lsym]]}];
-  pc=Flatten[Table[gnum[Coefficient[Coefficient[at,y,-k],Lsym,j]],{k,1,Max[1,-Exponent[at,y,Min]]},{j,0,Max[0,Exponent[at,Lsym]]}]];
-  If[!AllTrue[Join[lc,pc],NumericQ[#]&&Abs[#]<10^-12&],Throw[Failure["S2Outer",<|"Reason"->"jet at 1 does not cancel: "<>ToString[N[Join[lc,pc],6]]|>],"s2o"]];
+  (* every divergent coefficient must vanish exactly (MBExactLastFold endpointZeroQ): a value below 10^-12 passed for
+     zero, also a small nonzero constant (review of 5045340) *)
+  lc=Table[Coefficient[Coefficient[at,y,0],Lsym,j],{j,1,Max[1,Exponent[at,Lsym]]}];
+  pc=Flatten[Table[Coefficient[Coefficient[at,y,-k],Lsym,j],{k,1,Max[1,-Exponent[at,y,Min]]},{j,0,Max[0,Exponent[at,Lsym]]}]];
+  If[!AllTrue[Join[lc,pc],MBExactLastFold`Private`endpointZeroQ[#,gnum]&],
+    Throw[Failure["S2Outer",<|"Reason"->"jet at 1 does not cancel exactly: "<>ToString[N[Map[gnum,Join[lc,pc]],6]]|>],"s2o"]];
   Coefficient[Coefficient[Expand[at],Lsym,0],y,0]];
 (* the last fold of the complete integrand: the rung's word integration (partial fractions, GIntegrate, higher poles and
    polynomial parts by parts) + the rational primitive, the rung's derivative gate, the jets at 0 (rung) and at 1 (above) *)
@@ -362,9 +365,10 @@ s2LFIntegrate[integ_,x_,gnum_]:=Module[{terms,gt,rt,primp,dg,at0p,at1p,lc,pc,Lsy
   tB=AbsoluteTime[];Print["    [s2tower]   jet at 1: ",Round[tB-tA]," s"];tA=tB;
   at0p=s2RegLimitZero[primp,x];
   Print["    [s2tower]   jet at 0: ",Round[AbsoluteTime[]-tA]," s"]];
-  lc=Table[gnum[Coefficient[Coefficient[at0p,x,0],Lsym,j]],{j,1,Max[1,Exponent[at0p,Lsym]]}];
-  pc=Flatten[Table[gnum[Coefficient[Coefficient[at0p,x,-k],Lsym,j]],{k,1,Max[1,-Exponent[at0p,x,Min]]},{j,0,Max[0,Exponent[at0p,Lsym]]}]];
-  If[!AllTrue[Join[lc,pc],NumericQ[#]&&Abs[#]<10^-12&],Throw[Failure["S2Outer",<|"Reason"->"jet at 0 does not cancel: "<>ToString[N[Join[lc,pc],6]]|>],"s2o"]];
+  lc=Table[Coefficient[Coefficient[at0p,x,0],Lsym,j],{j,1,Max[1,Exponent[at0p,Lsym]]}];
+  pc=Flatten[Table[Coefficient[Coefficient[at0p,x,-k],Lsym,j],{k,1,Max[1,-Exponent[at0p,x,Min]]},{j,0,Max[0,Exponent[at0p,Lsym]]}]];
+  If[!AllTrue[Join[lc,pc],MBExactLastFold`Private`endpointZeroQ[#,gnum]&],
+    Throw[Failure["S2Outer",<|"Reason"->"jet at 0 does not cancel exactly: "<>ToString[N[Map[gnum,Join[lc,pc]],6]]|>],"s2o"]];
   at0p=Coefficient[Coefficient[Expand[at0p],Lsym,0],x,0];
   (at1p-at0p)/.s2Back[]];
 (* Taylor coefficients of the outer integral, orders 0..dep, from the inner coefficients Jk (functions of Y) and the

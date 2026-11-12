@@ -1204,15 +1204,20 @@ VerifyKey[Struct_List] := {Struct, ProbeRule[]};
 SolveKey[Struct_List] := {Struct, SolveState[]};
 
 
+(* True when the contour value of a structure is skipped on purpose: a scale-ful one without MBCHVerifyDiff.  A skip is
+   no contour value and is never cached.  Cached as $Failed, it was still returned after MBCHVerifyDiff = True in the
+   same kernel, and the structure went unverified (review of 5045340) *)
+VerifySkippedQ[MBVars_] := ! TrueQ[MBCHVerifyDiff] && ! ScaleFreeQ[MBVars /. Cases[MBVars, Q_Subscript :> (Q -> 1)]];
+
+
 (* ground truth for one structure; scale-ful ones give none unless MBCHVerifyDiff *)
 MBVerify[IntVar_, MBVars_, Num_, Den_] := Module[{Key1, Sub, Pr, Res},
+  If[VerifySkippedQ[MBVars], Return[$Failed]];
   Key1 = VerifyKey[{IntVar, MBVars, Num, Den}];
   If[KeyExistsQ[MBVerifyCache, Key1], Return[MBVerifyCache[Key1]]];
   Sub = Cases[MBVars, Q_Subscript :> (Q -> 1)];
   Pr = If[ScaleFreeQ[MBVars /. Sub], {}, ProbeRule[]];
-  If[Pr =!= {} && ! TrueQ[MBCHVerifyDiff],
-     Res = $Failed,
-     Res = SafeEval[ContourValue[IntVar, MBVars, Num, Den, Pr]]];
+  Res = SafeEval[ContourValue[IntVar, MBVars, Num, Den, Pr]];
   MBVerifyCache[Key1] = Res;
   Return[Res]];
 
@@ -3499,7 +3504,8 @@ LoadCellCache[] := Module[{Recs},
   If[! StringQ[MBCHCacheFile] || ! FileExistsQ[MBCHCacheFile], Return[0]];
   Recs = Quiet[ReadList[MBCHCacheFile, Expression]];
   If[! ListQ[Recs], Return[0]];
-  Recs = Select[Recs, MatchQ[#, {"V" | "S", _, _}] &];
+  (* a contour value is a number: a $Failed of an earlier release can be a skip, which is no value *)
+  Recs = Select[Recs, MatchQ[#, {"S", _, _}] || (MatchQ[#, {"V", _, _}] && NumericQ[#[[3]]]) &];
   Scan[If[#[[1]] === "V", MBVerifyCache[#[[2]]] = #[[3]], MBSolveCache[#[[2]]] = #[[3]]] &, Recs];
   Return[Length[Recs]]];
 
@@ -3514,7 +3520,7 @@ PrimeVerify[Structs_] := Module[{Args, New, Batches, Got},
   If[Got > 0, Say["Checkpoint: " <> ToString[Got] <> " records of an earlier run"]];
   Args = Select[Structs, #[[2]] =!= Null &];
   Args = DeleteDuplicates[Map[#[[2 ;; 5]] &, Args]];
-  New = Select[Args, ! KeyExistsQ[MBVerifyCache, VerifyKey[#]] &];
+  New = Select[Args, ! VerifySkippedQ[#[[2]]] && ! KeyExistsQ[MBVerifyCache, VerifyKey[#]] &];
   If[Length[New] < 2 || ! WorkersReady[], Return[Null]];
   SyncWorkers[];
   Say["Contour values of " <> ToString[Length[New]] <> " structures on " <> ToString[$KernelCount] <> " kernels ..."];

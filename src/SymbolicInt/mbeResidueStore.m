@@ -116,7 +116,13 @@ Module[{},
           Global`orsRelease[claim]];
         Return[m, Module]];
       owner = Global`orsOwner[claim];
-      If[ListQ[owner] && owner[[1]] =!= $ProcessID && ! Global`orsAliveQ[owner], Global`orsRelease[claim]; Continue[]];
+      (* the claim of this kernel itself, made by an outer call that closes the same residue: no other process can
+         finish it, so it is closed here at once, and the claim stays with that call *)
+      If[ListQ[owner] && owner[[1]] === $ProcessID && MemberQ[{None, "", Global`orsStartTime[$ProcessID]}, owner[[2]]],
+        Return[compute, Module]];
+      (* a holder that does not run is released, also when its PID is that of this kernel with another start time: such
+         a claim of an earlier process was exempted, and waited for until the wait limit, four hours (review of 5045340) *)
+      If[ListQ[owner] && ! Global`orsAliveQ[owner], Global`orsRelease[claim]; Continue[]];
       If[! ListQ[owner] && DirectoryQ[claim] && Global`orsClaimAge[claim] > Global`$oftClaimGrace, Global`orsRelease[claim]; Continue[]];
       (* a helper does not wait: another process holds this residue, the helper goes on to its next one *)
       If[TrueQ[Global`$orsHelperMode], Return[$Failed, Module]];

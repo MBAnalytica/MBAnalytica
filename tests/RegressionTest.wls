@@ -395,6 +395,43 @@ If[MethodQ["SymbolicSum"],
       MBAnalytica`SymbolicSum`Private`PhaseContinue[PolyLog[2, 2 I Global`MBSymbolicSumPhase]] === $Failed &&
       MBAnalytica`SymbolicSum`Private`PhaseContinue[Log[1 + I/2 Global`MBSymbolicSumPhase]] === Log[1 - I/2] &&
       MBAnalytica`SymbolicSum`Private`PhaseContinue[PolyLog[2, I/2 Global`MBSymbolicSumPhase]] === PolyLog[2, -I/2]]]];
+(* R5.1 a prefactor keeps the branch the user wrote: inside the methods Log[-x] became Log[x] + I Pi, exact on the
+   derivation domain 0 < x < 1, and was continued to every x, I Pi at x = -1 where the integrand vanishes (review of
+   5045340).  The references are independent: the Barnes integral of BarnesKernel is 1/2, and that of BarnesKernel x^z
+   is (1 - x + x Log[x])/(1 - x)^2 *)
+If[MethodQ["SymbolicSum"],
+  Check1["prefactor Log[-x] keeps its branch", With[{R = MBEvaluate[Log[-x] x^ep BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+      Complex -> True]},
+    Simplify[R - Log[-x]/2] === 0 && (R /. x -> -1) === 0]];
+  Check1["prefactor Log[-x], real part", With[{R = MBEvaluate[Log[-x] x^ep BarnesKernel, {ep, 1}, Method -> "SymbolicSum"]},
+    FreeQ[R, ConditionalExpression] && (R /. x -> -1) === 0 && Simplify[(R /. x -> 2) - (Log[2]/2 + ep Log[2]^2/2)] === 0]];
+  Check1["prefactor Log[-x] with a power of x", With[{R = MBEvaluate[Log[-x] x^z BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+      BarnesReduce -> False, Complex -> True], Ref = Log[-x] (1 - x + x Log[x])/(1 - x)^2},
+    AllTrue[{-1/2, 1/3, 3}, Abs[N[(R - Ref) /. x -> #, 30]] < 10^-25 &]]];
+  Check1["prefactor Sqrt[-x]", MBEvaluate[Sqrt[-x] x^ep BarnesKernel, {ep, 0}, Method -> "SymbolicSum", Complex -> True] ===
+    Sqrt[-x]/2];
+  (* the real part is that of the product: the methods took the real part of the rest, I/2, and the result was 0 *)
+  Check1["complex prefactor on a given domain", With[{R = MBEvaluate[I Log[1 - x] BarnesKernel, {ep, 0}, Method -> "SymbolicSum",
+      ParameterAssumptions -> {x > 0}]},
+    AllTrue[{1/2, 2, 5}, Abs[N[(R + Arg[1 - x]/2) /. x -> #, 30]] < 10^-25 &] && Abs[N[R /. x -> 2] + Pi/2] < 10^-12]];
+  Check1["a logarithm inside a sum keeps a condition", With[{R = MBEvaluate[(Log[-x] + ep) x^z BarnesKernel, {ep, 0},
+      Method -> "SymbolicSum", BarnesReduce -> False, Complex -> True]},
+    Head[R] === ConditionalExpression && (R /. x -> -1/2) === Undefined &&
+      Abs[N[(R - Log[-x] (1 - x + x Log[x])/(1 - x)^2) /. x -> 1/2, 30]] < 10^-25]];
+  (* R5.4 a skipped verification is no contour value: cached as $Failed while MBCHVerifyDiff = False, it was returned after
+     MBCHVerifyDiff = True in the same kernel (review of 5045340).  The contour value of Gamma[-s] Gamma[1 + s] x^s at
+     x = 1/2 is 2/3 *)
+  Check1["verification enabled after a skip in one kernel", Block[{$ContextPath = MBAnalytica`Private`SymbolicSumContextPath,
+      MBAnalytica`SymbolicSum`Private`MBCHScale = {Global`x}, MBAnalytica`SymbolicSum`Private`MBCHDomain = 0 < Global`x < 1,
+      MBAnalytica`SymbolicSum`Private`MBCHProbePoint = {1/2}, MBAnalytica`SymbolicSum`Private`MBVerifyCache = <||>,
+      MBAnalytica`SymbolicSum`Private`MBCHVerifyDiff = False, MBAnalytica`SymbolicSum`Private`MBCHPhaseUsed = False,
+      MBAnalytica`SymbolicSum`Private`MBCHPhaseContour = False, MBAnalytica`SymbolicSum`Private`MBCHNegativeBases = {},
+      MBAnalytica`SymbolicSum`Private`MBCHNumTime = 30},
+    Module[{Off1, On1},
+      Off1 = MBAnalytica`SymbolicSum`Private`MBVerify[{Global`s -> -1/2}, {Global`x}, {-Global`s, 1 + Global`s}, {}];
+      MBAnalytica`SymbolicSum`Private`MBCHVerifyDiff = True;
+      On1 = MBAnalytica`SymbolicSum`Private`MBVerify[{Global`s -> -1/2}, {Global`x}, {-Global`s, 1 + Global`s}, {}];
+      Off1 === $Failed && NumericQ[On1] && Abs[On1 - 2/3] < 10^-15]]]];
 (* G2. an unbounded projection, V > c with c > 0 or V < c with c < 0, is inverted to the unit interval, V -> c/V, and
    every power of a base with V is split into the powers of its factors, each positive there.  SymbolicSum summed no
    series solution of the two-fold product on y > 1 before *)
@@ -525,6 +562,75 @@ If[MethodQ["ExpandInt"] || MethodQ["Subtraction"],
         ParameterAssumptions -> {0 < Global`u < 1, 0 < Global`v < 1, 0 < Global`u - Global`v < 1/100}]},
       R =!= $Failed && Abs[MBAnalytica`Private`NumericValue[R /. {Global`u -> 1/2, Global`v -> 99/200}] -
         N[(Log[3/2] - Log[299/200])/(1/200), 30]] < 10^-15]]];
+  (* R5.2 a square factor comes out of a root only with a fixed sign on 0 < x < 1, 0 < u < 1: (1 - 2 x)^2 was read at
+     x = 1/2 and came out as 0, and the finite integral of (2 y + 4)/((y + 2)^2 - u (1 - 2 x)^2) over the unit square got
+     2 Log[3/2] instead of Log[(9 - u)/(4 - u)] + 6/Sqrt[u] ArcTanh[Sqrt[u]/3] - 4/Sqrt[u] ArcTanh[Sqrt[u]/2] (review of
+     5045340).  It is now refused or exact *)
+  Check1["last folds: square factors with a zero stay in the root", Block[{MBExactLastFold`Private`xv = x},
+    With[{A = MBExactLastFold`Private`squareSplit[Global`psParameter1 (1 - 2 x)^2],
+        B = MBExactLastFold`Private`squareSplit[Global`psParameter1 (1 - x)^2 x^2 (3 - x)^2]},
+      A[[1]] === 1 && Expand[A[[2]] - Global`psParameter1 (1 - 2 x)^2] === 0 &&
+        Expand[B[[1]] - (1 - x) x (3 - x)] === 0 && B[[2]] === Global`psParameter1]]];
+  Check1["last folds: a finite integral through a square root", Module[{Dir = CreateDirectory[], R, U0, Ref},
+    Export[FileNameJoin[{Dir, "requests.json"}], <|"jobs" -> {<|"id" -> "square_split", "request" -> <|"op" -> "hyperflint",
+        "expr" -> "(2*y+4)/((y+2)^2-psParameter1*(1-2*x)^2)", "vars_int" -> {"y", "x"}, "vars" -> {"y", "x", "psParameter1"},
+        "vars_int_from" -> {"0", "0"}, "vars_int_to" -> {"1", "1"}, "native_unit_interval" -> True, "check_divergences" -> True,
+        "algebraic_letters" -> True, "spectator_algebraic_letters" -> True, "canonical_emission" -> True,
+        "mzv_data_path" -> FileNameJoin[{TestRoot, "dep", "IntVolFLINT", "data", "mzv_reductions.json"}]|>,
+        "orders" -> {{"y", "x"}}|>}|>, "RawJSON"];
+    R = MBAnalytica`Private`WithoutSymbolicSumRules[Block[{$ContextPath = Prepend[$ContextPath, "PolyLogTools`"]},
+      MBExactLastFold`mbeExactLastFold[Dir, "square_split", "Write" -> False, "EngineSeconds" -> 120, "RequireCertificate" -> True,
+        "CrossCheck" -> False, "Log" -> (Null &)]]];
+    AssociationQ[R] && StringQ[R["Status"]] && (R["Status"] =!= "LASTFOLD_DONE" ||
+      (U0 = R["ValueAt"]["u"];
+       Ref = Log[(9 - U0)/(4 - U0)] + 6/Sqrt[U0] ArcTanh[Sqrt[U0]/3] - 4/Sqrt[U0] ArcTanh[Sqrt[U0]/2];
+       Abs[ToExpression[R["ValueAt"]["numeric"]] - N[Ref, 40]] < 10^-20))]];
+  (* R5.1 the engine methods solve the integral without its prefactor: with Log[-x] in it they refused every order *)
+  Do[If[MethodQ[M],
+      Check1["prefactor Log[-x] with " <> M, With[{R = MBEvaluate[Log[-x] x^ep BarnesKernel, {ep, 1}, Method -> M]},
+        (R /. x -> -1) === 0 && Simplify[(R /. x -> 2) - (Log[2]/2 + ep Log[2]^2/2)] === 0]]],
+    {M, {"ExpandInt", "Subtraction"}}];
+  (* R5.3 a divergent endpoint coefficient is zero only exactly, or for a certified job by the numbers: the constant
+     G[0, 1 + 1/10^13] = Log[1 + 1/10^13] passed as zero through a scale with its G set to 1, and the divergent integral of
+     G[0, 1 + 1/10^13] (G[0, x] - G[1, x])/x got Pi^2 G[0, 1 + 1/10^13]/6 (review of 5045340) *)
+  Check1["last folds: a small constant is no zero", Module[{Gnum, Fold1, C1 = PolyLogTools`G[0, 1 + 1/10^13]},
+    Gnum[E1_] := N[E1 /. {HoldPattern[PolyLogTools`G[0, A_]] :> Log[A], HoldPattern[PolyLogTools`G[1, A_]] :> Log[1 - A],
+      HoldPattern[PolyLogTools`G[0, 0, A_]] :> Log[A]^2/2, HoldPattern[PolyLogTools`G[0, 1, A_]] :> -PolyLog[2, A]}, 40];
+    Fold1[F_] := MBAnalytica`Private`WithoutSymbolicSumRules[Block[{MBExactLastFold`Private`gatePts = {1/3, 2/3}},
+      KeyTake[MBExactLastFold`mbeLastFoldIntegrate[F, {}, x, Gnum], {"Status", "Value"}]]];
+    MBAnalytica`Private`WithoutSymbolicSumRules[MBExactLastFold`Private`endpointZeroQ[C1, Gnum]] === False &&
+      Fold1[C1 (PolyLogTools`G[0, x] - PolyLogTools`G[1, x])/x]["Status"] === "ZERO_NONCANCEL" &&
+      Fold1[-C1 PolyLogTools`G[1, x]/x] === <|"Status" -> "ok", "Value" -> Pi^2 C1/6|>]];
+  Check1["last folds: identities of G functions of the parameter", Module[{U = Global`psParameter1, G1, G2, Z, Id},
+    G1 = MBExactLastFold`Private`makeGnum[1/3];
+    G2 = MBExactLastFold`Private`makeGnum[2/7];
+    Z[E1_, Cert_] := MBAnalytica`Private`WithoutSymbolicSumRules[Block[{$ContextPath = Prepend[$ContextPath, "PolyLogTools`"],
+        MBExactLastFold`Private`endpointCertified = Cert, MBExactLastFold`Private`endpointExtraGnums = {G2}},
+      MBExactLastFold`Private`endpointZeroQ[E1, G1]]];
+    (* Log[1 - u/2] + Log[2/(2 - u)] = 0 *)
+    Id = PolyLogTools`G[1, U/2] + PolyLogTools`G[2 (-1 + U/2)/U, 1];
+    Z[Id, True] === True && Z[Id, False] === False &&
+      Z[PolyLogTools`G[1, U/2] - PolyLogTools`G[2 (-1 + U/2)/U, 1], True] === False &&
+      Z[PolyLogTools`G[1, U/2] - PolyLogTools`G[1, U/2 + 1/10^20], True] === False &&
+      Z[PolyLogTools`G[1, U/2]/10^40, True] === False && Z[PolyLogTools`G[0, 1, 1] + Pi^2/6, False] === True]];
+  (* R5.5 a claim is its holder's PID and start time: one with the PID of this kernel and another start time, of an
+     earlier process, was waited for until the wait limit, four hours by default, and so was a live claim of this kernel
+     itself, which no other process can finish (review of 5045340) *)
+  If[TrueQ[Global`$orsInstalled],
+    Check1["residue store: stale and own claims with the PID of this kernel", Module[{Dir = CreateDirectory[], Case1, A, B, C},
+      Case1[Key_, Pid_, Started_] := Module[{Claim = FileNameJoin[{Dir, Key <> ".claim"}], Calls = 0, T, R},
+        CreateDirectory[Claim];
+        Export[FileNameJoin[{Claim, "owner"}], ToString[Pid] <> "|" <> Started, "Text"];
+        {T, R} = AbsoluteTiming[Global`orsStoredCall[Key, (Calls++; {7}), MatchQ[#, {7}] &, False]];
+        {R, Calls, T, DirectoryQ[Claim], FileExistsQ[FileNameJoin[{Dir, Key <> ".wxf"}]]}];
+      Block[{Global`$oftResidueStore = Dir, Global`$oftClaimWaitLimit = 30, Global`$oftClaimPoll = 1/10,
+          Global`$orsHelperMode = False},
+        A = Case1["stale", $ProcessID, "Thu Jan  1 00:00:00 1970"];
+        B = Case1["dead", 999999999, "Thu Jan  1 00:00:00 1970"];
+        C = Case1["own", $ProcessID, Global`orsStartTime[$ProcessID]]];
+      (* released and stored at once; released and stored; closed at once and left to its holder *)
+      A[[1 ;; 2]] === {{7}, 1} && A[[3]] < 10 && ! A[[4]] && A[[5]] && B[[1 ;; 2]] === {{7}, 1} && ! B[[4]] && B[[5]] &&
+        C[[1 ;; 2]] === {{7}, 1} && C[[3]] < 10 && C[[4]] && ! C[[5]]]]];
   (* R3.6 the residue store repairs a corrupt value and an ownerless claim; every start of helpers has its own job
      directory, and an abort during the start stops the helpers already started *)
   If[TrueQ[Global`$orsInstalled],
